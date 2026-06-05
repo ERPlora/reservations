@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.blocked_dates.delete",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["blocked_date_id"],
+  "properties": {
+    "blocked_date_id": { "type": "string", "minLength": 1 }
+  }
+}

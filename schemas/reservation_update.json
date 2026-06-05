@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.reservations.update",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reservation_id"],
+  "properties": {
+    "reservation_id": { "type": "string", "minLength": 1 },
+    "guest_name": { "type": ["string", "null"], "maxLength": 200 },
+    "guest_phone": { "type": ["string", "null"], "maxLength": 50 },
+    "guest_email": { "type": ["string", "null"], "maxLength": 254 },
+    "date": { "type": ["string", "null"], "format": "date" },
+    "time": { "type": ["string", "null"], "pattern": "^[0-2][0-9]:[0-5][0-9](:[0-5][0-9])?$" },
+    "party_size": { "type": ["integer", "null"], "minimum": 1, "maximum": 100 },
+    "duration_minutes": { "type": ["integer", "null"], "minimum": 15, "maximum": 720 },
+    "table_id": { "type": ["string", "null"] },
+    "notes": { "type": ["string", "null"] },
+    "internal_notes": { "type": ["string", "null"] }
+  }
+}

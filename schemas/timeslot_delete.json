@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.timeslots.delete",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["time_slot_id"],
+  "properties": {
+    "time_slot_id": { "type": "string", "minLength": 1 }
+  }
+}

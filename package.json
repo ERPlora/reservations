@@ -1,0 +1,10 @@
+{
+  "name": "@erplora/module-reservations",
+  "private": true,
+  "version": "3.0.3",
+  "type": "module",
+  "description": "Módulo reservations (manifest declarativo + Web Components Stencil): reservas con máquina de estados, ventanas horarias, fechas bloqueadas, lista de espera y configuración por hub. La lógica no-CRUD (motor de disponibilidad, transiciones de estado, promoción de waitlist, recordatorios) vive en el handler WASM. Se compila con @erplora/module-cli.",
+  "dependencies": {
+    "@stencil/core": "^4.20.0"
+  }
+}

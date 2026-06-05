@@ -1,0 +1,5 @@
+# reservations
+
+ERPlora module (id: `reservations`). Declarative `module.json` + per-dialect SQL + Stencil Web Component + optional WASM handler. Published as a signed zip to the marketplace; the runtime identifies it by its `id`, not the repo name.
+
+Topic: `erplora-module`.

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.settings.upsert",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "time_slot_duration": { "type": ["integer", "null"], "minimum": 5, "maximum": 120 },
+    "min_party_size": { "type": ["integer", "null"], "minimum": 1 },
+    "max_party_size": { "type": ["integer", "null"], "minimum": 1 },
+    "min_advance_hours": { "type": ["integer", "null"], "minimum": 0 },
+    "max_advance_days": { "type": ["integer", "null"], "minimum": 1 },
+    "auto_confirm": { "type": ["boolean", "null"] },
+    "require_phone": { "type": ["boolean", "null"] },
+    "require_email": { "type": ["boolean", "null"] },
+    "no_show_window_minutes": { "type": ["integer", "null"], "minimum": 5 },
+    "default_duration_minutes": { "type": ["integer", "null"], "minimum": 15 },
+    "send_confirmation_email": { "type": ["boolean", "null"] },
+    "send_reminder_email": { "type": ["boolean", "null"] },
+    "reminder_hours_before": { "type": ["integer", "null"], "minimum": 1 }
+  }
+}

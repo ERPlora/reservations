@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.reservations.set_status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reservation_id", "status"],
+  "properties": {
+    "reservation_id": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "confirmed", "seated", "completed", "cancelled", "no_show"]
+    },
+    "cancellation_reason": { "type": "string", "default": "" }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.waitlist.delete",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entry_id"],
+  "properties": {
+    "entry_id": { "type": "string", "minLength": 1 }
+  }
+}

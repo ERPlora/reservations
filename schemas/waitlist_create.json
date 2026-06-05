@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.waitlist.create",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["guest_name", "guest_phone", "date", "preferred_time"],
+  "properties": {
+    "guest_name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "guest_phone": { "type": "string", "minLength": 1, "maxLength": 50 },
+    "guest_email": { "type": "string", "default": "", "maxLength": 254 },
+    "customer_id": { "type": ["string", "null"], "default": null },
+    "date": { "type": "string", "format": "date" },
+    "preferred_time": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9](:[0-5][0-9])?$" },
+    "party_size": { "type": "integer", "minimum": 1, "maximum": 100, "default": 2 },
+    "notes": { "type": "string", "default": "" }
+  }
+}

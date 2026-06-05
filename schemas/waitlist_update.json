@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.waitlist.update",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entry_id"],
+  "properties": {
+    "entry_id": { "type": "string", "minLength": 1 },
+    "is_contacted": { "type": ["boolean", "null"], "default": null },
+    "is_converted": { "type": ["boolean", "null"], "default": null },
+    "notes": { "type": ["string", "null"], "default": null }
+  }
+}
