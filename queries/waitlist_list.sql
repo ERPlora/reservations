@@ -5,8 +5,3 @@ SELECT id, customer_id, guest_name, guest_phone, guest_email,
        is_contacted, is_converted, reservation_id
 FROM reservations_waitlistentry
 WHERE hub_id = :hub_id AND is_deleted = 0
-  AND (:include_converted = 1 OR is_converted = 0)
-  AND (:date_from = '' OR date >= :date_from)
-  AND (:date_to   = '' OR date <= :date_to)
-ORDER BY date ASC, preferred_time ASC
-LIMIT :limit;

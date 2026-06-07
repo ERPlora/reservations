@@ -5,7 +5,3 @@ SELECT id, customer_id, guest_name, guest_phone, guest_email,
        status, notes
 FROM reservations_reservation
 WHERE hub_id = :hub_id AND is_deleted = 0
-  AND (:status = '' OR status = :status)
-  AND (:date   = '' OR date   = :date)
-ORDER BY date ASC, time ASC
-LIMIT :limit;

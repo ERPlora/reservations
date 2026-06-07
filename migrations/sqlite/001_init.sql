@@ -2,10 +2,10 @@
 -- Modelos: ReservationSettings (config por hub), TimeSlot (ventanas horarias por día),
 -- BlockedDate (cierres/festivos), Reservation (reserva individual con máquina de estados)
 -- y WaitlistEntry (lista de espera para slots llenos).
--- Contrato de fila estándar de hub-next (§2.5): hub_id + soft-delete + auditoría en cada tabla.
+-- Contrato de fila estándar de hub (§2.5): hub_id + soft-delete + auditoría en cada tabla.
 --
 -- NOTA: el legacy usaba el prefijo de tabla 'table_reservations_' y MODULE_ID 'table_reservations'.
--- En hub-next el módulo se llama 'reservations' y las tablas usan el prefijo 'reservations_'.
+-- En hub el módulo se llama 'reservations' y las tablas usan el prefijo 'reservations_'.
 
 -- Config de reservas por hub (1 fila por hub — único por hub_id).
 CREATE TABLE IF NOT EXISTS reservations_settings (

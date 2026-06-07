@@ -1,6 +1,6 @@
 # WASM-TODO — módulo `reservations`
 
-Lógica NO-CRUD portada de `old_modules/m_reservations/` que **no** se puede expresar de forma
+Lógica NO-CRUD que **no** se puede expresar de forma
 fiel en SQL declarativo (§5.3 Tier 2: WASM vía Extism, o Tier 1 host caps). El WASM **no** toca
 la BD: valida/calcula y devuelve *intenciones* que el runtime ejecuta contra los commands/queries
 ya definidos. Mientras no exista el handler, los commands marcados aplican una versión "tonta"
@@ -18,11 +18,11 @@ Origen: `Reservation.confirm/seat/complete/cancel/mark_no_show` + `can_be_*` (mo
 
 Transiciones válidas (cualquier otra debe rechazarse):
 
-| desde \ a   | confirmed | seated | completed | cancelled | no_show |
+| desde \ a | confirmed | seated | completed | cancelled | no_show |
 |-------------|-----------|--------|-----------|-----------|---------|
-| pending     | ✔         | ✔      |           | ✔         | ✔       |
-| confirmed   |           | ✔      |           | ✔         | ✔       |
-| seated      |           |        | ✔         |           |         |
+| pending | ✔ | ✔ | | ✔ | ✔ |
+| confirmed | | ✔ | | ✔ | ✔ |
+| seated | | | ✔ | | |
 
 Reglas:
 - `confirmed` ← solo desde `pending`; setea `confirmed_at = now`.
@@ -74,11 +74,11 @@ añadirá cuando se implemente el motor.
 
 Origen: `scheduled_tasks.py` (ambas eran `not_implemented` en legacy) + `module.py SCHEDULED_TASKS`.
 - `release_unconfirmed` (cron `0 6 * * *`): cancelar/liberar reservas `pending` que superaron la
-  ventana de hold (`settings.min_advance_hours` / política de no-confirmación).
+ ventana de hold (`settings.min_advance_hours` / política de no-confirmación).
 - `send_reminders` (cron `0 17 * * *`): enviar recordatorios de las reservas de mañana
-  (`settings.send_reminder_email` / `reminder_hours_before`).
+ (`settings.send_reminder_email` / `reminder_hours_before`).
 
-En hub-next estas tareas las dispara el scheduler M2M; el handler calcula a quién aplicar y emite
+En hub estas tareas las dispara el scheduler M2M; el handler calcula a quién aplicar y emite
 las intenciones (set_status / envío de email vía host cap de notificaciones).
 
 ## 6. Integración WhatsApp (Tier 1 host cap + Tier 2)

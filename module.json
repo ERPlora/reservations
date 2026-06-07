@@ -4,9 +4,20 @@
   "version": "3.0.3",
   "agent": {
     "description": "Manages table and resource reservations: create, update and track bookings, configure time slots and blocked dates, and handle the waitlist.",
-    "keywords": ["reservation", "booking", "table", "timeslot", "waitlist", "availability", "blocked date"]
+    "keywords": [
+      "reservation",
+      "booking",
+      "table",
+      "timeslot",
+      "waitlist",
+      "availability",
+      "blocked date"
+    ]
   },
-  "depends_on": ["tables", "customers"],
+  "depends_on": [
+    "tables",
+    "customers"
+  ],
   "permissions": [
     "reservations.view_reservation",
     "reservations.add_reservation",
@@ -22,7 +33,9 @@
     "reservations.manage_settings"
   ],
   "role_permissions": {
-    "admin": ["*"],
+    "admin": [
+      "*"
+    ],
     "manager": [
       "reservations.view_reservation",
       "reservations.add_reservation",
@@ -74,130 +87,394 @@
     "reservations.reservations.list": {
       "permission": "reservations.view_reservation",
       "sql": "queries/reservations_list.sql",
-      "ai": { "description": "Lists reservations with their status, customer, table and date/time" }
+      "list": {
+        "search": [
+          "customer_id",
+          "guest_name",
+          "guest_phone",
+          "guest_email"
+        ],
+        "sort": [
+          "id",
+          "customer_id",
+          "guest_name",
+          "guest_phone",
+          "guest_email",
+          "date",
+          "time",
+          "party_size",
+          "duration_minutes",
+          "table_id",
+          "status",
+          "notes"
+        ],
+        "default_sort": "id",
+        "default_dir": "asc",
+        "filters": {
+          "customer_id": {
+            "op": "eq"
+          },
+          "guest_name": {
+            "op": "eq"
+          },
+          "guest_phone": {
+            "op": "eq"
+          },
+          "guest_email": {
+            "op": "eq"
+          },
+          "date": {
+            "op": "range"
+          },
+          "time": {
+            "op": "eq"
+          },
+          "party_size": {
+            "op": "eq"
+          },
+          "duration_minutes": {
+            "op": "eq"
+          },
+          "table_id": {
+            "op": "eq"
+          },
+          "status": {
+            "op": "eq"
+          },
+          "notes": {
+            "op": "eq"
+          }
+        },
+        "page_size": 50
+      },
+      "ai": {
+        "description": "Lists reservations with their status, customer, table and date/time"
+      }
     },
     "reservations.reservations.get": {
       "permission": "reservations.view_reservation",
       "sql": "queries/reservation_get.sql",
-      "ai": { "description": "Retrieves the full detail of a reservation by its identifier" }
+      "ai": {
+        "description": "Retrieves the full detail of a reservation by its identifier"
+      }
     },
     "reservations.timeslots.list": {
       "permission": "reservations.view_timeslot",
       "sql": "queries/timeslots_list.sql",
-      "ai": { "description": "Lists available time slots by day of the week" }
+      "list": {
+        "sort": [
+          "id",
+          "day_of_week",
+          "start_time",
+          "end_time",
+          "max_reservations",
+          "is_active"
+        ],
+        "default_sort": "id",
+        "default_dir": "asc",
+        "filters": {
+          "day_of_week": {
+            "op": "eq"
+          },
+          "start_time": {
+            "op": "eq"
+          },
+          "end_time": {
+            "op": "eq"
+          },
+          "max_reservations": {
+            "op": "range"
+          },
+          "is_active": {
+            "op": "eq"
+          }
+        },
+        "page_size": 50
+      },
+      "ai": {
+        "description": "Lists available time slots by day of the week"
+      }
     },
     "reservations.blocked_dates.list": {
       "permission": "reservations.view_blockeddate",
       "sql": "queries/blocked_dates_list.sql",
-      "ai": { "description": "Lists dates blocked as holidays or business closures" }
+      "list": {
+        "sort": [
+          "id",
+          "date",
+          "reason",
+          "is_full_day",
+          "blocked_from",
+          "blocked_until"
+        ],
+        "default_sort": "id",
+        "default_dir": "asc",
+        "filters": {
+          "date": {
+            "op": "range"
+          },
+          "reason": {
+            "op": "eq"
+          },
+          "is_full_day": {
+            "op": "eq"
+          },
+          "blocked_from": {
+            "op": "eq"
+          },
+          "blocked_until": {
+            "op": "eq"
+          }
+        },
+        "page_size": 50
+      },
+      "ai": {
+        "description": "Lists dates blocked as holidays or business closures"
+      }
     },
     "reservations.waitlist.list": {
       "permission": "reservations.view_waitlistentry",
       "sql": "queries/waitlist_list.sql",
-      "ai": { "description": "Lists waitlist entries pending table assignment" }
+      "list": {
+        "search": [
+          "customer_id",
+          "guest_name",
+          "guest_phone",
+          "guest_email"
+        ],
+        "sort": [
+          "id",
+          "customer_id",
+          "guest_name",
+          "guest_phone",
+          "guest_email",
+          "date",
+          "preferred_time",
+          "party_size",
+          "notes",
+          "is_contacted",
+          "is_converted",
+          "reservation_id"
+        ],
+        "default_sort": "id",
+        "default_dir": "asc",
+        "filters": {
+          "customer_id": {
+            "op": "eq"
+          },
+          "guest_name": {
+            "op": "eq"
+          },
+          "guest_phone": {
+            "op": "eq"
+          },
+          "guest_email": {
+            "op": "eq"
+          },
+          "date": {
+            "op": "range"
+          },
+          "preferred_time": {
+            "op": "eq"
+          },
+          "party_size": {
+            "op": "eq"
+          },
+          "notes": {
+            "op": "eq"
+          },
+          "is_contacted": {
+            "op": "eq"
+          },
+          "is_converted": {
+            "op": "eq"
+          },
+          "reservation_id": {
+            "op": "eq"
+          }
+        },
+        "page_size": 50
+      },
+      "ai": {
+        "description": "Lists waitlist entries pending table assignment"
+      }
     },
     "reservations.settings.get": {
       "permission": "reservations.view_settings",
       "sql": "queries/settings_get.sql",
-      "ai": { "description": "Retrieves the current reservations module settings for the hub" }
+      "ai": {
+        "description": "Retrieves the current reservations module settings for the hub"
+      }
     }
   },
   "commands": {
     "reservations.reservations.create": {
       "permission": "reservations.add_reservation",
       "transaction": true,
-      "sql": ["commands/reservation_create.sql"],
+      "sql": [
+        "commands/reservation_create.sql"
+      ],
       "schema": "schemas/reservation_create.json",
-      "emit": ["reservations.reservation.created"],
-      "ai": { "description": "Creates a new reservation for a customer at a table and time slot" }
+      "emit": [
+        "reservations.reservation.created"
+      ],
+      "ai": {
+        "description": "Creates a new reservation for a customer at a table and time slot"
+      }
     },
     "reservations.reservations.update": {
       "permission": "reservations.change_reservation",
       "transaction": true,
-      "sql": ["commands/reservation_update.sql"],
+      "sql": [
+        "commands/reservation_update.sql"
+      ],
       "schema": "schemas/reservation_update.json",
-      "emit": ["reservations.reservation.updated"],
-      "ai": { "description": "Updates the details of an existing reservation (date, time, party size)" }
+      "emit": [
+        "reservations.reservation.updated"
+      ],
+      "ai": {
+        "description": "Updates the details of an existing reservation (date, time, party size)"
+      }
     },
     "reservations.reservations.set_status": {
       "permission": "reservations.change_reservation",
       "transaction": true,
-      "sql": ["commands/reservation_set_status.sql"],
+      "sql": [
+        "commands/reservation_set_status.sql"
+      ],
       "schema": "schemas/reservation_set_status.json",
-      "emit": ["reservations.reservation.status_changed"],
-      "ai": { "description": "Changes the status of a reservation (pending, confirmed, seated, completed, cancelled, no_show)" }
+      "emit": [
+        "reservations.reservation.status_changed"
+      ],
+      "ai": {
+        "description": "Changes the status of a reservation (pending, confirmed, seated, completed, cancelled, no_show)"
+      }
     },
     "reservations.reservations.delete": {
       "permission": "reservations.delete_reservation",
       "transaction": true,
-      "sql": ["commands/reservation_delete.sql"],
+      "sql": [
+        "commands/reservation_delete.sql"
+      ],
       "schema": "schemas/reservation_delete.json",
-      "emit": ["reservations.reservation.deleted"],
-      "ai": { "description": "Permanently deletes a reservation from the system (destructive)" }
+      "emit": [
+        "reservations.reservation.deleted"
+      ],
+      "ai": {
+        "description": "Permanently deletes a reservation from the system (destructive)"
+      }
     },
     "reservations.timeslots.create": {
       "permission": "reservations.change_timeslot",
       "transaction": true,
-      "sql": ["commands/timeslot_create.sql"],
+      "sql": [
+        "commands/timeslot_create.sql"
+      ],
       "schema": "schemas/timeslot_create.json",
-      "emit": ["reservations.timeslot.created"],
-      "ai": { "description": "Creates a new available time slot for reservations" }
+      "emit": [
+        "reservations.timeslot.created"
+      ],
+      "ai": {
+        "description": "Creates a new available time slot for reservations"
+      }
     },
     "reservations.timeslots.delete": {
       "permission": "reservations.change_timeslot",
       "transaction": true,
-      "sql": ["commands/timeslot_delete.sql"],
+      "sql": [
+        "commands/timeslot_delete.sql"
+      ],
       "schema": "schemas/timeslot_delete.json",
-      "emit": ["reservations.timeslot.deleted"],
-      "ai": { "description": "Deletes a time slot so it is no longer available for new reservations (destructive)" }
+      "emit": [
+        "reservations.timeslot.deleted"
+      ],
+      "ai": {
+        "description": "Deletes a time slot so it is no longer available for new reservations (destructive)"
+      }
     },
     "reservations.blocked_dates.create": {
       "permission": "reservations.change_blockeddate",
       "transaction": true,
-      "sql": ["commands/blocked_date_create.sql"],
+      "sql": [
+        "commands/blocked_date_create.sql"
+      ],
       "schema": "schemas/blocked_date_create.json",
-      "emit": ["reservations.blocked_date.created"],
-      "ai": { "description": "Blocks a date as a holiday or closure, preventing new reservations on that day" }
+      "emit": [
+        "reservations.blocked_date.created"
+      ],
+      "ai": {
+        "description": "Blocks a date as a holiday or closure, preventing new reservations on that day"
+      }
     },
     "reservations.blocked_dates.delete": {
       "permission": "reservations.change_blockeddate",
       "transaction": true,
-      "sql": ["commands/blocked_date_delete.sql"],
+      "sql": [
+        "commands/blocked_date_delete.sql"
+      ],
       "schema": "schemas/blocked_date_delete.json",
-      "emit": ["reservations.blocked_date.deleted"],
-      "ai": { "description": "Removes the block from a date to allow reservations again on that day (destructive)" }
+      "emit": [
+        "reservations.blocked_date.deleted"
+      ],
+      "ai": {
+        "description": "Removes the block from a date to allow reservations again on that day (destructive)"
+      }
     },
     "reservations.waitlist.create": {
       "permission": "reservations.change_waitlistentry",
       "transaction": true,
-      "sql": ["commands/waitlist_create.sql"],
+      "sql": [
+        "commands/waitlist_create.sql"
+      ],
       "schema": "schemas/waitlist_create.json",
-      "emit": ["reservations.waitlist.created"],
-      "ai": { "description": "Adds a customer to the waitlist when no tables are available" }
+      "emit": [
+        "reservations.waitlist.created"
+      ],
+      "ai": {
+        "description": "Adds a customer to the waitlist when no tables are available"
+      }
     },
     "reservations.waitlist.update": {
       "permission": "reservations.change_waitlistentry",
       "transaction": true,
-      "sql": ["commands/waitlist_update.sql"],
+      "sql": [
+        "commands/waitlist_update.sql"
+      ],
       "schema": "schemas/waitlist_update.json",
-      "emit": ["reservations.waitlist.updated"],
-      "ai": { "description": "Updates the status or details of a waitlist entry" }
+      "emit": [
+        "reservations.waitlist.updated"
+      ],
+      "ai": {
+        "description": "Updates the status or details of a waitlist entry"
+      }
     },
     "reservations.waitlist.delete": {
       "permission": "reservations.change_waitlistentry",
       "transaction": true,
-      "sql": ["commands/waitlist_delete.sql"],
+      "sql": [
+        "commands/waitlist_delete.sql"
+      ],
       "schema": "schemas/waitlist_delete.json",
-      "emit": ["reservations.waitlist.deleted"],
-      "ai": { "description": "Removes an entry from the waitlist (destructive)" }
+      "emit": [
+        "reservations.waitlist.deleted"
+      ],
+      "ai": {
+        "description": "Removes an entry from the waitlist (destructive)"
+      }
     },
     "reservations.settings.upsert": {
       "permission": "reservations.manage_settings",
       "transaction": true,
-      "sql": ["commands/settings_upsert.sql"],
+      "sql": [
+        "commands/settings_upsert.sql"
+      ],
       "schema": "schemas/settings_upsert.json",
-      "emit": ["reservations.settings.updated"],
-      "ai": { "description": "Saves or updates the reservations module settings for the hub" }
+      "emit": [
+        "reservations.settings.updated"
+      ],
+      "ai": {
+        "description": "Saves or updates the reservations module settings for the hub"
+      }
     }
   },
   "ai_context": "Module: Reservations (id: reservations, v3.0.3). Table and resource reservations with time slots, blocked dates, waitlist and a per-hub settings record. Entities: reservation (guest booking with a status machine pending->confirmed->seated->completed, plus cancelled/no_show), timeslot (available windows per day_of_week), blocked_date (holidays/closures), waitlist entry (for full slots, convertible into a reservation), settings (party-size limits, advance booking window, auto-confirm, no-show window, reminders). Depends on the tables and customers modules. Reservations reference customer_id and table_id by contract (no FK). Non-CRUD logic (availability engine, status-transition validation, waitlist promotion, advance-booking window enforcement, reminders/no-show release jobs, WhatsApp booking) is handled by the runtime/WASM handler — see WASM-TODO.md.",
