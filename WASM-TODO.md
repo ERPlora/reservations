@@ -3,20 +3,30 @@
 Lógica NO-CRUD que **no** se puede expresar de forma
 fiel en SQL declarativo (§5.3 Tier 2: WASM vía Extism, o Tier 1 host caps). El WASM **no** toca
 la BD: valida/calcula y devuelve *intenciones* que el runtime ejecuta contra los commands/queries
-ya definidos. Mientras no exista el handler, los commands marcados aplican una versión "tonta"
-(el SQL confía en que el payload ya viene validado) y los motores quedan pendientes.
+ya definidos.
+
+> **Estado 2026-06-10:** los puntos **1–4 están IMPLEMENTADOS** (`handler/` Rust →
+> `dist/handler.wasm`, funciones `create_reservation` / `set_status` / `waitlist_update`;
+> verificado E2E contra el runtime real, 37/37). Diseño y desviaciones en
+> `architecture/modules/reservations.md` y ADR-0021. Quedan pendientes los puntos 5 y 6.
+>
+> Desviación clave vs. el plan original: el host **no** entrega lecturas pre-cargadas (el guest
+> recibe solo `{payload, context{hub_id, current_user_id, now, new_ids}}`), así que las guardas
+> que dependen de datos vivos se evalúan en el SQL de commands **internos** dentro de la
+> transacción, con assert-or-rollback sobre la tabla guardia `reservations__gate`
+> (`CHECK (ok = 1)`, migración `002_gate.sql`).
 
 Fuentes legacy: `services.py`, `whatsapp.py`, `scheduled_tasks.py`, `models.py` (propiedades/métodos
 de `Reservation`).
 
 ---
 
-## 1. Máquina de estados de la reserva (Tier 2 — WASM)
+## 1. Máquina de estados de la reserva (Tier 2 — WASM) ✅ IMPLEMENTADO
 
 Origen: `Reservation.confirm/seat/complete/cancel/mark_no_show` + `can_be_*` (models.py) y
 `ReservationService.update_status` (services.py).
 
-Transiciones válidas (cualquier otra debe rechazarse):
+Transiciones válidas (cualquier otra se rechaza, incluida repetir el mismo estado):
 
 | desde \ a | confirmed | seated | completed | cancelled | no_show |
 |-------------|-----------|--------|-----------|-----------|---------|
@@ -31,46 +41,55 @@ Reglas:
 - `cancelled` ← desde `pending|confirmed`; setea `cancelled_at = now` + `cancellation_reason`.
 - `no_show` ← desde `pending|confirmed`; sin timestamp dedicado.
 
-El handler debe: leer la reserva (query `reservations.reservations.get`), validar la transición
-contra el `status` actual, calcular qué `*_at` rellenar, y devolver la intención que ejecuta el
-command `reservations.reservations.set_status` (que ya acepta los binds `:confirmed_at` etc.).
-**Hoy** `set_status` aplica el `status` recibido sin validar la transición → mover a WASM.
+**Implementación:** handler `set_status` (rechaza destinos nunca legales) → command interno
+`reservations._apply_status`: UPDATE condicionado a transición legal contra el `status` ACTUAL,
+`*_at = :now` del runtime (el cliente ya no envía timestamps), assert sobre `reservations__gate`
+(exige `status = :status AND updated_at = :now` ⇒ una transición ilegal revierte con error).
 
-## 2. Motor de disponibilidad (Tier 2 — WASM)
+## 2. Motor de disponibilidad (Tier 2 — WASM) ✅ IMPLEMENTADO (sin `alternatives[]`)
 
 Origen: `whatsapp.check_availability` + validaciones en `ReservationService.create`.
 
-Para una fecha/hora/`party_size` dados, decidir si se puede reservar:
+Para una fecha/hora/`party_size` dados, decide si se puede reservar:
 - `party_size` dentro de `[settings.min_party_size, settings.max_party_size]`.
 - La fecha no está en `reservations_blockeddate` (día completo, o franja que solape la hora).
 - La hora cae dentro de algún `reservations_timeslot` activo para ese `day_of_week`.
-- El nº de reservas existentes en ese slot no supera `timeslot.max_reservations` (cuenta atómica).
+- El nº de reservas vivas en ese slot no alcanza `timeslot.max_reservations` (conteo atómico).
 - Ventana de antelación: `settings.min_advance_hours` ≤ (fecha-hora − now) ≤ `settings.max_advance_days`.
-- Si no hay hueco, calcular **alternativas** (otros slots cercanos del mismo día / días próximos).
 
-Devuelve `{ available, alternatives[], details }`. El alta (`create`) debe invocar esto antes de
-insertar; **hoy** `reservations.reservations.create` inserta sin comprobar disponibilidad ni
-bloqueos (solo el JSON Schema valida forma) → mover el gate a WASM.
+**Implementación:** handler `create_reservation` (valida forma, normaliza `time` a HH:MM:SS,
+reparte el id de `context.new_ids`, emite `reservations.reservation.created` con el id) → command
+interno `reservations._create_gated`: INSERT condicional que evalúa TODAS las condiciones contra
+datos vivos dentro de la transacción (sin fila de settings aplican los defaults de la migración;
+`auto_confirm` decide `pending|confirmed`; `duration_minutes` defaultea de settings) + assert.
 
-## 3. Promoción de lista de espera → reserva (Tier 2 — WASM, multi-tabla)
+**Pendiente:** `alternatives[]` (proponer otros slots) no es calculable sin lecturas del host en
+el guest — gap del runtime (lecturas Tier 2). La UI puede componerlas con
+`reservations.timeslots.list` + la futura query de conteo (punto 4).
 
-Origen: campos `WaitlistEntry.is_converted/reservation_id` (models.py) — el legacy lo dejó como
-flag manual, pero la conversión correcta es atómica:
-1. Crear la reserva (command `reservations.reservations.create`).
-2. Fijar en la entrada `is_converted = 1` y `reservation_id = <nueva reserva>`.
+## 3. Promoción de lista de espera → reserva (Tier 2 — WASM, multi-tabla) ✅ IMPLEMENTADO
 
-Debe ocurrir en una sola transacción. **Hoy** `reservations.waitlist.update` solo flipa el flag
-`is_converted` (no crea la reserva ni enlaza `reservation_id`). El handler de conversión debe
-orquestar ambos pasos y devolver las dos intenciones.
+Origen: campos `WaitlistEntry.is_converted/reservation_id` (models.py).
 
-## 4. Contadores de capacidad atómicos (Tier 2 — WASM + query de conteo)
+**Implementación:** `reservations.waitlist.update` ahora pasa por el handler `waitlist_update`:
+- sin `is_converted` → update simple (command interno `reservations._waitlist_update`);
+- con `is_converted=1` → promoción atómica (command interno `reservations._waitlist_promote`):
+  crea la reserva **leyendo los datos de la propia fila de waitlist** (autoridad = BD, no el
+  cliente), re-aplica el gate de disponibilidad (bloqueos/franja activa/capacidad; la ventana de
+  antelación NO se aplica — es una acción de staff, normalmente para el mismo día) y enlaza
+  `is_converted=1` + `reservation_id` en la MISMA transacción. Doble promoción, entrada
+  inexistente o slot lleno ⇒ rollback de TODO (ni reserva ni flag). Emite además
+  `reservations.reservation.created`.
 
-El chequeo de "slot lleno" (punto 2) requiere contar reservas vivas por (fecha, franja) y
-compararlo con `max_reservations` bajo el `SAVEPOINT` del command, para evitar overbooking en
-concurrencia. Necesita una query de conteo dedicada (p.ej. `reservations.slots.count_for`) que se
-añadirá cuando se implemente el motor.
+## 4. Contadores de capacidad atómicos ✅ cubierto inline · query de conteo PENDIENTE
 
-## 5. Tareas programadas (Tier 2/host — fuera del request del usuario)
+El chequeo de "slot lleno" se hace con un `COUNT(*)` correlacionado dentro del INSERT condicional
+de `_create_gated`/`_waitlist_promote`, en la misma transacción del command ⇒ anti-overbooking
+atómico (en SQLite el escritor es único; en Postgres revisar aislamiento cuando exista esa
+migración). **Pendiente:** query dedicada `reservations.slots.count_for` para que la UI de
+disponibilidad muestre ocupación/alternativas sin intentar crear.
+
+## 5. Tareas programadas (Tier 2/host — fuera del request del usuario) — PENDIENTE
 
 Origen: `scheduled_tasks.py` (ambas eran `not_implemented` en legacy) + `module.py SCHEDULED_TASKS`.
 - `release_unconfirmed` (cron `0 6 * * *`): cancelar/liberar reservas `pending` que superaron la
@@ -81,7 +100,7 @@ Origen: `scheduled_tasks.py` (ambas eran `not_implemented` en legacy) + `module.
 En hub estas tareas las dispara el scheduler M2M; el handler calcula a quién aplicar y emite
 las intenciones (set_status / envío de email vía host cap de notificaciones).
 
-## 6. Integración WhatsApp (Tier 1 host cap + Tier 2)
+## 6. Integración WhatsApp (Tier 1 host cap + Tier 2) — PENDIENTE
 
 Origen: `whatsapp.py` (`check_availability`, `create_from_request`, `get_context_for_bot`).
 Reserva creada desde un mensaje de WhatsApp: reutiliza el motor de disponibilidad (punto 2) y el
@@ -96,10 +115,13 @@ calculan en el Web Component / SDK a partir de la fila (no se persisten, no nece
 
 ---
 
-### Resumen de qué quedó como SQL "confiado" pendiente de gate WASM
-- `reservation_create.sql` — falta gate de disponibilidad/bloqueos/antelación (punto 2).
-- `reservation_set_status.sql` — falta validación de transición + timestamps (punto 1).
-- `waitlist_update.sql` — `is_converted` no crea ni enlaza la reserva (punto 3).
-- Falta query de conteo de capacidad por slot (punto 4) y las tareas programadas (punto 5).
+### Cómo se compila el handler
 
-> NO se ha escrito Rust ni `dist/`. Este documento es el contrato para el Tier 2 cuando se implemente.
+```sh
+cd handler
+cargo build --release --target wasm32-unknown-unknown --features guest
+cp target/wasm32-unknown-unknown/release/reservations_handler.wasm ../dist/handler.wasm
+```
+
+`erplora-guest-sdk` se referencia por ruta relativa al repo del Hub
+(`../../../../hub/crates/guest-sdk`), igual que el resto de handlers del workspace.

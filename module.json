@@ -80,7 +80,8 @@
   ],
   "migrations": {
     "sqlite": [
-      "migrations/sqlite/001_init.sql"
+      "migrations/sqlite/001_init.sql",
+      "migrations/sqlite/002_gate.sql"
     ]
   },
   "queries": {
@@ -310,17 +311,23 @@
   "commands": {
     "reservations.reservations.create": {
       "permission": "reservations.add_reservation",
-      "transaction": true,
-      "sql": [
-        "commands/reservation_create.sql"
-      ],
+      "handler": {
+        "type": "wasm",
+        "file": "dist/handler.wasm",
+        "function": "create_reservation"
+      },
       "schema": "schemas/reservation_create.json",
-      "emit": [
-        "reservations.reservation.created"
-      ],
       "ai": {
-        "description": "Creates a new reservation for a customer at a table and time slot"
+        "description": "Creates a new reservation for a customer at a table and time slot (validates availability, blocked dates, slot capacity and advance window)"
       }
+    },
+    "reservations._create_gated": {
+      "permission": "reservations.add_reservation",
+      "sql": [
+        "commands/_create_gated_insert.sql",
+        "commands/_create_gated_assert.sql",
+        "commands/_gate_clear.sql"
+      ]
     },
     "reservations.reservations.update": {
       "permission": "reservations.change_reservation",
@@ -338,17 +345,26 @@
     },
     "reservations.reservations.set_status": {
       "permission": "reservations.change_reservation",
-      "transaction": true,
-      "sql": [
-        "commands/reservation_set_status.sql"
-      ],
+      "handler": {
+        "type": "wasm",
+        "file": "dist/handler.wasm",
+        "function": "set_status"
+      },
       "schema": "schemas/reservation_set_status.json",
       "emit": [
         "reservations.reservation.status_changed"
       ],
       "ai": {
-        "description": "Changes the status of a reservation (pending, confirmed, seated, completed, cancelled, no_show)"
+        "description": "Changes the status of a reservation validating the state machine (confirmed, seated, completed, cancelled, no_show)"
       }
+    },
+    "reservations._apply_status": {
+      "permission": "reservations.change_reservation",
+      "sql": [
+        "commands/_apply_status_update.sql",
+        "commands/_apply_status_assert.sql",
+        "commands/_gate_clear.sql"
+      ]
     },
     "reservations.reservations.delete": {
       "permission": "reservations.delete_reservation",
@@ -436,17 +452,33 @@
     },
     "reservations.waitlist.update": {
       "permission": "reservations.change_waitlistentry",
-      "transaction": true,
-      "sql": [
-        "commands/waitlist_update.sql"
-      ],
+      "handler": {
+        "type": "wasm",
+        "file": "dist/handler.wasm",
+        "function": "waitlist_update"
+      },
       "schema": "schemas/waitlist_update.json",
       "emit": [
         "reservations.waitlist.updated"
       ],
       "ai": {
-        "description": "Updates the status or details of a waitlist entry"
+        "description": "Updates a waitlist entry; setting is_converted atomically promotes it into a reservation"
       }
+    },
+    "reservations._waitlist_update": {
+      "permission": "reservations.change_waitlistentry",
+      "sql": [
+        "commands/_waitlist_update.sql"
+      ]
+    },
+    "reservations._waitlist_promote": {
+      "permission": "reservations.change_waitlistentry",
+      "sql": [
+        "commands/_waitlist_promote_insert.sql",
+        "commands/_waitlist_promote_link.sql",
+        "commands/_waitlist_promote_assert.sql",
+        "commands/_gate_clear.sql"
+      ]
     },
     "reservations.waitlist.delete": {
       "permission": "reservations.change_waitlistentry",
@@ -477,7 +509,7 @@
       }
     }
   },
-  "ai_context": "Module: Reservations (id: reservations, v3.0.3). Table and resource reservations with time slots, blocked dates, waitlist and a per-hub settings record. Entities: reservation (guest booking with a status machine pending->confirmed->seated->completed, plus cancelled/no_show), timeslot (available windows per day_of_week), blocked_date (holidays/closures), waitlist entry (for full slots, convertible into a reservation), settings (party-size limits, advance booking window, auto-confirm, no-show window, reminders). Depends on the tables and customers modules. Reservations reference customer_id and table_id by contract (no FK). Non-CRUD logic (availability engine, status-transition validation, waitlist promotion, advance-booking window enforcement, reminders/no-show release jobs, WhatsApp booking) is handled by the runtime/WASM handler — see WASM-TODO.md.",
+  "ai_context": "Module: Reservations (id: reservations, v3.0.3). Table and resource reservations with time slots, blocked dates, waitlist and a per-hub settings record. Entities: reservation (guest booking with a status machine pending->confirmed->seated->completed, plus cancelled/no_show), timeslot (available windows per day_of_week), blocked_date (holidays/closures), waitlist entry (for full slots, convertible into a reservation), settings (party-size limits, advance booking window, auto-confirm, no-show window, reminders). Depends on the tables and customers modules. Reservations reference customer_id and table_id by contract (no FK). Non-CRUD logic implemented as a Tier 2 WASM handler (dist/handler.wasm): availability gate on create (party-size limits, blocked dates, active time slot, atomic slot capacity, advance-booking window), status-transition state machine with authoritative timestamps, and atomic waitlist promotion (waitlist.update with is_converted creates and links the reservation in one transaction). Still pending: reminders/no-show release jobs and WhatsApp booking — see WASM-TODO.md.",
   "ui": {
     "entry": "dist/reservations.esm.js"
   }
