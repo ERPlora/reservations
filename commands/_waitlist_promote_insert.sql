@@ -35,7 +35,7 @@ WHERE w.id = :entry_id AND w.hub_id = :hub_id AND w.is_deleted = 0 AND w.is_conv
   AND EXISTS (
         SELECT 1 FROM reservations_timeslot t
         WHERE t.hub_id = :hub_id AND t.is_deleted = 0 AND t.is_active = 1
-          AND t.day_of_week = (CAST(strftime('%w', w.date) AS INTEGER) + 6) % 7
+          AND t.day_of_week = erp_dow_mon0(w.date)
           AND w.preferred_time >= t.start_time AND w.preferred_time < t.end_time
           AND (SELECT COUNT(*) FROM reservations_reservation r
                WHERE r.hub_id = :hub_id AND r.is_deleted = 0 AND r.date = w.date

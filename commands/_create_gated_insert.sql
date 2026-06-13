@@ -8,7 +8,8 @@
 -- (time en HH:MM:SS). Runtime inyecta :hub_id, :current_user_id, :now.
 -- Los COALESCE sobre settings replican los defaults de la migración (sin fila de settings,
 -- aplican los mismos límites por defecto). day_of_week del módulo: 0=lunes … 6=domingo;
--- strftime('%w') da 0=domingo … 6=sábado → se convierte con (+6) % 7.
+-- Se usan las funciones-puente erp_dow_mon0(x) (día de semana 0=lunes…6=domingo, ya con la
+-- conversión por dialecto) y erp_datediff_days(a, b) (días fraccionarios) — ADR-0007 §4a.
 INSERT INTO reservations_reservation
   (id, hub_id, customer_id, guest_name, guest_phone, guest_email,
    date, time, party_size, duration_minutes, table_id,
@@ -31,8 +32,8 @@ WHERE
   :party_size >= COALESCE(s.min_party_size, 1)
   AND :party_size <= COALESCE(s.max_party_size, 20)
   -- ventana de antelación: min_advance_hours <= (fecha-hora - now) <= max_advance_days
-  AND julianday(:date || ' ' || :time) - julianday(:now) >= COALESCE(s.min_advance_hours, 1) / 24.0
-  AND julianday(:date || ' ' || :time) - julianday(:now) <= COALESCE(s.max_advance_days, 30)
+  AND erp_datediff_days(:date || ' ' || :time, :now) >= COALESCE(s.min_advance_hours, 1) / 24.0
+  AND erp_datediff_days(:date || ' ' || :time, :now) <= COALESCE(s.max_advance_days, 30)
   -- la fecha/hora no está bloqueada (día completo o franja que solape la hora)
   AND NOT EXISTS (
         SELECT 1 FROM reservations_blockeddate b
@@ -44,7 +45,7 @@ WHERE
   AND EXISTS (
         SELECT 1 FROM reservations_timeslot t
         WHERE t.hub_id = :hub_id AND t.is_deleted = 0 AND t.is_active = 1
-          AND t.day_of_week = (CAST(strftime('%w', :date) AS INTEGER) + 6) % 7
+          AND t.day_of_week = erp_dow_mon0(:date)
           AND :time >= t.start_time AND :time < t.end_time
           AND (SELECT COUNT(*) FROM reservations_reservation r
                WHERE r.hub_id = :hub_id AND r.is_deleted = 0 AND r.date = :date
