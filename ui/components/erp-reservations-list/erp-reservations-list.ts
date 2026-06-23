@@ -5,12 +5,20 @@ import '@erplora/outfitkit/ok-data-table';
 import type { DataTableColumn } from '@erplora/outfitkit';
 import { createListController } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
+// Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
+// internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
+import esLocale from '../../../locales/es.json';
+import enLocale from '../../../locales/en.json';
+const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 interface ErploraClientLike extends ListClient {
   query<T = unknown>(name: string, params?: Record<string, unknown>): Promise<T>;
   queryPage<R = unknown>(name: string, params: ListParams): Promise<ListPage<R>>;
   command<T = unknown>(name: string, payload?: Record<string, unknown>): Promise<T>;
   on(event: string, cb: (payload: unknown) => void): () => void;
+  /** i18n del módulo (ADR-0055): idioma activo + traducción del catálogo `ui`. */
+  locale: string;
+  t(catalog: Record<string, unknown>, key: string, params?: Record<string, unknown>): string;
 }
 
 interface Reservation {
@@ -27,13 +35,14 @@ interface Reservation {
   notes: string;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmada',
-  seated: 'Sentada',
-  completed: 'Completada',
-  cancelled: 'Cancelada',
-  no_show: 'No-show',
+// Mapa estado → clave i18n. El valor (`value=`/enum) NO se traduce; la etiqueta visible sí.
+const STATUS_KEYS: Record<string, string> = {
+  pending: 'ui.statusPending',
+  confirmed: 'ui.statusConfirmed',
+  seated: 'ui.statusSeated',
+  completed: 'ui.statusCompleted',
+  cancelled: 'ui.statusCancelled',
+  no_show: 'ui.statusNoShow',
 };
 
 function erplora(): ErploraClientLike {
@@ -72,35 +81,46 @@ export class ErpReservationsList extends LitElement {
 
   private unsub?: () => void;
 
-  private columns: DataTableColumn[] = [
-    { key: 'date', header: 'Fecha', sortable: true, filterable: true, filterType: 'daterange' },
-    { key: 'time', header: 'Hora', sortable: true, filterable: true, filterType: 'text' },
-    { key: 'guest_name', header: 'Cliente', sortable: true, filterable: true, filterType: 'text' },
-    { key: 'guest_phone', header: 'Teléfono', sortable: true, filterable: true, filterType: 'text' },
-    { key: 'party_size', header: 'Pax', align: 'right', sortable: true, filterable: true, filterType: 'text' },
+  // Getter (no campo): se re-evalúa en cada render → los textos cambian con el idioma activo
+  // (ADR-0055). `connectedCallback` re-renderiza al recibir `erplora:locale-changed`.
+  private get columns(): DataTableColumn[] {
+    const t = (k: string): string => erplora().t(CATALOG, k);
+    return [
+    { key: 'date', header: t('ui.colDate'), sortable: true, filterable: true, filterType: 'daterange' },
+    { key: 'time', header: t('ui.colTime'), sortable: true, filterable: true, filterType: 'text' },
+    { key: 'guest_name', header: t('ui.colGuestName'), sortable: true, filterable: true, filterType: 'text' },
+    { key: 'guest_phone', header: t('ui.colGuestPhone'), sortable: true, filterable: true, filterType: 'text' },
+    { key: 'party_size', header: t('ui.colPartySize'), align: 'right', sortable: true, filterable: true, filterType: 'text' },
     {
       key: 'status',
-      header: 'Estado',
+      header: t('ui.colStatus'),
       sortable: true,
       filterable: true,
       filterType: 'select',
-      options: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
-      format: (r) => STATUS_LABELS[r.status as string] ?? (r.status as string),
+      options: Object.entries(STATUS_KEYS).map(([value, key]) => ({ value, label: t(key) })),
+      format: (r) => (STATUS_KEYS[r.status as string] ? t(STATUS_KEYS[r.status as string]) : (r.status as string)),
     },
-  ];
+    ];
+  }
 
-  private actions = [
-    { id: 'confirm', label: 'Confirmar', icon: 'checkmark-outline', color: 'primary' },
-    { id: 'seat', label: 'Sentar', icon: 'restaurant-outline', color: 'success' },
-    { id: 'complete', label: 'Completar', icon: 'checkmark-done-outline', color: 'medium' },
-    { id: 'cancel', label: 'Cancelar', icon: 'close-outline', color: 'danger' },
-  ];
+  private get actions() {
+    const t = (k: string): string => erplora().t(CATALOG, k);
+    return [
+      { id: 'confirm', label: t('ui.actionConfirm'), icon: 'checkmark-outline', color: 'primary' },
+      { id: 'seat', label: t('ui.actionSeat'), icon: 'restaurant-outline', color: 'success' },
+      { id: 'complete', label: t('ui.actionComplete'), icon: 'checkmark-done-outline', color: 'medium' },
+      { id: 'cancel', label: t('ui.actionCancel'), icon: 'close-outline', color: 'danger' },
+    ];
+  }
 
   // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
   // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
   // sola vez tras el primer render, considera firstUpdated() en su lugar.
+  private readonly onLocaleChange = (): void => this.requestUpdate();
+
   async connectedCallback() {
     super.connectedCallback();
+    window.addEventListener('erplora:locale-changed', this.onLocaleChange);
     this.ctrl = createListController<Reservation>(erplora(), 'reservations.reservations.list', () => this.requestUpdate(), {
       pageSize: 50,
       sort: 'id',
@@ -121,8 +141,9 @@ export class ErpReservationsList extends LitElement {
   }
 
   disconnectedCallback() {
-    super.disconnectedCallback();
+    window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
     this.unsub?.();
+    super.disconnectedCallback();
   }
 
   private async createReservation(ev: Event) {
@@ -145,7 +166,7 @@ export class ErpReservationsList extends LitElement {
       this.newParty = '2';
       await this.ctrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : 'No se pudo crear la reserva';
+      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateReservation');
     } finally {
       this.saving = false;
     }
@@ -169,26 +190,27 @@ export class ErpReservationsList extends LitElement {
       });
       await this.ctrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : 'No se pudo cambiar el estado';
+      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSetStatus');
     }
   }
 
   render() {
+    const t = (k: string): string => erplora().t(CATALOG, k);
     return html`<div>
         <header>
-          <h2>Reservas</h2>
+          <h2>${t('ui.titleReservations')}</h2>
         </header>
         <form class="form" @submit=${(e) => this.createReservation(e)}>
-          <ion-input placeholder="Cliente" .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
-          <ion-input placeholder="Teléfono" .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
+          <ion-input placeholder=${t('ui.phGuestName')} .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
+          <ion-input placeholder=${t('ui.phGuestPhone')} .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
           <ion-input type="date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
           <ion-input type="time" .value=${this.newTime} @ionInput=${(e: any) => (this.newTime = e.target.value)}></ion-input>
-          <ion-input type="number" min="1" placeholder="Pax" .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? 'Guardando…' : 'Reservar'}</ion-button>
+          <ion-input type="number" min="1" placeholder=${t('ui.phPartySize')} .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
+          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
         </form>
         ${this.formError ? html`<p class="err">${this.formError}</p>` : nothing}
         ${this.ctrl?.error ? html`<p class="err">${this.ctrl.error}</p>` : nothing}
-        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${"Buscar cliente, teléfono o fecha…"} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? 'Cargando…' : 'Sin reservas.'} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}></ok-data-table>
+        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyReservations')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}></ok-data-table>
       </div>`;
   }
 }

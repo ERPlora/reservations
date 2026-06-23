@@ -9,7 +9,7 @@ var __decorateClass = (decorators, target, key, kind) => {
   return result;
 };
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
 var ElementInternalsShim = class ElementInternals {
   get shadowRoot() {
     return this.__host.__shadowRoot;
@@ -88,7 +88,7 @@ var ElementInternalsShim = class ElementInternals {
   }
 };
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/events.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/events.js
 var __classPrivateFieldSet = function(receiver, state, value, kind, f3) {
   if (kind === "m") throw new TypeError("Private method is not writable");
   if (kind === "a" && !f3) throw new TypeError("Private accessor was defined without a setter");
@@ -246,7 +246,7 @@ Object.defineProperties(CustomEventShim.prototype, {
 var EventShimWithRealType = EventShim;
 var CustomEventShimWithRealType = CustomEventShim;
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/css.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/css.js
 var _a2;
 var CSSRuleShim = (_a2 = class CSSRule {
   constructor() {
@@ -277,7 +277,7 @@ var CSSRuleShim = (_a2 = class CSSRule {
   }
 }, _a2.STYLE_RULE = 1, _a2.CHARSET_RULE = 2, _a2.IMPORT_RULE = 3, _a2.MEDIA_RULE = 4, _a2.FONT_FACE_RULE = 5, _a2.PAGE_RULE = 6, _a2.NAMESPACE_RULE = 10, _a2.KEYFRAMES_RULE = 7, _a2.KEYFRAME_RULE = 8, _a2.SUPPORTS_RULE = 12, _a2.COUNTER_STYLE_RULE = 11, _a2.FONT_FEATURE_VALUES_RULE = 14, _a2.MARGIN_RULE = 9, _a2);
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/index.js
+// node_modules/@lit-labs/ssr-dom-shim/index.js
 globalThis.Event ??= EventShimWithRealType;
 globalThis.CustomEvent ??= CustomEventShimWithRealType;
 var constructionToken = Symbol();
@@ -674,7 +674,7 @@ var CustomElementRegistryShimWithRealType = CustomElementRegistry;
 var customElements2 = new CustomElementRegistryShimWithRealType();
 var windowShim = new WindowShim(constructionToken);
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/css-tag.js
+// node_modules/@lit/reactive-element/node/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -719,7 +719,7 @@ var c = e || void 0 === t.CSSStyleSheet ? (t5) => t5 : (t5) => t5 instanceof CSS
   return r(e5);
 })(t5) : t5;
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/reactive-element.js
+// node_modules/@lit/reactive-element/node/reactive-element.js
 var { is: h, defineProperty: r2, getOwnPropertyDescriptor: o2, getOwnPropertyNames: n2, getOwnPropertySymbols: a, getPrototypeOf: c2 } = Object;
 var l = globalThis;
 l.customElements ??= customElements2;
@@ -942,7 +942,7 @@ var g = class extends (globalThis.HTMLElement ?? HTMLElementShimWithRealType) {
 };
 g.elementStyles = [], g.shadowRootOptions = { mode: "open" }, g[f("elementProperties")] = /* @__PURE__ */ new Map(), g[f("finalized")] = /* @__PURE__ */ new Map(), u?.({ ReactiveElement: g }), (l.reactiveElementVersions ??= []).push("2.1.2");
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/lit-html.js
+// node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i2 = (t5) => t5;
 var s2 = t2.trustedTypes;
@@ -1197,7 +1197,7 @@ var D = (t5, i7, s5) => {
   return h4._$AI(t5), h4;
 };
 
-// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i3 = class extends g {
   constructor() {
@@ -1226,7 +1226,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i3 });
 (s3.litElementVersions ??= []).push("4.2.2");
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/property.js
+// node_modules/@lit/reactive-element/node/decorators/property.js
 var o5 = { attribute: true, type: String, converter: b, reflect: false, hasChanged: m };
 var r4 = (t5 = o5, e5, r6) => {
   const { kind: n6, metadata: i7 } = r6;
@@ -1256,19 +1256,19 @@ function n4(t5) {
   })(t5, e5, o7);
 }
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/state.js
+// node_modules/@lit/reactive-element/node/decorators/state.js
 function r5(r6) {
   return n4({ ...r6, state: true, attribute: false });
 }
 
-// ../../node_modules/.pnpm/@outfitkit+core@file+..+outfitkit/node_modules/@outfitkit/core/dist/define.js
+// ../outfitkit/dist/define.js
 function define(tag, ctor) {
   if (typeof customElements !== "undefined" && !customElements.get(tag)) {
     customElements.define(tag, ctor);
   }
 }
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive.js
+// node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t5) => (...e5) => ({ _$litDirective$: t5, values: e5 });
 var i4 = class {
@@ -1288,7 +1288,7 @@ var i4 = class {
   }
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive-helpers.js
+// node_modules/lit-html/directive-helpers.js
 var { I: t4 } = j;
 var i5 = (o7) => o7;
 var s4 = () => document.createComment("");
@@ -1321,7 +1321,7 @@ var h3 = (o7) => {
   o7._$AR(), o7._$AA.remove();
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/repeat.js
+// node_modules/lit-html/directives/repeat.js
 var u4 = (e5, s5, t5) => {
   const r6 = /* @__PURE__ */ new Map();
   for (let l3 = s5; l3 <= t5; l3++) r6.set(e5[l3], l3);
@@ -1374,7 +1374,7 @@ var c4 = e4(class extends i4 {
   }
 });
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/style-map.js
+// node_modules/lit-html/directives/style-map.js
 var n5 = "important";
 var i6 = " !" + n5;
 var o6 = e4(class extends i4 {
@@ -1403,7 +1403,7 @@ var o6 = e4(class extends i4 {
   }
 });
 
-// ../../node_modules/.pnpm/@outfitkit+core@file+..+outfitkit/node_modules/@outfitkit/core/dist/ok-data-table.js
+// ../outfitkit/dist/ok-data-table.js
 var __defProp2 = Object.defineProperty;
 var __decorateClass2 = (decorators, target, key, kind) => {
   var result = void 0;
@@ -1571,12 +1571,15 @@ var OkDataTable = class extends i3 {
 
     /* ── Topbar / cabecera (relieve) ─────────────────────────────────────────────────────── */
     .bar { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.65rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--header-background); }
-    /* Toolbar CONSOLIDADA: TODOS los controles (buscador, filtros, page-size, vistas, columnas,
-     * CSV, ⋮, alta) son hijos directos de UNA sola fila flex que envuelve ELEMENTO A ELEMENTO
-     * (no por bloques): caben en una línea → una línea; los que no caben bajan a la(s) línea(s)
-     * que hagan falta. El cluster derecho se empuja al borde con .tk-spacer (hueco flexible)
-     * solo cuando todo cabe en una línea; al envolver, el spacer se oculta y todo se apila a la
-     * izquierda. */
+    /* Toolbar CONSOLIDADA: TODOS los controles son hijos directos de UNA sola fila flex que
+     * envuelve ELEMENTO A ELEMENTO (no por bloques): caben en una línea → una línea; los que no
+     * caben bajan a la(s) línea(s) que hagan falta. El cluster derecho se empuja al borde con
+     * .tk-spacer (hueco flexible) solo cuando todo cabe en una línea; al envolver, el spacer se
+     * oculta y todo se apila a la izquierda.
+     * ORDEN CANÓNICO (2026-06-22, izquierda→derecha): [buscador] · [filtros en línea] · ‹spacer› ·
+     * [SELECTORES: columnas → filas/página] · [BOTONES: vistas → filtros(funnel) → import → export →
+     * alta → ⋮ → acción primaria]. Es decir: buscador al inicio, filtros en medio, y al final los
+     * selectores (columnas, luego «N por página») seguidos de los botones de acción. */
     .bar-main { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
     .bar-main > ion-button { --padding-start: 0.5rem; --padding-end: 0.5rem; margin: 0; }
     /* Spacer que absorbe el hueco libre en pantallas anchas (empuja el cluster derecho al borde).
@@ -2287,6 +2290,19 @@ var OkDataTable = class extends i3 {
                   ${this.hasSearch ? b2`<div class="search">${searchbar}</div>` : A}
                   ${this.inlineFilters ? this.renderInlineFilters() : A}
                   <span class="tk-spacer"></span>
+                    ${this.effColumnPicker ? b2`
+                          <ion-select
+                            class="tk-cols"
+                            multiple
+                            interface="popover"
+                            aria-label=${this.t.columnsVisible}
+                            .value=${this.visibleColumns.map((c5) => c5.key)}
+                            .selectedText=${this.t.columns}
+                            @ionChange=${(e5) => this.setVisibleColumns(e5.detail.value)}
+                          >
+                            ${this.columns.map((c5) => b2`<ion-select-option value=${c5.key}>${c5.header}</ion-select-option>`)}
+                          </ion-select>
+                        ` : A}
                     ${this.effPageSizes.length ? b2`
                           <ion-select
                             class="tk-psize"
@@ -2303,19 +2319,6 @@ var OkDataTable = class extends i3 {
                             ${this.toolButton("list-outline", this.viewMode === "table", () => this.setViewMode("table"), this.t.viewList)}
                             ${this.toolButton("grid-outline", this.viewMode === "cards", () => this.setViewMode("cards"), this.t.viewCards)}
                           </span>
-                        ` : A}
-                    ${this.effColumnPicker ? b2`
-                          <ion-select
-                            class="tk-cols"
-                            multiple
-                            interface="popover"
-                            aria-label=${this.t.columnsVisible}
-                            .value=${this.visibleColumns.map((c5) => c5.key)}
-                            .selectedText=${this.t.columns}
-                            @ionChange=${(e5) => this.setVisibleColumns(e5.detail.value)}
-                          >
-                            ${this.columns.map((c5) => b2`<ion-select-option value=${c5.key}>${c5.header}</ion-select-option>`)}
-                          </ion-select>
                         ` : A}
                     ${this.hasFilterRow && !this.inlineFilters ? this.toolButton("funnel-outline", this.panel === "filters" || this.activeFilterCount > 0, () => this.toggle("filters"), this.t.filters, this.serverSide ? void 0 : this.activeFilterCount) : A}
                     ${this.effImport ? b2`
@@ -2678,7 +2681,7 @@ __decorateClass2([
 ], OkDataTable.prototype, "menuOpen");
 define("ok-data-table", OkDataTable);
 
-// ../../node_modules/.pnpm/@erplora+module-sdk@file+..+hub+packages+module-sdk/node_modules/@erplora/module-sdk/src/index.ts
+// ../hub/packages/module-sdk/src/index.ts
 function isEmpty(v3) {
   return v3 === null || v3 === void 0 || v3 === "";
 }
@@ -2796,8 +2799,183 @@ function createListController(client, queryName, onChange = () => {
   return new ListController(client, queryName, onChange, opts);
 }
 
-// ui/components/erp-reservations-availability/erp-reservations-availability.ts
-var DAYS = ["Lunes", "Martes", "Mi\xE9rcoles", "Jueves", "Viernes", "S\xE1bado", "Domingo"];
+// ../modules-workspace/modules/reservations/locales/es.json
+var es_default = {
+  name: "Reservas",
+  navigation: {
+    list: {
+      label: "Reservas"
+    },
+    waitlist: {
+      label: "Lista de espera"
+    },
+    availability: {
+      label: "Disponibilidad"
+    }
+  },
+  ui: {
+    titleReservations: "Reservas",
+    titleWaitlist: "Lista de espera",
+    titleAvailability: "Disponibilidad",
+    sectionTimeSlots: "Franjas horarias",
+    sectionBlockedDates: "Fechas bloqueadas",
+    colDate: "Fecha",
+    colTime: "Hora",
+    colPreferredTime: "Hora pref.",
+    colGuestName: "Cliente",
+    colGuestPhone: "Tel\xE9fono",
+    colPartySize: "Pax",
+    colStatus: "Estado",
+    colContacted: "Contactado",
+    colDay: "D\xEDa",
+    colStart: "Desde",
+    colEnd: "Hasta",
+    colMax: "M\xE1x",
+    colReason: "Motivo",
+    colFullDay: "D\xEDa completo",
+    statusPending: "Pendiente",
+    statusConfirmed: "Confirmada",
+    statusSeated: "Sentada",
+    statusCompleted: "Completada",
+    statusCancelled: "Cancelada",
+    statusNoShow: "No-show",
+    yes: "S\xED",
+    no: "No",
+    dayMonday: "Lunes",
+    dayTuesday: "Martes",
+    dayWednesday: "Mi\xE9rcoles",
+    dayThursday: "Jueves",
+    dayFriday: "Viernes",
+    daySaturday: "S\xE1bado",
+    daySunday: "Domingo",
+    actionConfirm: "Confirmar",
+    actionSeat: "Sentar",
+    actionComplete: "Completar",
+    actionCancel: "Cancelar",
+    actionContact: "Contactado",
+    actionConvert: "Convertir",
+    actionRemove: "Quitar",
+    phGuestName: "Cliente",
+    phGuestPhone: "Tel\xE9fono",
+    phPartySize: "Pax",
+    phMax: "M\xE1x",
+    phReason: "Motivo",
+    btnSaving: "Guardando\u2026",
+    btnReserve: "Reservar",
+    btnAdd: "A\xF1adir",
+    btnAddSlot: "A\xF1adir franja",
+    btnBlockDate: "Bloquear fecha",
+    searchPlaceholder: "Buscar cliente, tel\xE9fono o fecha\u2026",
+    loading: "Cargando\u2026",
+    emptyReservations: "Sin reservas.",
+    emptyWaitlist: "Lista de espera vac\xEDa.",
+    emptyTimeSlots: "Sin franjas horarias.",
+    emptyBlockedDates: "Sin fechas bloqueadas.",
+    errCreateReservation: "No se pudo crear la reserva",
+    errSetStatus: "No se pudo cambiar el estado",
+    errAddWaitlist: "No se pudo a\xF1adir a la lista de espera",
+    errUpdateWaitlist: "No se pudo actualizar la entrada",
+    errCreateSlot: "No se pudo crear la franja",
+    errBlockDate: "No se pudo bloquear la fecha",
+    errDeleteSlot: "No se pudo borrar la franja",
+    errDeleteBlocked: "No se pudo borrar la fecha"
+  }
+};
+
+// ../modules-workspace/modules/reservations/locales/en.json
+var en_default = {
+  name: "Reservations",
+  navigation: {
+    list: {
+      label: "Reservations"
+    },
+    waitlist: {
+      label: "Waitlist"
+    },
+    availability: {
+      label: "Availability"
+    }
+  },
+  ui: {
+    titleReservations: "Reservations",
+    titleWaitlist: "Waitlist",
+    titleAvailability: "Availability",
+    sectionTimeSlots: "Time slots",
+    sectionBlockedDates: "Blocked dates",
+    colDate: "Date",
+    colTime: "Time",
+    colPreferredTime: "Pref. time",
+    colGuestName: "Guest",
+    colGuestPhone: "Phone",
+    colPartySize: "Party",
+    colStatus: "Status",
+    colContacted: "Contacted",
+    colDay: "Day",
+    colStart: "From",
+    colEnd: "To",
+    colMax: "Max",
+    colReason: "Reason",
+    colFullDay: "Full day",
+    statusPending: "Pending",
+    statusConfirmed: "Confirmed",
+    statusSeated: "Seated",
+    statusCompleted: "Completed",
+    statusCancelled: "Cancelled",
+    statusNoShow: "No-show",
+    yes: "Yes",
+    no: "No",
+    dayMonday: "Monday",
+    dayTuesday: "Tuesday",
+    dayWednesday: "Wednesday",
+    dayThursday: "Thursday",
+    dayFriday: "Friday",
+    daySaturday: "Saturday",
+    daySunday: "Sunday",
+    actionConfirm: "Confirm",
+    actionSeat: "Seat",
+    actionComplete: "Complete",
+    actionCancel: "Cancel",
+    actionContact: "Contacted",
+    actionConvert: "Convert",
+    actionRemove: "Remove",
+    phGuestName: "Guest",
+    phGuestPhone: "Phone",
+    phPartySize: "Party",
+    phMax: "Max",
+    phReason: "Reason",
+    btnSaving: "Saving\u2026",
+    btnReserve: "Reserve",
+    btnAdd: "Add",
+    btnAddSlot: "Add slot",
+    btnBlockDate: "Block date",
+    searchPlaceholder: "Search guest, phone or date\u2026",
+    loading: "Loading\u2026",
+    emptyReservations: "No reservations.",
+    emptyWaitlist: "Waitlist is empty.",
+    emptyTimeSlots: "No time slots.",
+    emptyBlockedDates: "No blocked dates.",
+    errCreateReservation: "Could not create the reservation",
+    errSetStatus: "Could not change the status",
+    errAddWaitlist: "Could not add to the waitlist",
+    errUpdateWaitlist: "Could not update the entry",
+    errCreateSlot: "Could not create the slot",
+    errBlockDate: "Could not block the date",
+    errDeleteSlot: "Could not delete the slot",
+    errDeleteBlocked: "Could not delete the date"
+  }
+};
+
+// ../modules-workspace/modules/reservations/ui/components/erp-reservations-availability/erp-reservations-availability.ts
+var CATALOG = { es: es_default, en: en_default };
+var DAY_KEYS = [
+  "ui.dayMonday",
+  "ui.dayTuesday",
+  "ui.dayWednesday",
+  "ui.dayThursday",
+  "ui.dayFriday",
+  "ui.daySaturday",
+  "ui.daySunday"
+];
 function erplora() {
   const c5 = globalThis.erplora;
   if (!c5) throw new Error("erplora SDK no inicializado por el shell");
@@ -2815,37 +2993,10 @@ var ErpReservationsAvailability = class extends i3 {
     this.slotMax = "10";
     this.blockDate = "";
     this.blockReason = "";
-    this.slotColumns = [
-      {
-        key: "day_of_week",
-        header: "D\xEDa",
-        sortable: true,
-        filterable: true,
-        filterType: "select",
-        options: DAYS.map((label, i7) => ({ value: String(i7), label })),
-        format: (r6) => DAYS[r6.day_of_week] ?? "?"
-      },
-      { key: "start_time", header: "Desde", sortable: true, filterable: true, filterType: "text" },
-      { key: "end_time", header: "Hasta", sortable: true, filterable: true, filterType: "text" },
-      { key: "max_reservations", header: "M\xE1x", align: "right", sortable: true, filterable: true, filterType: "range" }
-    ];
-    this.blockColumns = [
-      { key: "date", header: "Fecha", sortable: true, filterable: true, filterType: "daterange" },
-      { key: "reason", header: "Motivo", sortable: true, filterable: true, filterType: "text" },
-      {
-        key: "is_full_day",
-        header: "D\xEDa completo",
-        sortable: true,
-        filterable: true,
-        filterType: "select",
-        options: [
-          { value: "1", label: "S\xED" },
-          { value: "0", label: "No" }
-        ],
-        format: (r6) => r6.is_full_day ? "S\xED" : "No"
-      }
-    ];
-    this.rowActions = [{ id: "remove", label: "Quitar", icon: "trash-outline", color: "danger" }];
+    // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
+    // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
+    // sola vez tras el primer render, considera firstUpdated() en su lugar.
+    this.onLocaleChange = () => this.requestUpdate();
   }
   static {
     this.styles = i`
@@ -2857,11 +3008,51 @@ var ErpReservationsAvailability = class extends i3 {
     .err { color:#d9480f; font-weight:600; }
   `;
   }
-  // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
-  // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
-  // sola vez tras el primer render, considera firstUpdated() en su lugar.
+  // Getters (no campos): se re-evalúan en cada render → los textos cambian con el idioma activo
+  // (ADR-0055). `connectedCallback` re-renderiza al recibir `erplora:locale-changed`.
+  get slotColumns() {
+    const t5 = (k2) => erplora().t(CATALOG, k2);
+    return [
+      {
+        key: "day_of_week",
+        header: t5("ui.colDay"),
+        sortable: true,
+        filterable: true,
+        filterType: "select",
+        options: DAY_KEYS.map((key, i7) => ({ value: String(i7), label: t5(key) })),
+        format: (r6) => DAY_KEYS[r6.day_of_week] ? t5(DAY_KEYS[r6.day_of_week]) : "?"
+      },
+      { key: "start_time", header: t5("ui.colStart"), sortable: true, filterable: true, filterType: "text" },
+      { key: "end_time", header: t5("ui.colEnd"), sortable: true, filterable: true, filterType: "text" },
+      { key: "max_reservations", header: t5("ui.colMax"), align: "right", sortable: true, filterable: true, filterType: "range" }
+    ];
+  }
+  get blockColumns() {
+    const t5 = (k2) => erplora().t(CATALOG, k2);
+    return [
+      { key: "date", header: t5("ui.colDate"), sortable: true, filterable: true, filterType: "daterange" },
+      { key: "reason", header: t5("ui.colReason"), sortable: true, filterable: true, filterType: "text" },
+      {
+        key: "is_full_day",
+        header: t5("ui.colFullDay"),
+        sortable: true,
+        filterable: true,
+        filterType: "select",
+        options: [
+          { value: "1", label: t5("ui.yes") },
+          { value: "0", label: t5("ui.no") }
+        ],
+        format: (r6) => r6.is_full_day ? t5("ui.yes") : t5("ui.no")
+      }
+    ];
+  }
+  get rowActions() {
+    const t5 = (k2) => erplora().t(CATALOG, k2);
+    return [{ id: "remove", label: t5("ui.actionRemove"), icon: "trash-outline", color: "danger" }];
+  }
   async connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("erplora:locale-changed", this.onLocaleChange);
     this.slotsCtrl = createListController(erplora(), "reservations.timeslots.list", () => this.requestUpdate(), {
       pageSize: 50,
       sort: "id",
@@ -2885,8 +3076,9 @@ var ErpReservationsAvailability = class extends i3 {
     }
   }
   disconnectedCallback() {
-    super.disconnectedCallback();
+    window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
     this.unsub?.();
+    super.disconnectedCallback();
   }
   async createSlot(ev) {
     ev.preventDefault();
@@ -2905,7 +3097,7 @@ var ErpReservationsAvailability = class extends i3 {
       this.slotMax = "10";
       await this.slotsCtrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo crear la franja";
+      this.formError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errCreateSlot");
     } finally {
       this.saving = false;
     }
@@ -2925,7 +3117,7 @@ var ErpReservationsAvailability = class extends i3 {
       this.blockReason = "";
       await this.blockedCtrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo bloquear la fecha";
+      this.formError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errBlockDate");
     } finally {
       this.saving = false;
     }
@@ -2936,7 +3128,7 @@ var ErpReservationsAvailability = class extends i3 {
       await erplora().command("reservations.timeslots.delete", { time_slot_id: ev.detail.row.id });
       await this.slotsCtrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo borrar la franja";
+      this.formError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteSlot");
     }
   }
   async onBlockedAction(ev) {
@@ -2945,31 +3137,32 @@ var ErpReservationsAvailability = class extends i3 {
       await erplora().command("reservations.blocked_dates.delete", { blocked_date_id: ev.detail.row.id });
       await this.blockedCtrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo borrar la fecha";
+      this.formError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteBlocked");
     }
   }
   render() {
+    const t5 = (k2) => erplora().t(CATALOG, k2);
     return b2`<div>
-        <h2>Disponibilidad</h2>
+        <h2>${t5("ui.titleAvailability")}</h2>
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
         ${this.slotsCtrl?.error ? b2`<p class="err">${this.slotsCtrl.error}</p>` : A}
         ${this.blockedCtrl?.error ? b2`<p class="err">${this.blockedCtrl.error}</p>` : A}
-        <h3>Franjas horarias</h3>
+        <h3>${t5("ui.sectionTimeSlots")}</h3>
         <form class="form" @submit=${(e5) => this.createSlot(e5)}>
-          <ion-select .value=${this.slotDay} @ionChange=${(e5) => this.slotDay = e5.target.value}>${DAYS.map((d3, i7) => b2`<ion-select-option .value=${String(i7)}>${d3}</ion-select-option>`)}</ion-select>
+          <ion-select .value=${this.slotDay} @ionChange=${(e5) => this.slotDay = e5.target.value}>${DAY_KEYS.map((key, i7) => b2`<ion-select-option .value=${String(i7)}>${t5(key)}</ion-select-option>`)}</ion-select>
           <ion-input type="time" .value=${this.slotStart} @ionInput=${(e5) => this.slotStart = e5.target.value}></ion-input>
           <ion-input type="time" .value=${this.slotEnd} @ionInput=${(e5) => this.slotEnd = e5.target.value}></ion-input>
-          <ion-input type="number" min="1" placeholder="Máx" .value=${this.slotMax} @ionInput=${(e5) => this.slotMax = e5.target.value}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>Añadir franja</ion-button>
+          <ion-input type="number" min="1" placeholder=${t5("ui.phMax")} .value=${this.slotMax} @ionInput=${(e5) => this.slotMax = e5.target.value}></ion-input>
+          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t5("ui.btnAddSlot")}</ion-button>
         </form>
-        <ok-data-table .serverSide=${true} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? "Cargando\u2026" : "Sin franjas horarias."} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
-        <h3>Fechas bloqueadas</h3>
+        <ok-data-table .serverSide=${true} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
+        <h3>${t5("ui.sectionBlockedDates")}</h3>
         <form class="form" @submit=${(e5) => this.createBlocked(e5)}>
           <ion-input type="date" .value=${this.blockDate} @ionInput=${(e5) => this.blockDate = e5.target.value}></ion-input>
-          <ion-input placeholder="Motivo" .value=${this.blockReason} @ionInput=${(e5) => this.blockReason = e5.target.value}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.blockDate}>Bloquear fecha</ion-button>
+          <ion-input placeholder=${t5("ui.phReason")} .value=${this.blockReason} @ionInput=${(e5) => this.blockReason = e5.target.value}></ion-input>
+          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.blockDate}>${t5("ui.btnBlockDate")}</ion-button>
         </form>
-        <ok-data-table .serverSide=${true} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? "Cargando\u2026" : "Sin fechas bloqueadas."} @rowAction=${(e5) => this.onBlockedAction(e5)} @pageChange=${(e5) => this.blockedCtrl.setPage(e5.detail)} @sortChange=${(e5) => this.blockedCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.blockedCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.blockedCtrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
+        <ok-data-table .serverSide=${true} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t5("ui.loading") : t5("ui.emptyBlockedDates")} @rowAction=${(e5) => this.onBlockedAction(e5)} @pageChange=${(e5) => this.blockedCtrl.setPage(e5.detail)} @sortChange=${(e5) => this.blockedCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.blockedCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.blockedCtrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
       </div>`;
   }
 };
@@ -3002,14 +3195,15 @@ __decorateClass([
 ], ErpReservationsAvailability.prototype, "blockReason", 2);
 define("erp-reservations-availability", ErpReservationsAvailability);
 
-// ui/components/erp-reservations-list/erp-reservations-list.ts
-var STATUS_LABELS = {
-  pending: "Pendiente",
-  confirmed: "Confirmada",
-  seated: "Sentada",
-  completed: "Completada",
-  cancelled: "Cancelada",
-  no_show: "No-show"
+// ../modules-workspace/modules/reservations/ui/components/erp-reservations-list/erp-reservations-list.ts
+var CATALOG2 = { es: es_default, en: en_default };
+var STATUS_KEYS = {
+  pending: "ui.statusPending",
+  confirmed: "ui.statusConfirmed",
+  seated: "ui.statusSeated",
+  completed: "ui.statusCompleted",
+  cancelled: "ui.statusCancelled",
+  no_show: "ui.statusNoShow"
 };
 function erplora2() {
   const c5 = globalThis.erplora;
@@ -3027,28 +3221,10 @@ var ErpReservationsList = class extends i3 {
     this.newDate = "";
     this.newTime = "";
     this.newParty = "2";
-    this.columns = [
-      { key: "date", header: "Fecha", sortable: true, filterable: true, filterType: "daterange" },
-      { key: "time", header: "Hora", sortable: true, filterable: true, filterType: "text" },
-      { key: "guest_name", header: "Cliente", sortable: true, filterable: true, filterType: "text" },
-      { key: "guest_phone", header: "Tel\xE9fono", sortable: true, filterable: true, filterType: "text" },
-      { key: "party_size", header: "Pax", align: "right", sortable: true, filterable: true, filterType: "text" },
-      {
-        key: "status",
-        header: "Estado",
-        sortable: true,
-        filterable: true,
-        filterType: "select",
-        options: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
-        format: (r6) => STATUS_LABELS[r6.status] ?? r6.status
-      }
-    ];
-    this.actions = [
-      { id: "confirm", label: "Confirmar", icon: "checkmark-outline", color: "primary" },
-      { id: "seat", label: "Sentar", icon: "restaurant-outline", color: "success" },
-      { id: "complete", label: "Completar", icon: "checkmark-done-outline", color: "medium" },
-      { id: "cancel", label: "Cancelar", icon: "close-outline", color: "danger" }
-    ];
+    // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
+    // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
+    // sola vez tras el primer render, considera firstUpdated() en su lugar.
+    this.onLocaleChange = () => this.requestUpdate();
   }
   static {
     this.styles = i`
@@ -3060,11 +3236,39 @@ var ErpReservationsList = class extends i3 {
     .err { color:#d9480f; font-weight:600; }
   `;
   }
-  // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
-  // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
-  // sola vez tras el primer render, considera firstUpdated() en su lugar.
+  // Getter (no campo): se re-evalúa en cada render → los textos cambian con el idioma activo
+  // (ADR-0055). `connectedCallback` re-renderiza al recibir `erplora:locale-changed`.
+  get columns() {
+    const t5 = (k2) => erplora2().t(CATALOG2, k2);
+    return [
+      { key: "date", header: t5("ui.colDate"), sortable: true, filterable: true, filterType: "daterange" },
+      { key: "time", header: t5("ui.colTime"), sortable: true, filterable: true, filterType: "text" },
+      { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
+      { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
+      { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "text" },
+      {
+        key: "status",
+        header: t5("ui.colStatus"),
+        sortable: true,
+        filterable: true,
+        filterType: "select",
+        options: Object.entries(STATUS_KEYS).map(([value, key]) => ({ value, label: t5(key) })),
+        format: (r6) => STATUS_KEYS[r6.status] ? t5(STATUS_KEYS[r6.status]) : r6.status
+      }
+    ];
+  }
+  get actions() {
+    const t5 = (k2) => erplora2().t(CATALOG2, k2);
+    return [
+      { id: "confirm", label: t5("ui.actionConfirm"), icon: "checkmark-outline", color: "primary" },
+      { id: "seat", label: t5("ui.actionSeat"), icon: "restaurant-outline", color: "success" },
+      { id: "complete", label: t5("ui.actionComplete"), icon: "checkmark-done-outline", color: "medium" },
+      { id: "cancel", label: t5("ui.actionCancel"), icon: "close-outline", color: "danger" }
+    ];
+  }
   async connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("erplora:locale-changed", this.onLocaleChange);
     this.ctrl = createListController(erplora2(), "reservations.reservations.list", () => this.requestUpdate(), {
       pageSize: 50,
       sort: "id",
@@ -3083,8 +3287,9 @@ var ErpReservationsList = class extends i3 {
     }
   }
   disconnectedCallback() {
-    super.disconnectedCallback();
+    window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
     this.unsub?.();
+    super.disconnectedCallback();
   }
   async createReservation(ev) {
     ev.preventDefault();
@@ -3106,7 +3311,7 @@ var ErpReservationsList = class extends i3 {
       this.newParty = "2";
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo crear la reserva";
+      this.formError = e5 instanceof Error ? e5.message : erplora2().t(CATALOG2, "ui.errCreateReservation");
     } finally {
       this.saving = false;
     }
@@ -3129,25 +3334,26 @@ var ErpReservationsList = class extends i3 {
       });
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo cambiar el estado";
+      this.formError = e5 instanceof Error ? e5.message : erplora2().t(CATALOG2, "ui.errSetStatus");
     }
   }
   render() {
+    const t5 = (k2) => erplora2().t(CATALOG2, k2);
     return b2`<div>
         <header>
-          <h2>Reservas</h2>
+          <h2>${t5("ui.titleReservations")}</h2>
         </header>
         <form class="form" @submit=${(e5) => this.createReservation(e5)}>
-          <ion-input placeholder="Cliente" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
-          <ion-input placeholder="Teléfono" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
+          <ion-input placeholder=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
+          <ion-input placeholder=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
           <ion-input type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
           <ion-input type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
-          <ion-input type="number" min="1" placeholder="Pax" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? "Guardando\u2026" : "Reservar"}</ion-button>
+          <ion-input type="number" min="1" placeholder=${t5("ui.phPartySize")} .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
         </form>
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
         ${this.ctrl?.error ? b2`<p class="err">${this.ctrl.error}</p>` : A}
-        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${"Buscar cliente, tel\xE9fono o fecha\u2026"} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? "Cargando\u2026" : "Sin reservas."} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
+        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyReservations")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
       </div>`;
   }
 };
@@ -3177,7 +3383,8 @@ __decorateClass([
 ], ErpReservationsList.prototype, "newParty", 2);
 define("erp-reservations-list", ErpReservationsList);
 
-// ui/components/erp-reservations-waitlist/erp-reservations-waitlist.ts
+// ../modules-workspace/modules/reservations/ui/components/erp-reservations-waitlist/erp-reservations-waitlist.ts
+var CATALOG3 = { es: es_default, en: en_default };
 function erplora3() {
   const c5 = globalThis.erplora;
   if (!c5) throw new Error("erplora SDK no inicializado por el shell");
@@ -3194,30 +3401,10 @@ var ErpReservationsWaitlist = class extends i3 {
     this.newDate = "";
     this.newTime = "";
     this.newParty = "2";
-    this.columns = [
-      { key: "date", header: "Fecha", sortable: true, filterable: true, filterType: "daterange" },
-      { key: "preferred_time", header: "Hora pref.", sortable: true, filterable: true, filterType: "text" },
-      { key: "guest_name", header: "Cliente", sortable: true, filterable: true, filterType: "text" },
-      { key: "guest_phone", header: "Tel\xE9fono", sortable: true, filterable: true, filterType: "text" },
-      { key: "party_size", header: "Pax", align: "right", sortable: true, filterable: true, filterType: "text" },
-      {
-        key: "is_contacted",
-        header: "Contactado",
-        sortable: true,
-        filterable: true,
-        filterType: "select",
-        options: [
-          { value: "1", label: "S\xED" },
-          { value: "0", label: "No" }
-        ],
-        format: (r6) => r6.is_contacted ? "S\xED" : "No"
-      }
-    ];
-    this.actions = [
-      { id: "contact", label: "Contactado", icon: "call-outline", color: "primary" },
-      { id: "convert", label: "Convertir", icon: "checkmark-done-outline", color: "success" },
-      { id: "remove", label: "Quitar", icon: "trash-outline", color: "danger" }
-    ];
+    // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
+    // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
+    // sola vez tras el primer render, considera firstUpdated() en su lugar.
+    this.onLocaleChange = () => this.requestUpdate();
   }
   static {
     this.styles = i`
@@ -3229,11 +3416,41 @@ var ErpReservationsWaitlist = class extends i3 {
     .err { color:#d9480f; font-weight:600; }
   `;
   }
-  // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
-  // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
-  // sola vez tras el primer render, considera firstUpdated() en su lugar.
+  // Getter (no campo): se re-evalúa en cada render → los textos cambian con el idioma activo
+  // (ADR-0055). `connectedCallback` re-renderiza al recibir `erplora:locale-changed`.
+  get columns() {
+    const t5 = (k2) => erplora3().t(CATALOG3, k2);
+    return [
+      { key: "date", header: t5("ui.colDate"), sortable: true, filterable: true, filterType: "daterange" },
+      { key: "preferred_time", header: t5("ui.colPreferredTime"), sortable: true, filterable: true, filterType: "text" },
+      { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
+      { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
+      { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "text" },
+      {
+        key: "is_contacted",
+        header: t5("ui.colContacted"),
+        sortable: true,
+        filterable: true,
+        filterType: "select",
+        options: [
+          { value: "1", label: t5("ui.yes") },
+          { value: "0", label: t5("ui.no") }
+        ],
+        format: (r6) => r6.is_contacted ? t5("ui.yes") : t5("ui.no")
+      }
+    ];
+  }
+  get actions() {
+    const t5 = (k2) => erplora3().t(CATALOG3, k2);
+    return [
+      { id: "contact", label: t5("ui.actionContact"), icon: "call-outline", color: "primary" },
+      { id: "convert", label: t5("ui.actionConvert"), icon: "checkmark-done-outline", color: "success" },
+      { id: "remove", label: t5("ui.actionRemove"), icon: "trash-outline", color: "danger" }
+    ];
+  }
   async connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("erplora:locale-changed", this.onLocaleChange);
     this.ctrl = createListController(erplora3(), "reservations.waitlist.list", () => this.requestUpdate(), {
       pageSize: 50,
       sort: "id",
@@ -3251,8 +3468,9 @@ var ErpReservationsWaitlist = class extends i3 {
     }
   }
   disconnectedCallback() {
-    super.disconnectedCallback();
+    window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
     this.unsub?.();
+    super.disconnectedCallback();
   }
   async createEntry(ev) {
     ev.preventDefault();
@@ -3274,7 +3492,7 @@ var ErpReservationsWaitlist = class extends i3 {
       this.newParty = "2";
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo a\xF1adir a la lista de espera";
+      this.formError = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errAddWaitlist");
     } finally {
       this.saving = false;
     }
@@ -3292,25 +3510,26 @@ var ErpReservationsWaitlist = class extends i3 {
       }
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo actualizar la entrada";
+      this.formError = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errUpdateWaitlist");
     }
   }
   render() {
+    const t5 = (k2) => erplora3().t(CATALOG3, k2);
     return b2`<div>
         <header>
-          <h2>Lista de espera</h2>
+          <h2>${t5("ui.titleWaitlist")}</h2>
         </header>
         <form class="form" @submit=${(e5) => this.createEntry(e5)}>
-          <ion-input placeholder="Cliente" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
-          <ion-input placeholder="Teléfono" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
+          <ion-input placeholder=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
+          <ion-input placeholder=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
           <ion-input type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
           <ion-input type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
-          <ion-input type="number" min="1" placeholder="Pax" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime}>${this.saving ? "Guardando\u2026" : "A\xF1adir"}</ion-button>
+          <ion-input type="number" min="1" placeholder=${t5("ui.phPartySize")} .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAdd")}</ion-button>
         </form>
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
         ${this.ctrl?.error ? b2`<p class="err">${this.ctrl.error}</p>` : A}
-        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${"Buscar cliente, tel\xE9fono o fecha\u2026"} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? "Cargando\u2026" : "Lista de espera vac\xEDa."} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
+        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyWaitlist")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
       </div>`;
   }
 };
