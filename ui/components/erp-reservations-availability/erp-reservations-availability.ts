@@ -59,8 +59,8 @@ export class ErpReservationsAvailability extends LitElement {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ink, #1c1b18); }
     h2 { margin:1rem 0 .5rem; font-size:1.15rem; }
     h3 { margin:1.25rem 0 .5rem; font-size:1rem; }
-    .form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
-    .form ion-input, .form ion-select { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:7rem; }
+    .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
+    .form ion-input, .form ion-select { flex:1 1 11rem; min-width:9rem; }
     .err { color:#d9480f; font-weight:600; }
   `;
 
@@ -244,17 +244,17 @@ export class ErpReservationsAvailability extends LitElement {
         ${this.blockedCtrl?.error ? html`<p class="err">${this.blockedCtrl.error}</p>` : nothing}
         <h3>${t('ui.sectionTimeSlots')}</h3>
         <form class="form" @submit=${(e) => this.createSlot(e)}>
-          <ion-select .value=${this.slotDay} @ionChange=${(e: any) => (this.slotDay = e.target.value)}>${DAY_KEYS.map((key, i) => html`<ion-select-option .value=${String(i)}>${t(key)}</ion-select-option>`)}</ion-select>
-          <ion-input type="time" .value=${this.slotStart} @ionInput=${(e: any) => (this.slotStart = e.target.value)}></ion-input>
-          <ion-input type="time" .value=${this.slotEnd} @ionInput=${(e: any) => (this.slotEnd = e.target.value)}></ion-input>
-          <ion-input type="number" min="1" placeholder=${t('ui.phMax')} .value=${this.slotMax} @ionInput=${(e: any) => (this.slotMax = e.target.value)}></ion-input>
+          <ion-select fill="outline" label-placement="floating" label=${t('ui.colDay')} .value=${this.slotDay} @ionChange=${(e: any) => (this.slotDay = e.target.value)}>${DAY_KEYS.map((key, i) => html`<ion-select-option .value=${String(i)}>${t(key)}</ion-select-option>`)}</ion-select>
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.colStart')} type="time" .value=${this.slotStart} @ionInput=${(e: any) => (this.slotStart = e.target.value)}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.colEnd')} type="time" .value=${this.slotEnd} @ionInput=${(e: any) => (this.slotEnd = e.target.value)}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.phMax')} type="number" min="1" .value=${this.slotMax} @ionInput=${(e: any) => (this.slotMax = e.target.value)}></ion-input>
           <ion-button type="submit" size="small" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t('ui.btnAddSlot')}</ion-button>
         </form>
         <ok-data-table .serverSide=${true} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t('ui.loading') : t('ui.emptyTimeSlots')} @rowAction=${(e: CustomEvent) => this.onSlotAction(e)} @pageChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPage(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.slotsCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.slotsCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.slotsCtrl.setFilter(e.detail.col, e.detail.value)}></ok-data-table>
         <h3>${t('ui.sectionBlockedDates')}</h3>
         <form class="form" @submit=${(e) => this.createBlocked(e)}>
-          <ion-input type="date" .value=${this.blockDate} @ionInput=${(e: any) => (this.blockDate = e.target.value)}></ion-input>
-          <ion-input placeholder=${t('ui.phReason')} .value=${this.blockReason} @ionInput=${(e: any) => (this.blockReason = e.target.value)}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" .value=${this.blockDate} @ionInput=${(e: any) => (this.blockDate = e.target.value)}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.phReason')} .value=${this.blockReason} @ionInput=${(e: any) => (this.blockReason = e.target.value)}></ion-input>
           <ion-button type="submit" size="small" ?disabled=${this.saving || !this.blockDate}>${t('ui.btnBlockDate')}</ion-button>
         </form>
         <ok-data-table .serverSide=${true} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t('ui.loading') : t('ui.emptyBlockedDates')} @rowAction=${(e: CustomEvent) => this.onBlockedAction(e)} @pageChange=${(e: CustomEvent<number>) => this.blockedCtrl.setPage(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.blockedCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.blockedCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.blockedCtrl.setFilter(e.detail.col, e.detail.value)}></ok-data-table>

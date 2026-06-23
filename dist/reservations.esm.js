@@ -9,7 +9,7 @@ var __decorateClass = (decorators, target, key, kind) => {
   return result;
 };
 
-// node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
 var ElementInternalsShim = class ElementInternals {
   get shadowRoot() {
     return this.__host.__shadowRoot;
@@ -88,7 +88,7 @@ var ElementInternalsShim = class ElementInternals {
   }
 };
 
-// node_modules/@lit-labs/ssr-dom-shim/lib/events.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/events.js
 var __classPrivateFieldSet = function(receiver, state, value, kind, f3) {
   if (kind === "m") throw new TypeError("Private method is not writable");
   if (kind === "a" && !f3) throw new TypeError("Private accessor was defined without a setter");
@@ -246,7 +246,7 @@ Object.defineProperties(CustomEventShim.prototype, {
 var EventShimWithRealType = EventShim;
 var CustomEventShimWithRealType = CustomEventShim;
 
-// node_modules/@lit-labs/ssr-dom-shim/lib/css.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/css.js
 var _a2;
 var CSSRuleShim = (_a2 = class CSSRule {
   constructor() {
@@ -277,7 +277,7 @@ var CSSRuleShim = (_a2 = class CSSRule {
   }
 }, _a2.STYLE_RULE = 1, _a2.CHARSET_RULE = 2, _a2.IMPORT_RULE = 3, _a2.MEDIA_RULE = 4, _a2.FONT_FACE_RULE = 5, _a2.PAGE_RULE = 6, _a2.NAMESPACE_RULE = 10, _a2.KEYFRAMES_RULE = 7, _a2.KEYFRAME_RULE = 8, _a2.SUPPORTS_RULE = 12, _a2.COUNTER_STYLE_RULE = 11, _a2.FONT_FEATURE_VALUES_RULE = 14, _a2.MARGIN_RULE = 9, _a2);
 
-// node_modules/@lit-labs/ssr-dom-shim/index.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/index.js
 globalThis.Event ??= EventShimWithRealType;
 globalThis.CustomEvent ??= CustomEventShimWithRealType;
 var constructionToken = Symbol();
@@ -674,7 +674,7 @@ var CustomElementRegistryShimWithRealType = CustomElementRegistry;
 var customElements2 = new CustomElementRegistryShimWithRealType();
 var windowShim = new WindowShim(constructionToken);
 
-// node_modules/@lit/reactive-element/node/css-tag.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -719,7 +719,7 @@ var c = e || void 0 === t.CSSStyleSheet ? (t5) => t5 : (t5) => t5 instanceof CSS
   return r(e5);
 })(t5) : t5;
 
-// node_modules/@lit/reactive-element/node/reactive-element.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/reactive-element.js
 var { is: h, defineProperty: r2, getOwnPropertyDescriptor: o2, getOwnPropertyNames: n2, getOwnPropertySymbols: a, getPrototypeOf: c2 } = Object;
 var l = globalThis;
 l.customElements ??= customElements2;
@@ -942,7 +942,7 @@ var g = class extends (globalThis.HTMLElement ?? HTMLElementShimWithRealType) {
 };
 g.elementStyles = [], g.shadowRootOptions = { mode: "open" }, g[f("elementProperties")] = /* @__PURE__ */ new Map(), g[f("finalized")] = /* @__PURE__ */ new Map(), u?.({ ReactiveElement: g }), (l.reactiveElementVersions ??= []).push("2.1.2");
 
-// node_modules/lit-html/lit-html.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i2 = (t5) => t5;
 var s2 = t2.trustedTypes;
@@ -1197,7 +1197,7 @@ var D = (t5, i7, s5) => {
   return h4._$AI(t5), h4;
 };
 
-// node_modules/lit-element/lit-element.js
+// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i3 = class extends g {
   constructor() {
@@ -1226,7 +1226,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i3 });
 (s3.litElementVersions ??= []).push("4.2.2");
 
-// node_modules/@lit/reactive-element/node/decorators/property.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/property.js
 var o5 = { attribute: true, type: String, converter: b, reflect: false, hasChanged: m };
 var r4 = (t5 = o5, e5, r6) => {
   const { kind: n6, metadata: i7 } = r6;
@@ -1256,19 +1256,19 @@ function n4(t5) {
   })(t5, e5, o7);
 }
 
-// node_modules/@lit/reactive-element/node/decorators/state.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/state.js
 function r5(r6) {
   return n4({ ...r6, state: true, attribute: false });
 }
 
-// ../outfitkit/dist/define.js
+// node_modules/.pnpm/@outfitkit+core@file+..+outfitkit/node_modules/@outfitkit/core/dist/define.js
 function define(tag, ctor) {
   if (typeof customElements !== "undefined" && !customElements.get(tag)) {
     customElements.define(tag, ctor);
   }
 }
 
-// node_modules/lit-html/directive.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t5) => (...e5) => ({ _$litDirective$: t5, values: e5 });
 var i4 = class {
@@ -1288,7 +1288,7 @@ var i4 = class {
   }
 };
 
-// node_modules/lit-html/directive-helpers.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive-helpers.js
 var { I: t4 } = j;
 var i5 = (o7) => o7;
 var s4 = () => document.createComment("");
@@ -1321,7 +1321,7 @@ var h3 = (o7) => {
   o7._$AR(), o7._$AA.remove();
 };
 
-// node_modules/lit-html/directives/repeat.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/repeat.js
 var u4 = (e5, s5, t5) => {
   const r6 = /* @__PURE__ */ new Map();
   for (let l3 = s5; l3 <= t5; l3++) r6.set(e5[l3], l3);
@@ -1374,7 +1374,7 @@ var c4 = e4(class extends i4 {
   }
 });
 
-// node_modules/lit-html/directives/style-map.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/style-map.js
 var n5 = "important";
 var i6 = " !" + n5;
 var o6 = e4(class extends i4 {
@@ -1403,7 +1403,7 @@ var o6 = e4(class extends i4 {
   }
 });
 
-// ../outfitkit/dist/ok-data-table.js
+// node_modules/.pnpm/@outfitkit+core@file+..+outfitkit/node_modules/@outfitkit/core/dist/ok-data-table.js
 var __defProp2 = Object.defineProperty;
 var __decorateClass2 = (decorators, target, key, kind) => {
   var result = void 0;
@@ -2681,7 +2681,7 @@ __decorateClass2([
 ], OkDataTable.prototype, "menuOpen");
 define("ok-data-table", OkDataTable);
 
-// ../hub/packages/module-sdk/src/index.ts
+// node_modules/.pnpm/@erplora+module-sdk@file+..+hub+packages+module-sdk/node_modules/@erplora/module-sdk/src/index.ts
 function isEmpty(v3) {
   return v3 === null || v3 === void 0 || v3 === "";
 }
@@ -2799,7 +2799,7 @@ function createListController(client, queryName, onChange = () => {
   return new ListController(client, queryName, onChange, opts);
 }
 
-// ../modules-workspace/modules/reservations/locales/es.json
+// modules/reservations/locales/es.json
 var es_default = {
   name: "Reservas",
   navigation: {
@@ -2882,7 +2882,7 @@ var es_default = {
   }
 };
 
-// ../modules-workspace/modules/reservations/locales/en.json
+// modules/reservations/locales/en.json
 var en_default = {
   name: "Reservations",
   navigation: {
@@ -2965,7 +2965,7 @@ var en_default = {
   }
 };
 
-// ../modules-workspace/modules/reservations/ui/components/erp-reservations-availability/erp-reservations-availability.ts
+// modules/reservations/ui/components/erp-reservations-availability/erp-reservations-availability.ts
 var CATALOG = { es: es_default, en: en_default };
 var DAY_KEYS = [
   "ui.dayMonday",
@@ -3003,8 +3003,8 @@ var ErpReservationsAvailability = class extends i3 {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ink, #1c1b18); }
     h2 { margin:1rem 0 .5rem; font-size:1.15rem; }
     h3 { margin:1.25rem 0 .5rem; font-size:1rem; }
-    .form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
-    .form ion-input, .form ion-select { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:7rem; }
+    .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
+    .form ion-input, .form ion-select { flex:1 1 11rem; min-width:9rem; }
     .err { color:#d9480f; font-weight:600; }
   `;
   }
@@ -3149,17 +3149,17 @@ var ErpReservationsAvailability = class extends i3 {
         ${this.blockedCtrl?.error ? b2`<p class="err">${this.blockedCtrl.error}</p>` : A}
         <h3>${t5("ui.sectionTimeSlots")}</h3>
         <form class="form" @submit=${(e5) => this.createSlot(e5)}>
-          <ion-select .value=${this.slotDay} @ionChange=${(e5) => this.slotDay = e5.target.value}>${DAY_KEYS.map((key, i7) => b2`<ion-select-option .value=${String(i7)}>${t5(key)}</ion-select-option>`)}</ion-select>
-          <ion-input type="time" .value=${this.slotStart} @ionInput=${(e5) => this.slotStart = e5.target.value}></ion-input>
-          <ion-input type="time" .value=${this.slotEnd} @ionInput=${(e5) => this.slotEnd = e5.target.value}></ion-input>
-          <ion-input type="number" min="1" placeholder=${t5("ui.phMax")} .value=${this.slotMax} @ionInput=${(e5) => this.slotMax = e5.target.value}></ion-input>
+          <ion-select fill="outline" label-placement="floating" label=${t5("ui.colDay")} .value=${this.slotDay} @ionChange=${(e5) => this.slotDay = e5.target.value}>${DAY_KEYS.map((key, i7) => b2`<ion-select-option .value=${String(i7)}>${t5(key)}</ion-select-option>`)}</ion-select>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colStart")} type="time" .value=${this.slotStart} @ionInput=${(e5) => this.slotStart = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colEnd")} type="time" .value=${this.slotEnd} @ionInput=${(e5) => this.slotEnd = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.phMax")} type="number" min="1" .value=${this.slotMax} @ionInput=${(e5) => this.slotMax = e5.target.value}></ion-input>
           <ion-button type="submit" size="small" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t5("ui.btnAddSlot")}</ion-button>
         </form>
         <ok-data-table .serverSide=${true} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
         <h3>${t5("ui.sectionBlockedDates")}</h3>
         <form class="form" @submit=${(e5) => this.createBlocked(e5)}>
-          <ion-input type="date" .value=${this.blockDate} @ionInput=${(e5) => this.blockDate = e5.target.value}></ion-input>
-          <ion-input placeholder=${t5("ui.phReason")} .value=${this.blockReason} @ionInput=${(e5) => this.blockReason = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.blockDate} @ionInput=${(e5) => this.blockDate = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.phReason")} .value=${this.blockReason} @ionInput=${(e5) => this.blockReason = e5.target.value}></ion-input>
           <ion-button type="submit" size="small" ?disabled=${this.saving || !this.blockDate}>${t5("ui.btnBlockDate")}</ion-button>
         </form>
         <ok-data-table .serverSide=${true} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t5("ui.loading") : t5("ui.emptyBlockedDates")} @rowAction=${(e5) => this.onBlockedAction(e5)} @pageChange=${(e5) => this.blockedCtrl.setPage(e5.detail)} @sortChange=${(e5) => this.blockedCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.blockedCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.blockedCtrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
@@ -3195,7 +3195,7 @@ __decorateClass([
 ], ErpReservationsAvailability.prototype, "blockReason", 2);
 define("erp-reservations-availability", ErpReservationsAvailability);
 
-// ../modules-workspace/modules/reservations/ui/components/erp-reservations-list/erp-reservations-list.ts
+// modules/reservations/ui/components/erp-reservations-list/erp-reservations-list.ts
 var CATALOG2 = { es: es_default, en: en_default };
 var STATUS_KEYS = {
   pending: "ui.statusPending",
@@ -3231,8 +3231,8 @@ var ErpReservationsList = class extends i3 {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ink, #1c1b18); }
     header { display:flex; gap:.5rem; align-items:center; margin-bottom:.75rem; }
     h2 { margin:0; font-size:1.15rem; flex:1; }
-    .form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
-    .form ion-input, .form ion-select { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:8rem; }
+    .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
+    .form ion-input, .form ion-select { flex:1 1 11rem; min-width:9rem; }
     .err { color:#d9480f; font-weight:600; }
   `;
   }
@@ -3344,11 +3344,11 @@ var ErpReservationsList = class extends i3 {
           <h2>${t5("ui.titleReservations")}</h2>
         </header>
         <form class="form" @submit=${(e5) => this.createReservation(e5)}>
-          <ion-input placeholder=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
-          <ion-input placeholder=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
-          <ion-input type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
-          <ion-input type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
-          <ion-input type="number" min="1" placeholder=${t5("ui.phPartySize")} .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colTime")} type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
           <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
         </form>
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
@@ -3383,7 +3383,7 @@ __decorateClass([
 ], ErpReservationsList.prototype, "newParty", 2);
 define("erp-reservations-list", ErpReservationsList);
 
-// ../modules-workspace/modules/reservations/ui/components/erp-reservations-waitlist/erp-reservations-waitlist.ts
+// modules/reservations/ui/components/erp-reservations-waitlist/erp-reservations-waitlist.ts
 var CATALOG3 = { es: es_default, en: en_default };
 function erplora3() {
   const c5 = globalThis.erplora;
@@ -3411,8 +3411,8 @@ var ErpReservationsWaitlist = class extends i3 {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ink, #1c1b18); }
     header { display:flex; gap:.5rem; align-items:center; margin-bottom:.75rem; }
     h2 { margin:0; font-size:1.15rem; flex:1; }
-    .form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
-    .form ion-input { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:8rem; }
+    .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
+    .form ion-input { flex:1 1 11rem; min-width:9rem; }
     .err { color:#d9480f; font-weight:600; }
   `;
   }
@@ -3520,11 +3520,11 @@ var ErpReservationsWaitlist = class extends i3 {
           <h2>${t5("ui.titleWaitlist")}</h2>
         </header>
         <form class="form" @submit=${(e5) => this.createEntry(e5)}>
-          <ion-input placeholder=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
-          <ion-input placeholder=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
-          <ion-input type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
-          <ion-input type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
-          <ion-input type="number" min="1" placeholder=${t5("ui.phPartySize")} .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colTime")} type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
           <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAdd")}</ion-button>
         </form>
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
