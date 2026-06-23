@@ -1,0 +1,14 @@
+{
+  "name": "Reservas",
+  "navigation": {
+    "list": {
+      "label": "Reservas"
+    },
+    "waitlist": {
+      "label": "Lista de espera"
+    },
+    "availability": {
+      "label": "Disponibilidad"
+    }
+  }
+}
