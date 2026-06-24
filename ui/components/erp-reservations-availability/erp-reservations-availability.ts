@@ -56,7 +56,7 @@ function erplora(): ErploraClientLike {
 
 export class ErpReservationsAvailability extends LitElement {
   static styles = css`
-    :host { display:block; font-family: system-ui, sans-serif; color: var(--ink, #1c1b18); }
+    :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
     h2 { margin:1rem 0 .5rem; font-size:1.15rem; }
     h3 { margin:1.25rem 0 .5rem; font-size:1rem; }
     .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
