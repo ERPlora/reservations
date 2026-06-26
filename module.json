@@ -78,6 +78,13 @@
       "component": "erp-reservations-availability"
     }
   ],
+  "settings": {
+    "title": "Reservas",
+    "icon": "calendar-outline",
+    "schema": "schemas/settings_upsert.json",
+    "get": "reservations.settings.get",
+    "set": "reservations.settings.upsert"
+  },
   "migrations": {
     "sqlite": [
       "migrations/sqlite/001_init.sql",
