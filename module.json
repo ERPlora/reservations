@@ -1,7 +1,7 @@
 {
   "id": "reservations",
   "name": "Reservations",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "agent": {
     "description": "Manages table and resource reservations: create, update and track bookings, configure time slots and blocked dates, and handle the waitlist.",
     "keywords": [
