@@ -5,6 +5,6 @@
 -- CHECK (ok = 1) de reservations__gate y revierte la transacción completa.
 INSERT INTO reservations__gate (gate, ok)
 SELECT 'status_transition_valid',
-       EXISTS (SELECT 1 FROM reservations_reservation
+       CASE WHEN EXISTS (SELECT 1 FROM reservations_reservation
                WHERE id = :reservation_id AND hub_id = :hub_id AND is_deleted = 0
-                 AND status = :status AND updated_at = :now);
+                 AND status = :status AND updated_at = :now) THEN 1 ELSE 0 END;
