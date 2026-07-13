@@ -55,12 +55,14 @@ function erplora(): ErploraClientLike {
 }
 
 export class ErpReservationsAvailability extends LitElement {
+  // Sin `fill`: la vista apila DOS tablas, así que cada una mantiene su alto natural y scrollea la
+  // página. `fill` es para la tabla ÚNICA que llena el alto de la vista.
   static styles = css`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
-    h2 { margin:1rem 0 .5rem; font-size:1.15rem; }
     h3 { margin:1.25rem 0 .5rem; font-size:1rem; }
-    .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
-    .form ion-input, .form ion-select { flex:1 1 11rem; min-width:9rem; }
+    /* El alta vive en el panel lateral de su tabla (estrecho) → campos en columna, no en fila. */
+    .form { display:flex; flex-direction:column; gap:.7rem; }
+    .form ion-button { align-self:flex-end; }
     .err { color:#d9480f; font-weight:600; }
   `;
 
@@ -171,6 +173,13 @@ export class ErpReservationsAvailability extends LitElement {
     super.disconnectedCallback();
   }
 
+  // Cada tabla tiene SU panel lateral: hay que cerrar el de la tabla del alta, no «el» de la vista.
+  private dataTable(id: 'slots' | 'blocked'): { open(p?: 'filters' | 'create'): void; close(): void } | null {
+    return this.renderRoot.querySelector(`ok-data-table#${id}`) as
+      | { open(p?: 'filters' | 'create'): void; close(): void }
+      | null;
+  }
+
   private async createSlot(ev: Event) {
     ev.preventDefault();
     if (!this.slotStart || !this.slotEnd) return;
@@ -186,6 +195,7 @@ export class ErpReservationsAvailability extends LitElement {
       this.slotStart = '';
       this.slotEnd = '';
       this.slotMax = '10';
+      this.dataTable('slots')?.close(); // si no, el panel se queda abierto tapando la franja creada
       await this.slotsCtrl.load();
     } catch (e) {
       this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateSlot');
@@ -207,6 +217,7 @@ export class ErpReservationsAvailability extends LitElement {
       });
       this.blockDate = '';
       this.blockReason = '';
+      this.dataTable('blocked')?.close(); // si no, el panel se queda abierto tapando la fecha creada
       await this.blockedCtrl.load();
     } catch (e) {
       this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errBlockDate');
@@ -235,29 +246,33 @@ export class ErpReservationsAvailability extends LitElement {
     }
   }
 
+  // Dos CRUD apilados: cada `<form slot="create">` da de alta UNA FILA de la tabla que lo contiene.
+  // El título de la vista lo pinta el topbar del shell; los <h3> se quedan porque rotulan cada tabla.
   render() {
     const t = (k: string): string => erplora().t(CATALOG, k);
     return html`<div>
-        <h2>${t('ui.titleAvailability')}</h2>
         ${this.formError ? html`<p class="err">${this.formError}</p>` : nothing}
         ${this.slotsCtrl?.error ? html`<p class="err">${this.slotsCtrl.error}</p>` : nothing}
         ${this.blockedCtrl?.error ? html`<p class="err">${this.blockedCtrl.error}</p>` : nothing}
         <h3>${t('ui.sectionTimeSlots')}</h3>
-        <form class="form" @submit=${(e) => this.createSlot(e)}>
-          <ion-select fill="outline" label-placement="floating" label=${t('ui.colDay')} .value=${this.slotDay} @ionChange=${(e: any) => (this.slotDay = e.target.value)}>${DAY_KEYS.map((key, i) => html`<ion-select-option .value=${String(i)}>${t(key)}</ion-select-option>`)}</ion-select>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.colStart')} type="time" .value=${this.slotStart} @ionInput=${(e: any) => (this.slotStart = e.target.value)}></ion-input>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.colEnd')} type="time" .value=${this.slotEnd} @ionInput=${(e: any) => (this.slotEnd = e.target.value)}></ion-input>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.phMax')} type="number" min="1" .value=${this.slotMax} @ionInput=${(e: any) => (this.slotMax = e.target.value)}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t('ui.btnAddSlot')}</ion-button>
-        </form>
-        <ok-data-table .serverSide=${true} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t('ui.loading') : t('ui.emptyTimeSlots')} @rowAction=${(e: CustomEvent) => this.onSlotAction(e)} @pageChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPage(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.slotsCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.slotsCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.slotsCtrl.setFilter(e.detail.col, e.detail.value)}></ok-data-table>
+        <ok-data-table id="slots" .serverSide=${true} .addable=${true} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t('ui.loading') : t('ui.emptyTimeSlots')} @rowAction=${(e: CustomEvent) => this.onSlotAction(e)} @pageChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.slotsCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.slotsCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.slotsCtrl.setFilter(e.detail.col, e.detail.value)}>
+          <!-- Se proyecta SIEMPRE (aunque el panel esté cerrado): si no, el «+» abriría un panel vacío. -->
+          <form slot="create" class="form" @submit=${(e: Event) => this.createSlot(e)}>
+            <ion-select fill="outline" label-placement="floating" label=${t('ui.colDay')} .value=${this.slotDay} @ionChange=${(e: any) => (this.slotDay = e.target.value)}>${DAY_KEYS.map((key, i) => html`<ion-select-option .value=${String(i)}>${t(key)}</ion-select-option>`)}</ion-select>
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.colStart')} type="time" .value=${this.slotStart} @ionInput=${(e: any) => (this.slotStart = e.target.value)}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.colEnd')} type="time" .value=${this.slotEnd} @ionInput=${(e: any) => (this.slotEnd = e.target.value)}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.phMax')} type="number" min="1" .value=${this.slotMax} @ionInput=${(e: any) => (this.slotMax = e.target.value)}></ion-input>
+            <ion-button type="submit" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t('ui.btnAddSlot')}</ion-button>
+          </form>
+        </ok-data-table>
         <h3>${t('ui.sectionBlockedDates')}</h3>
-        <form class="form" @submit=${(e) => this.createBlocked(e)}>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" .value=${this.blockDate} @ionInput=${(e: any) => (this.blockDate = e.target.value)}></ion-input>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.phReason')} .value=${this.blockReason} @ionInput=${(e: any) => (this.blockReason = e.target.value)}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.blockDate}>${t('ui.btnBlockDate')}</ion-button>
-        </form>
-        <ok-data-table .serverSide=${true} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t('ui.loading') : t('ui.emptyBlockedDates')} @rowAction=${(e: CustomEvent) => this.onBlockedAction(e)} @pageChange=${(e: CustomEvent<number>) => this.blockedCtrl.setPage(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.blockedCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.blockedCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.blockedCtrl.setFilter(e.detail.col, e.detail.value)}></ok-data-table>
+        <ok-data-table id="blocked" .serverSide=${true} .addable=${true} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t('ui.loading') : t('ui.emptyBlockedDates')} @rowAction=${(e: CustomEvent) => this.onBlockedAction(e)} @pageChange=${(e: CustomEvent<number>) => this.blockedCtrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.blockedCtrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.blockedCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.blockedCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.blockedCtrl.setFilter(e.detail.col, e.detail.value)}>
+          <form slot="create" class="form" @submit=${(e: Event) => this.createBlocked(e)}>
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" .value=${this.blockDate} @ionInput=${(e: any) => (this.blockDate = e.target.value)}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.phReason')} .value=${this.blockReason} @ionInput=${(e: any) => (this.blockReason = e.target.value)}></ion-input>
+            <ion-button type="submit" ?disabled=${this.saving || !this.blockDate}>${t('ui.btnBlockDate')}</ion-button>
+          </form>
+        </ok-data-table>
       </div>`;
   }
 }
