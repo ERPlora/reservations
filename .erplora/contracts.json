@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "module": "reservations",
+  "consumes": {
+    "queries": [
+      "reservations.blocked_dates.list",
+      "reservations.reservations.list",
+      "reservations.timeslots.list",
+      "reservations.waitlist.list"
+    ],
+    "optional_queries": [],
+    "commands": [
+      "reservations.blocked_dates.create",
+      "reservations.blocked_dates.delete",
+      "reservations.reservations.create",
+      "reservations.reservations.set_status",
+      "reservations.timeslots.create",
+      "reservations.timeslots.delete",
+      "reservations.waitlist.create",
+      "reservations.waitlist.delete",
+      "reservations.waitlist.update"
+    ],
+    "events": [
+      "reservations.blocked_date.created",
+      "reservations.blocked_date.deleted",
+      "reservations.reservation.created",
+      "reservations.reservation.deleted",
+      "reservations.reservation.status_changed",
+      "reservations.reservation.updated",
+      "reservations.timeslot.created",
+      "reservations.timeslot.deleted",
+      "reservations.waitlist.created",
+      "reservations.waitlist.deleted",
+      "reservations.waitlist.updated"
+    ],
+    "slots": []
+  }
+}
