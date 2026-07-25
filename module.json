@@ -1,7 +1,7 @@
 {
   "id": "reservations",
   "name": "Reservations",
-  "version": "3.0.8",
+  "version": "3.0.9",
   "agent": {
     "description": "Manages table and resource reservations: create, update and track bookings, configure time slots and blocked dates, and handle the waitlist.",
     "keywords": [
@@ -79,9 +79,9 @@
     }
   ],
   "migrations": {
-    "sqlite": [
-      "migrations/sqlite/001_init.sql",
-      "migrations/sqlite/002_gate.sql"
+    "postgres": [
+      "migrations/postgres/001_init.sql",
+      "migrations/postgres/002_gate.sql"
     ]
   },
   "queries": {
