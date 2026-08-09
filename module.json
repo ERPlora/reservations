@@ -516,6 +516,23 @@
       }
     }
   },
+  "events": {
+    "listen": {},
+    "emits": [
+      "reservations.blocked_date.created",
+      "reservations.blocked_date.deleted",
+      "reservations.reservation.created",
+      "reservations.reservation.deleted",
+      "reservations.reservation.status_changed",
+      "reservations.reservation.updated",
+      "reservations.settings.updated",
+      "reservations.timeslot.created",
+      "reservations.timeslot.deleted",
+      "reservations.waitlist.created",
+      "reservations.waitlist.deleted",
+      "reservations.waitlist.updated"
+    ]
+  },
   "ai_context": "Module: Reservations (id: reservations, v3.0.3). Table and resource reservations with time slots, blocked dates, waitlist and a per-hub settings record. Entities: reservation (guest booking with a status machine pending->confirmed->seated->completed, plus cancelled/no_show), timeslot (available windows per day_of_week), blocked_date (holidays/closures), waitlist entry (for full slots, convertible into a reservation), settings (party-size limits, advance booking window, auto-confirm, no-show window, reminders). Depends on the tables and customers modules. Reservations reference customer_id and table_id by contract (no FK). Non-CRUD logic implemented as a Tier 2 WASM handler (dist/handler.wasm): availability gate on create (party-size limits, blocked dates, active time slot, atomic slot capacity, advance-booking window), status-transition state machine with authoritative timestamps, and atomic waitlist promotion (waitlist.update with is_converted creates and links the reservation in one transaction). Still pending: reminders/no-show release jobs and WhatsApp booking — see WASM-TODO.md.",
   "ui": {
     "entry": "dist/reservations.esm.js"
