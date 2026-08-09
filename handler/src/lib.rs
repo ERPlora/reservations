@@ -181,6 +181,7 @@ pub fn create_reservation_pure(input: Value) -> Result<Output, String> {
     Ok(Output {
         operations: vec![Operation::sql("reservations._create_gated", p)],
         events: vec![event],
+        ..Default::default()
     })
 }
 
@@ -218,6 +219,7 @@ pub fn set_status_pure(input: Value) -> Result<Output, String> {
     Ok(Output {
         operations: vec![Operation::sql("reservations._apply_status", p)],
         events: vec![], // reservations.reservation.status_changed lo emite el command (declarado)
+        ..Default::default()
     })
 }
 
@@ -242,6 +244,7 @@ pub fn waitlist_update_pure(input: Value) -> Result<Output, String> {
         return Ok(Output {
             operations: vec![Operation::sql("reservations._waitlist_update", p)],
             events: vec![],
+        ..Default::default()
         });
     }
 
@@ -264,5 +267,6 @@ pub fn waitlist_update_pure(input: Value) -> Result<Output, String> {
     Ok(Output {
         operations: vec![Operation::sql("reservations._waitlist_promote", p)],
         events: vec![event],
+        ..Default::default()
     })
 }

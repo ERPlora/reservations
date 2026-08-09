@@ -336,6 +336,12 @@
       "sql": [
         "commands/reservation_update.sql"
       ],
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "reservations.update_rejected",
+        "message": "That change is not available: the slot is full, the day is blocked, the party size is out of range, or the new time falls outside the booking window."
+      },
       "schema": "schemas/reservation_update.json",
       "emit": [
         "reservations.reservation.updated"
