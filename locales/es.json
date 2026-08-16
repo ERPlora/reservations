@@ -1,5 +1,6 @@
 {
   "name": "Reservas",
+  "description": "Reservas de mesas y recursos, con franjas horarias configurables y días bloqueados.",
   "navigation": {
     "list": {
       "label": "Reservas"
