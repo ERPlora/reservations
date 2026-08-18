@@ -92,11 +92,16 @@ EXACTAMENTE lo que cuenta el gate (mismo criterio de "viva" y de pertenencia a l
 que permite a la UI de disponibilidad mostrar ocupación sin intentar crear. Test contra Postgres
 real: `tests/slots_count_for.pg.test.py`.
 
-## 5. Tareas programadas (Tier 2/host — fuera del request del usuario) — PENDIENTE
+## 5. Tareas programadas — `release_unconfirmed` ✅ (#5) · `send_reminders` FUERA del MVP
 
 Origen: `scheduled_tasks.py` (ambas eran `not_implemented` en legacy) + `module.py SCHEDULED_TASKS`.
-- `release_unconfirmed` (cron `0 6 * * *`): cancelar/liberar reservas `pending` que superaron la
- ventana de hold (`settings.min_advance_hours` / política de no-confirmación).
+- `release_unconfirmed` ✅ (`scheduled_tasks`, cron `*/15 * * * *`, `catch_up: collapse`, como
+ `tables.expire_holds`): command SQL `reservations.reservations.release_unconfirmed` — pasa a
+ `cancelled` (`cancellation_reason = 'unconfirmed'`) toda `pending` cuya hora quedó atrás más de
+ `settings.no_show_window_minutes` (15 por defecto). Deja de contar capacidad en su franja (una
+ `pending` rancia de las 20:00 bloqueaba una reserva de las 22:30 en la franja 20–23). A propósito
+ NO usa `min_advance_hours` (es antelación de alta; una promoción de waitlist dentro de esa ventana
+ se liberaría nada más crearse). Test: `tests/release_unconfirmed.pg.test.py`.
 - `send_reminders` (cron `0 17 * * *`): enviar recordatorios de las reservas de mañana
  (`settings.send_reminder_email` / `reminder_hours_before`).
 
