@@ -197,6 +197,13 @@
         "description": "Lists available time slots by day of the week"
       }
     },
+    "reservations.slots.count_for": {
+      "permission": "reservations.view_reservation",
+      "sql": "queries/slots_count_for.sql",
+      "ai": {
+        "description": "Counts live reservations per time slot for a date (reserved vs max, seats available) — the read side of the overbooking gate; optional time narrows to one slot"
+      }
+    },
     "reservations.blocked_dates.list": {
       "permission": "reservations.view_blockeddate",
       "sql": "queries/blocked_dates_list.sql",

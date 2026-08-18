@@ -81,13 +81,16 @@ Origen: campos `WaitlistEntry.is_converted/reservation_id` (models.py).
   inexistente o slot lleno ⇒ rollback de TODO (ni reserva ni flag). Emite además
   `reservations.reservation.created`.
 
-## 4. Contadores de capacidad atómicos ✅ cubierto inline · query de conteo PENDIENTE
+## 4. Contadores de capacidad atómicos ✅ cubierto inline · query de conteo ✅ (`reservations.slots.count_for`, #4)
 
 El chequeo de "slot lleno" se hace con un `COUNT(*)` correlacionado dentro del INSERT condicional
 de `_create_gated`/`_waitlist_promote`, en la misma transacción del command ⇒ anti-overbooking
 atómico (en SQLite el escritor es único; en Postgres revisar aislamiento cuando exista esa
-migración). **Pendiente:** query dedicada `reservations.slots.count_for` para que la UI de
-disponibilidad muestre ocupación/alternativas sin intentar crear.
+migración). La lectura es `reservations.slots.count_for` (`queries/slots_count_for.sql`, #4):
+por `{date[, time]}` devuelve una fila por franja activa del día con `reserved`/`available`, contando
+EXACTAMENTE lo que cuenta el gate (mismo criterio de "viva" y de pertenencia a la franja) — es lo
+que permite a la UI de disponibilidad mostrar ocupación sin intentar crear. Test contra Postgres
+real: `tests/slots_count_for.pg.test.py`.
 
 ## 5. Tareas programadas (Tier 2/host — fuera del request del usuario) — PENDIENTE
 
