@@ -14,7 +14,10 @@
 //!   nunca son legales en el guest; la legalidad dependiente del estado ACTUAL
 //!   la aplica el SQL de `reservations._apply_status` (UPDATE condicionado +
 //!   assert). Los timestamps (`confirmed_at`/`seated_at`/…) los fija el SQL con
-//!   el `:now` del host — el cliente ya no puede falsificarlos.
+//!   el `:now` del host — el cliente ya no puede falsificarlos. It also emits
+//!   `reservations.reservation.status_changed` enriched from the preloaded row
+//!   (`reads`, ADR-0069) — table, date, time, party, guest — so `tables` can hold
+//!   or release the table from that event alone (reservations#13).
 //! * `waitlist_update` — actualización de lista de espera; si el payload pide
 //!   `is_converted=1`, hace la **promoción atómica** waitlist→reserva (§3):
 //!   `reservations._waitlist_promote` crea la reserva LEYENDO los datos de la
@@ -204,21 +207,46 @@ pub fn set_status_pure(input: Value) -> Result<Output, String> {
         ));
     }
 
+    let cancellation_reason = if status == "cancelled" {
+        payload.get("cancellation_reason").cloned().unwrap_or(Value::Null)
+    } else {
+        Value::Null
+    };
+
     let mut p = Map::new();
     p.insert("reservation_id".into(), json!(reservation_id));
     p.insert("status".into(), json!(status));
-    p.insert(
-        "cancellation_reason".into(),
-        if status == "cancelled" {
-            payload.get("cancellation_reason").cloned().unwrap_or(Value::Null)
-        } else {
-            Value::Null
-        },
-    );
+    p.insert("cancellation_reason".into(), cancellation_reason.clone());
+
+    // reservations#13: the event is emitted HERE, enriched from the authoritative row the host
+    // preloaded (`reads` → `context.reads["reservations.reservations.get"]`, ADR-0069) — never
+    // from the payload, so a caller cannot decide which table `tables` holds. `tables` listens
+    // to it and holds/releases the table (`tables._hold_from_reservation`). The command declares
+    // no `emit` for it: that would queue the same fact twice, once bare and once enriched.
+    // If the read is missing (rule 3, graceful) the fact is still announced without table data.
+    let row = input
+        .pointer("/context/reads/reservations.reservations.get/0")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let field = |k: &str| row.get(k).cloned().unwrap_or(Value::Null);
+    let event = Event::new("reservations.reservation.status_changed", json!({
+        "sender": "reservations",
+        "reservation_id": reservation_id,
+        "status": status,
+        "previous_status": field("status"),
+        "cancellation_reason": cancellation_reason,
+        "table_id": field("table_id"),
+        "date": field("date"),
+        "time": field("time"),
+        "duration_minutes": field("duration_minutes"),
+        "party_size": field("party_size"),
+        "guest_name": field("guest_name"),
+        "customer_id": field("customer_id"),
+    }));
 
     Ok(Output {
         operations: vec![Operation::sql("reservations._apply_status", p)],
-        events: vec![], // reservations.reservation.status_changed lo emite el command (declarado)
+        events: vec![event],
         ..Default::default()
     })
 }
@@ -269,4 +297,113 @@ pub fn waitlist_update_pure(input: Value) -> Result<Output, String> {
         events: vec![event],
         ..Default::default()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `{payload, context}` as the host builds it — `context.reads` is what ADR-0069 preloads
+    /// from the manifest `reads` block, keyed by query name.
+    fn input(payload: Value, reads: Option<Value>) -> Value {
+        let mut ctx = json!({ "new_ids": [] });
+        if let Some(r) = reads {
+            ctx["reads"] = r;
+        }
+        json!({ "payload": payload, "context": ctx })
+    }
+
+    fn manifest() -> Value {
+        let raw = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../module.json"))
+            .expect("module.json next to handler/");
+        serde_json::from_str(&raw).expect("module.json parses")
+    }
+
+    // ── reservations#13: the status change tells `tables` WHICH table, WHEN and for WHOM ──
+
+    fn confirmed_row() -> Value {
+        json!([{
+            "id": "r-ana", "guest_name": "Ana", "guest_phone": "", "guest_email": "",
+            "date": "2026-08-20", "time": "21:00:00", "party_size": 4,
+            "duration_minutes": 90, "table_id": "t1", "status": "pending",
+        }])
+    }
+
+    #[test]
+    fn set_status_emits_status_changed_enriched_from_the_authoritative_row() {
+        let out = set_status_pure(input(
+            json!({ "reservation_id": "r-ana", "status": "confirmed" }),
+            Some(json!({ "reservations.reservations.get": confirmed_row() })),
+        ))
+        .expect("legal transition");
+
+        let ev = out
+            .events
+            .iter()
+            .find(|e| e.name == "reservations.reservation.status_changed")
+            .expect("the handler emits status_changed itself (the command no longer does)");
+        assert_eq!(ev.payload["reservation_id"], json!("r-ana"));
+        assert_eq!(ev.payload["status"], json!("confirmed"));
+        assert_eq!(ev.payload["previous_status"], json!("pending"));
+        assert_eq!(ev.payload["table_id"], json!("t1"), "tables needs the table to hold it");
+        assert_eq!(ev.payload["date"], json!("2026-08-20"));
+        assert_eq!(ev.payload["time"], json!("21:00:00"));
+        assert_eq!(ev.payload["duration_minutes"], json!(90));
+        assert_eq!(ev.payload["party_size"], json!(4));
+        assert_eq!(ev.payload["guest_name"], json!("Ana"));
+        assert_eq!(ev.payload["sender"], json!("reservations"));
+        assert_eq!(out.events.len(), 1, "exactly one status_changed per transition");
+    }
+
+    #[test]
+    fn set_status_ignores_table_data_forged_in_the_payload() {
+        // The caller cannot decide which table gets held: the row is the authority.
+        let out = set_status_pure(input(
+            json!({ "reservation_id": "r-ana", "status": "confirmed", "table_id": "t-forged" }),
+            Some(json!({ "reservations.reservations.get": confirmed_row() })),
+        ))
+        .unwrap();
+        assert_eq!(out.events[0].payload["table_id"], json!("t1"));
+    }
+
+    #[test]
+    fn set_status_still_emits_when_the_read_is_missing() {
+        // ADR-0069 rule 3: a read that fails is omitted, the command degrades — the status
+        // change is still a fact worth announcing, only without the table details.
+        let out = set_status_pure(input(
+            json!({ "reservation_id": "r-ana", "status": "cancelled", "cancellation_reason": "sick" }),
+            None,
+        ))
+        .unwrap();
+        let ev = &out.events[0];
+        assert_eq!(ev.name, "reservations.reservation.status_changed");
+        assert_eq!(ev.payload["reservation_id"], json!("r-ana"));
+        assert_eq!(ev.payload["status"], json!("cancelled"));
+        assert_eq!(ev.payload["cancellation_reason"], json!("sick"));
+        assert_eq!(ev.payload["table_id"], Value::Null);
+    }
+
+    #[test]
+    fn manifest_preloads_the_reservation_row_for_set_status_and_lets_the_handler_emit() {
+        let m = manifest();
+        let cmd = &m["commands"]["reservations.reservations.set_status"];
+        let reads = cmd["reads"].as_array().expect("set_status declares `reads`");
+        let read = reads
+            .iter()
+            .find(|r| r["query"] == "reservations.reservations.get")
+            .expect("reads the reservation row by id");
+        assert_eq!(read["params"]["reservation_id"], json!("payload.reservation_id"));
+        // The handler owns the event now: a declared `emit` would queue it TWICE per transition
+        // (once with the bare caller payload, once enriched).
+        assert!(
+            cmd.get("emit").map(|e| e.as_array().map(|a| a.is_empty()).unwrap_or(true)).unwrap_or(true),
+            "set_status must not also declare `emit` for status_changed"
+        );
+        // Still declared at module level, so hub#240 lets the handler emit it.
+        assert!(m["events"]["emits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e == "reservations.reservation.status_changed"));
+    }
 }

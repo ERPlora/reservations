@@ -358,8 +358,13 @@
         "function": "set_status"
       },
       "schema": "schemas/reservation_set_status.json",
-      "emit": [
-        "reservations.reservation.status_changed"
+      "reads": [
+        {
+          "query": "reservations.reservations.get",
+          "params": {
+            "reservation_id": "payload.reservation_id"
+          }
+        }
       ],
       "ai": {
         "description": "Changes the status of a reservation validating the state machine (confirmed, seated, completed, cancelled, no_show)"
