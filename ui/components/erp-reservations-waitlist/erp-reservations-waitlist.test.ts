@@ -123,3 +123,23 @@ describe('el alta sigue funcionando desde el panel', () => {
     expect(tabla(el)?.panel, 'el panel de alta se queda abierto tras crear').toBe('none');
   });
 });
+
+// ── reservations#34: la lista de espera pinta fecha y hora como las lee un humano ───────────
+describe('la fecha y la hora preferida se pintan con Intl, no en ISO crudo', () => {
+  type Col = { key: string; format?: (r: Record<string, unknown>) => unknown };
+  const cols = async (): Promise<Col[]> =>
+    ((await montar()) as unknown as { columns: Col[] }).columns;
+
+  it('la fecha ISO se pinta en el formato del idioma activo', async () => {
+    const date = (await cols()).find((c) => c.key === 'date');
+    expect(date?.format, 'la columna date no tiene format').toBeTruthy();
+    expect(date!.format({ date: '2026-07-13' })).toBe('13/7/2026');
+  });
+
+  it('la hora preferida pierde los segundos (venga como HH:MM:SS o como HH:MM heredado)', async () => {
+    const time = (await cols()).find((c) => c.key === 'preferred_time');
+    expect(time?.format, 'la columna preferred_time no tiene format').toBeTruthy();
+    expect(time!.format({ preferred_time: '21:00:00' })).toBe('21:00');
+    expect(time!.format({ preferred_time: '21:00' })).toBe('21:00');
+  });
+});

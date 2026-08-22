@@ -135,3 +135,35 @@ describe('el alta sigue funcionando desde el panel', () => {
     expect(tabla(el)?.panel, 'el panel de alta se queda abierto tras crear').toBe('none');
   });
 });
+
+// ── reservations#34: la lista pinta fecha y hora como las lee un humano ─────────────────────
+//
+// Las columnas venían crudas de la query: la fecha en ISO («2026-07-13») y la hora con
+// segundos («20:00:00»). El resto del hub formatea con Intl según el idioma activo
+// (appointments: `fmtTime`); aquí es hora de pared guardada como texto, así que se parsea
+// como local (sin Z) para que el día pintado sea el día guardado.
+describe('la fecha y la hora se pintan con Intl, no en ISO crudo', () => {
+  type Col = { key: string; format?: (r: Record<string, unknown>) => unknown };
+  const cols = async (): Promise<Col[]> =>
+    ((await montar()) as unknown as { columns: Col[] }).columns;
+
+  it('la fecha ISO se pinta en el formato del idioma activo', async () => {
+    const date = (await cols()).find((c) => c.key === 'date');
+    expect(date?.format, 'la columna date no tiene format').toBeTruthy();
+    expect(date!.format({ date: '2026-07-13' })).toBe('13/7/2026');
+  });
+
+  it('la hora pierde los segundos', async () => {
+    const time = (await cols()).find((c) => c.key === 'time');
+    expect(time?.format, 'la columna time no tiene format').toBeTruthy();
+    expect(time!.format({ time: '20:00:00' })).toBe('20:00');
+  });
+
+  it('un valor que no es hora/fecha se pinta tal cual (fila corrupta, no pantalla rota)', async () => {
+    const colsNow = await cols();
+    const date = colsNow.find((c) => c.key === 'date')!;
+    const time = colsNow.find((c) => c.key === 'time')!;
+    expect(date.format({ date: '' })).toBe('');
+    expect(time.format({ time: 'garbage' })).toBe('garbage');
+  });
+});
