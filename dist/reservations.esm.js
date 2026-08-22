@@ -3300,6 +3300,7 @@ var es_default = {
     "reservations.date_blocked": "Esa fecha est\xE1 bloqueada (festivo o cierre); no se aceptan reservas ese d\xEDa.",
     "reservations.no_service_day": "No hay servicio a esa hora: ninguna franja abierta la cubre.",
     "reservations.no_capacity": "Esa franja est\xE1 completa para esa fecha.",
+    "reservations.illegal_transition": "Ese cambio de estado no es posible desde el estado actual de la reserva (el flujo es pendiente \u2192 confirmada \u2192 sentada \u2192 completada).",
     "reservations.reads_unavailable": "No se pudieron leer los ajustes de reservas; no se ha reservado nada."
   }
 };
@@ -3392,6 +3393,7 @@ var en_default = {
     "reservations.date_blocked": "That date is blocked (holiday or closure); no reservations are taken that day.",
     "reservations.no_service_day": "There is no service at that time: no open time slot covers it.",
     "reservations.no_capacity": "That time slot is fully booked for that date.",
+    "reservations.illegal_transition": "That status change is not possible from the reservation's current status (the flow is pending \u2192 confirmed \u2192 seated \u2192 completed).",
     "reservations.reads_unavailable": "The reservation settings could not be read; nothing was booked."
   }
 };

@@ -85,6 +85,7 @@
     "reservations.date_blocked": "That date is blocked (holiday or closure); no reservations are taken that day.",
     "reservations.no_service_day": "There is no service at that time: no open time slot covers it.",
     "reservations.no_capacity": "That time slot is fully booked for that date.",
+    "reservations.illegal_transition": "That status change is not possible from the reservation's current status (the flow is pending → confirmed → seated → completed).",
     "reservations.reads_unavailable": "The reservation settings could not be read; nothing was booked."
   }
 }
