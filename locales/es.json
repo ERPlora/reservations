@@ -86,6 +86,7 @@
     "reservations.date_blocked": "Esa fecha está bloqueada (festivo o cierre); no se aceptan reservas ese día.",
     "reservations.no_service_day": "No hay servicio a esa hora: ninguna franja abierta la cubre.",
     "reservations.no_capacity": "Esa franja está completa para esa fecha.",
+    "reservations.illegal_transition": "Ese cambio de estado no es posible desde el estado actual de la reserva (el flujo es pendiente → confirmada → sentada → completada).",
     "reservations.reads_unavailable": "No se pudieron leer los ajustes de reservas; no se ha reservado nada."
   }
 }

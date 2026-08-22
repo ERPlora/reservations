@@ -355,6 +355,52 @@ pub fn create_reservation_pure(input: Value) -> Result<Output, String> {
 /// legales por destino los aplica el SQL de `_apply_status` contra el estado actual).
 const TARGET_STATUSES: [&str; 5] = ["confirmed", "seated", "completed", "cancelled", "no_show"];
 
+/// Every status the state machine knows (target or current). A current status OUTSIDE this set
+/// is not something the handler can reason about — it degrades to the SQL gate instead of
+/// refusing a transition it cannot vouch is illegal.
+const KNOWN_STATUSES: [&str; 6] = ["pending", "confirmed", "seated", "completed", "cancelled", "no_show"];
+
+/// reservations#37: the legal transitions, mirroring the WHERE of `_apply_status_update.sql`
+/// pair by pair (repeating the same status is NOT legal — the SQL only accepts the forward
+/// pairs). The SQL stays the authority against the live row inside the transaction; this mirror
+/// only powers the readable refusal in front of it.
+fn legal_transition(current: &str, target: &str) -> bool {
+    matches!(
+        (current, target),
+        ("pending", "confirmed")
+            | ("pending", "seated")
+            | ("pending", "cancelled")
+            | ("pending", "no_show")
+            | ("confirmed", "seated")
+            | ("confirmed", "cancelled")
+            | ("confirmed", "no_show")
+            | ("seated", "completed")
+    )
+}
+
+/// reservations#37: the refusal the caller can act on. The English fallback sentence names the
+/// CURRENT status and the REQUESTED one (the message channel is the source; the UI paints the
+/// `errors` translation of the code); the terminal statuses get their own sentence because for
+/// them no target is ever the answer. Same shape as the create refusals of #31/#32 (hub#139).
+fn illegal_transition_error(current: &str, target: &str) -> DomainError {
+    if matches!(current, "cancelled" | "completed" | "no_show") {
+        return DomainError::new(
+            "reservations.illegal_transition",
+            format!("This reservation is {current}; its status can no longer change."),
+        );
+    }
+    if target == "completed" {
+        return DomainError::new(
+            "reservations.illegal_transition",
+            format!("This reservation is {current}; it cannot be completed before it is seated — seat it first."),
+        );
+    }
+    DomainError::new(
+        "reservations.illegal_transition",
+        format!("This reservation is {current}; it cannot be set to {target}."),
+    )
+}
+
 /// `{payload, context}` → intención `reservations._apply_status`.
 pub fn set_status_pure(input: Value) -> Result<Output, String> {
     let (payload, _) = payload_and_ids(&input);
@@ -374,11 +420,6 @@ pub fn set_status_pure(input: Value) -> Result<Output, String> {
         Value::Null
     };
 
-    let mut p = Map::new();
-    p.insert("reservation_id".into(), json!(reservation_id));
-    p.insert("status".into(), json!(status));
-    p.insert("cancellation_reason".into(), cancellation_reason.clone());
-
     // reservations#13: the event is emitted HERE, enriched from the authoritative row the host
     // preloaded (`reads` → `context.reads["reservations.reservations.get"]`, ADR-0069) — never
     // from the payload, so a caller cannot decide which table `tables` holds. `tables` listens
@@ -389,6 +430,24 @@ pub fn set_status_pure(input: Value) -> Result<Output, String> {
         .pointer("/context/reads/reservations.reservations.get/0")
         .cloned()
         .unwrap_or(Value::Null);
+
+    // reservations#37: the readable refusal in front of the state machine. The same preloaded
+    // row that enriches the event says whether the transition is legal; when the guest KNOWS it
+    // is not (current status known + pair outside the SQL's WHERE), refuse here with a stable
+    // code (hub#139) instead of letting the `_apply_status` assert surface as a bare
+    // `{"code":"error"}`. The read is graceful by contract (#13): if it did not arrive, or the
+    // row carries a status the guest does not know, say nothing — the SQL gate inside the
+    // transaction remains the authority and still rejects the illegal write.
+    let current = as_str(row.get("status").unwrap_or(&Value::Null));
+    if KNOWN_STATUSES.contains(&current.as_str()) && !legal_transition(&current, &status) {
+        return Ok(Output::new().with_error(illegal_transition_error(&current, &status)));
+    }
+
+    let mut p = Map::new();
+    p.insert("reservation_id".into(), json!(reservation_id));
+    p.insert("status".into(), json!(status));
+    p.insert("cancellation_reason".into(), cancellation_reason.clone());
+
     let field = |k: &str| row.get(k).cloned().unwrap_or(Value::Null);
     let event = Event::new("reservations.reservation.status_changed", json!({
         "sender": "reservations",
@@ -514,6 +573,95 @@ mod tests {
         assert_eq!(ev.payload["guest_name"], json!("Ana"));
         assert_eq!(ev.payload["sender"], json!("reservations"));
         assert_eq!(out.events.len(), 1, "exactly one status_changed per transition");
+    }
+
+    #[test]
+    fn set_status_refuses_an_illegal_transition_with_a_readable_code() {
+        // reservations#37: the poster case — completing a reservation that was never seated.
+        // The SQL state machine already refuses it (#2); what was missing is the refusal the
+        // caller can act on: it surfaced as the raw `reservations__gate` CHECK constraint
+        // ({"code":"error"}), which says nothing about why or what to do instead.
+        let out = set_status_pure(input(
+            json!({ "reservation_id": "r-ana", "status": "completed" }),
+            Some(json!({ "reservations.reservations.get": confirmed_row() })),
+        ))
+        .expect("a refusal is an output, not a fault");
+        assert_eq!(refusal_code(&out), "reservations.illegal_transition");
+        let err = out.error.expect("refused");
+        assert!(err.message.contains("pending"), "names the CURRENT status: {}", err.message);
+        assert!(err.message.contains("completed"), "names the REQUESTED status: {}", err.message);
+        assert!(out.operations.is_empty(), "a refusal must not carry operations");
+        assert!(out.events.is_empty(), "a refusal must not announce a transition that did not happen");
+    }
+
+    #[test]
+    fn set_status_refusal_covers_every_pair_the_state_machine_rejects() {
+        // The pre-check mirrors `_apply_status_update.sql` exactly: refuse exactly what the SQL
+        // would roll back. Repeating the same status is illegal too (the SQL only accepts the
+        // forward pairs), and a terminal reservation (cancelled/completed/no_show) accepts
+        // nothing at all.
+        let refuses = [
+            ("pending", "completed"),
+            ("confirmed", "confirmed"),
+            ("confirmed", "completed"),
+            ("seated", "confirmed"),
+            ("seated", "seated"),
+            ("seated", "cancelled"),
+            ("cancelled", "confirmed"),
+            ("completed", "cancelled"),
+            ("no_show", "no_show"),
+        ];
+        for (current, target) in refuses {
+            let row = json!([{ "id": "r-1", "status": current }]);
+            let out = set_status_pure(input(
+                json!({ "reservation_id": "r-1", "status": target }),
+                Some(json!({ "reservations.reservations.get": row })),
+            ))
+            .unwrap();
+            assert_eq!(refusal_code(&out), "reservations.illegal_transition", "{current} → {target}");
+            assert!(out.operations.is_empty(), "{current} → {target} must not write");
+        }
+    }
+
+    #[test]
+    fn set_status_still_proceeds_on_every_legal_transition() {
+        // The pre-check may not over-refuse: every pair the SQL accepts must still reach the
+        // gated UPDATE (the SQL stays the authority for the race).
+        let legal = [
+            ("pending", "confirmed"),
+            ("pending", "seated"),
+            ("pending", "cancelled"),
+            ("pending", "no_show"),
+            ("confirmed", "seated"),
+            ("confirmed", "cancelled"),
+            ("confirmed", "no_show"),
+            ("seated", "completed"),
+        ];
+        for (current, target) in legal {
+            let row = json!([{ "id": "r-1", "status": current }]);
+            let out = set_status_pure(input(
+                json!({ "reservation_id": "r-1", "status": target }),
+                Some(json!({ "reservations.reservations.get": row })),
+            ))
+            .unwrap();
+            assert_eq!(refusal_code(&out), "", "{current} → {target} was wrongly refused");
+            assert_eq!(out.operations.len(), 1, "{current} → {target} must carry the gated UPDATE");
+        }
+    }
+
+    #[test]
+    fn set_status_unknown_current_status_degrades_to_the_sql_gate() {
+        // A status the guest does not know (schema drift, hand-edited row) is NOT a refusal the
+        // handler can vouch for — the SQL decides against the live row. Only refuse what the
+        // handler KNOWS is illegal.
+        let row = json!([{ "id": "r-1", "status": "mystery" }]);
+        let out = set_status_pure(input(
+            json!({ "reservation_id": "r-1", "status": "confirmed" }),
+            Some(json!({ "reservations.reservations.get": row })),
+        ))
+        .unwrap();
+        assert_eq!(refusal_code(&out), "", "an unknown current status is the SQL gate's call");
+        assert_eq!(out.operations.len(), 1);
     }
 
     #[test]
