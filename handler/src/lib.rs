@@ -28,7 +28,7 @@
 //! Ids: el host pasa `context.new_ids` (autoridad de ids); el guest solo los
 //! reparte (`new_ids[0]` = nueva reserva). El guest no toca la BD ni genera ids.
 
-use erplora_guest_sdk::{Event, Operation, Output};
+use erplora_guest_sdk::{DomainError, Event, Operation, Output};
 use serde_json::{json, Map, Value};
 
 #[cfg(feature = "guest")]
@@ -135,6 +135,149 @@ fn payload_and_ids(input: &Value) -> (Value, Vec<Value>) {
     (payload, new_ids)
 }
 
+// ── reservations#31/#32: the pre-check in front of the gate ───────────────────
+//
+// The authoritative gate stays in the SQL of `_create_gated` (a pre-check decides from a read;
+// the race only closes server-side, same design as appointments#70). What lives HERE is the
+// refusal the caller can act on: a stable namespaced code (hub#139) the UI translates, instead
+// of the raw `reservations__gate` CHECK constraint every rejection used to surface as — full
+// slot, day without service and oversized party were all the same sentence. The pre-check reads
+// what the runtime pre-loaded (ADR-0069): the settings singleton, the day's slot capacity and
+// the day's blocked dates. A read that did not ARRIVE is a refusal (fail closed), never a
+// fallback to the payload; a read that arrived EMPTY (a hub without a settings row) means the
+// DB defaults apply — the same COALESCEs the gate uses.
+
+/// One pre-loaded read as rows. `None` = the runtime did NOT deliver the key (ADR-0069 rule 3).
+fn read_rows<'a>(input: &'a Value, query: &str) -> Option<&'a Vec<Value>> {
+    input
+        .pointer("/context/reads")
+        .and_then(|r| r.get(query))
+        .and_then(|v| v.as_array())
+}
+
+/// The settings singleton the handler decides with; `{}` = this hub has no settings row yet
+/// (the migration creates none), so the DB defaults apply — exactly the gate's COALESCEs.
+fn settings_row(input: &Value) -> Option<Value> {
+    read_rows(input, "reservations.settings.get")
+        .map(|rows| rows.first().cloned().unwrap_or_else(|| json!({})))
+}
+
+/// `key` of the settings row as i64, falling to the same default the gate's COALESCE uses.
+fn settings_i64(settings: &Value, key: &str, default: i64) -> i64 {
+    settings.get(key).and_then(as_i64).filter(|v| *v >= 0).unwrap_or(default)
+}
+
+/// reservations#32: «phone required» / «email required» were settings that nothing read — with
+/// both on, a booking with NO contact at all was accepted. The gate's SQL never sees the guest
+/// fields (it only guards availability), so the enforcement lives here, against the SAME
+/// settings row the Settings tab edits. `customer_id` is not a contact: the guest fields are.
+fn contact_refusal(settings: &Value, payload: &Value) -> Option<DomainError> {
+    let phone = as_str(payload.get("guest_phone").unwrap_or(&Value::Null));
+    let email = as_str(payload.get("guest_email").unwrap_or(&Value::Null));
+    if truthy(settings.get("require_phone").unwrap_or(&Value::Null)) && phone.trim().is_empty() {
+        return Some(DomainError::new(
+            "reservations.phone_required",
+            "This business requires a phone number for every reservation.",
+        ));
+    }
+    if truthy(settings.get("require_email").unwrap_or(&Value::Null)) && email.trim().is_empty() {
+        return Some(DomainError::new(
+            "reservations.email_required",
+            "This business requires an email address for every reservation.",
+        ));
+    }
+    None
+}
+
+/// Party size outside the configured `[min_party_size, max_party_size]`.
+fn party_size_refusal(settings: &Value, party_size: i64) -> Option<DomainError> {
+    let (min, max) = (
+        settings_i64(settings, "min_party_size", 1),
+        settings_i64(settings, "max_party_size", 20),
+    );
+    (party_size < min || party_size > max).then(|| {
+        DomainError::new(
+            "reservations.party_size_exceeded",
+            format!("Party size must be between {min} and {max} for this business."),
+        )
+    })
+}
+
+/// The date is blocked: full day, or a block window that covers the requested time (inclusive,
+/// like the gate). `blocked_from`/`until` are `HH:MM[:SS]` TEXT — lexicographic works because
+/// `time` arrives here already normalized to `HH:MM:SS`.
+fn blocked_date_refusal(input: &Value, date: &str, time: &str) -> Option<DomainError> {
+    let rows = read_rows(input, "reservations.blocked_dates.on_date")?;
+    let hit = rows.iter().any(|b| {
+        if as_str(b.get("date").unwrap_or(&Value::Null)) != date {
+            return false;
+        }
+        if truthy(b.get("is_full_day").unwrap_or(&Value::Null)) {
+            return true;
+        }
+        let (from, until) = (
+            as_str(b.get("blocked_from").unwrap_or(&Value::Null)),
+            as_str(b.get("blocked_until").unwrap_or(&Value::Null)),
+        );
+        !from.is_empty() && !until.is_empty() && time >= from.as_str() && time <= until.as_str()
+    });
+    hit.then(|| {
+        DomainError::new(
+            "reservations.date_blocked",
+            "That date is blocked (holiday or closure); no reservations are taken that day.",
+        )
+    })
+}
+
+/// No active slot of that day contains the requested time (`end_time` exclusive, like the gate),
+/// or the slot(s) that do are at capacity. `slots.count_for` is pre-filtered to the payload's
+/// weekday, so containment here is the whole membership rule.
+fn slot_refusal(input: &Value, time: &str) -> Option<DomainError> {
+    let rows = read_rows(input, "reservations.slots.count_for")?;
+    let contains = |r: &Value| {
+        let (start, end) = (
+            as_str(r.get("start_time").unwrap_or(&Value::Null)),
+            as_str(r.get("end_time").unwrap_or(&Value::Null)),
+        );
+        !start.is_empty() && !end.is_empty() && time >= start.as_str() && time < end.as_str()
+    };
+    let matching: Vec<&Value> = rows.iter().filter(|r| contains(r)).collect();
+    if matching.is_empty() {
+        return Some(DomainError::new(
+            "reservations.no_service_day",
+            "There is no service at that time: no open time slot covers it.",
+        ));
+    }
+    let has_room = |r: &Value| {
+        let (reserved, max) = (
+            r.get("reserved").and_then(as_i64).unwrap_or(0),
+            r.get("max_reservations").and_then(as_i64).unwrap_or(0),
+        );
+        reserved < max
+    };
+    (!matching.iter().any(|r| has_room(r))).then(|| {
+        DomainError::new(
+            "reservations.no_capacity",
+            "That time slot is fully booked for that date.",
+        )
+    })
+}
+
+/// The advance-booking window is deliberately NOT pre-checked here: the gate measures the
+/// wall-clock reservation against the SERVER's timezone (`erp_datediff_days` casts the local
+/// `date || time` as timestamptz) while the handler only knows the UTC `now` — a handler-side
+/// check could disagree with the gate by hours around the boundary. That refusal still surfaces
+/// from the gate (see `_create_gated_assert.sql`, reason `outside_advance_window`).
+
+/// reservations#31: the specific pre-checks in front of the SQL gate. `Ok(None)` = nothing to
+/// refuse from the reads; a `DomainError` aborts the command before any write.
+fn create_refusal(input: &Value, settings: &Value, payload: &Value, party_size: i64, date: &str, time: &str) -> Option<DomainError> {
+    contact_refusal(settings, payload)
+        .or_else(|| party_size_refusal(settings, party_size))
+        .or_else(|| blocked_date_refusal(input, date, time))
+        .or_else(|| slot_refusal(input, time))
+}
+
 // ── §2/§4 gate de disponibilidad en el alta ──────────────────────────────────
 
 /// `{payload, context}` → intención `reservations._create_gated` + evento.
@@ -156,6 +299,24 @@ pub fn create_reservation_pure(input: Value) -> Result<Output, String> {
         .unwrap_or(Value::Null); // NULL → default de settings en el SQL
     let reservation_id = new_ids.first().map(as_str).filter(|s| !s.is_empty())
         .ok_or("context.new_ids vacío: el host no entregó ids")?;
+
+    // reservations#31/#32: the readable pre-check in front of the gate. The reads the manifest
+    // declares (`reads`, required) are the authority; without them the command refuses — a guard
+    // that guesses when its input is missing is a guard that opens. The SQL gate below stays
+    // untouched and authoritative for the race.
+    if !["reservations.settings.get", "reservations.slots.count_for", "reservations.blocked_dates.on_date"]
+        .iter()
+        .all(|q| read_rows(&input, q).is_some())
+    {
+        return Ok(Output::new().with_error(DomainError::new(
+            "reservations.reads_unavailable",
+            "The reservation settings could not be read; nothing was booked.",
+        )));
+    }
+    let settings = settings_row(&input).unwrap_or_else(|| json!({}));
+    if let Some(refusal) = create_refusal(&input, &settings, &payload, party_size, &date, &time) {
+        return Ok(Output::new().with_error(refusal));
+    }
 
     let mut p = Map::new();
     p.insert("reservation_id".into(), json!(reservation_id));
@@ -381,6 +542,209 @@ mod tests {
         assert_eq!(ev.payload["status"], json!("cancelled"));
         assert_eq!(ev.payload["cancellation_reason"], json!("sick"));
         assert_eq!(ev.payload["table_id"], Value::Null);
+    }
+
+    // ── reservations#32/#31: enforced contacts + a refusal that says WHY ──────────────
+    //
+    // The create handler decides from the reads the runtime pre-loads (ADR-0069): the settings
+    // singleton, the slot capacity of the day and the blocked dates of the day. A refusal is a
+    // normal output (`with_error`, hub#139) — the SQL gate stays as the authoritative race guard.
+
+    /// The settings singleton as the read returns it, with `over` patched on top.
+    fn settings_read(over: Value) -> Value {
+        let mut row = json!({
+            "id": "s1", "time_slot_duration": 30, "min_party_size": 1, "max_party_size": 20,
+            "min_advance_hours": 1, "max_advance_days": 30, "auto_confirm": 0,
+            "require_phone": 0, "require_email": 0, "no_show_window_minutes": 15,
+            "default_duration_minutes": 120, "send_confirmation_email": 0,
+            "send_reminder_email": 0, "reminder_hours_before": 24
+        });
+        if let (Some(dst), Some(src)) = (row.as_object_mut(), over.as_object()) {
+            for (k, v) in src {
+                dst.insert(k.clone(), v.clone());
+            }
+        }
+        json!([row])
+    }
+
+    /// Slots of the day as `reservations.slots.count_for` returns them (`:date` only → all).
+    fn slots_read(rows: Value) -> Value {
+        rows
+    }
+
+    fn full_day_slot() -> Value {
+        json!([{
+            "timeslot_id": "s-dinner", "start_time": "20:00:00", "end_time": "23:00:00",
+            "max_reservations": 2, "reserved": 1, "available": 1
+        }])
+    }
+
+    fn base_payload() -> Value {
+        json!({
+            "guest_name": "Ana", "date": "2026-08-20", "time": "21:00", "party_size": 4
+        })
+    }
+
+    /// Input with all three reads delivered and healthy by default.
+    fn create_input(payload: Value, reads: Vec<(&str, Value)>) -> Value {
+        let mut ctx = json!({ "new_ids": ["r-new"], "reads": {} });
+        for (name, rows) in reads {
+            ctx["reads"][name] = rows;
+        }
+        json!({ "payload": payload, "context": ctx })
+    }
+
+    fn healthy_reads() -> Vec<(&'static str, Value)> {
+        vec![
+            ("reservations.settings.get", settings_read(json!({}))),
+            ("reservations.slots.count_for", slots_read(full_day_slot())),
+            ("reservations.blocked_dates.on_date", json!([])),
+        ]
+    }
+
+    fn refusal_code(out: &Output) -> &str {
+        out.error.as_ref().map(|e| e.code.as_str()).unwrap_or("")
+    }
+
+    #[test]
+    fn create_without_any_contact_is_refused_when_settings_require_one() {
+        // reservations#32: both flags on and NO contact at all used to sail through.
+        let out = create_reservation_pure(create_input(
+            base_payload(),
+            vec![
+                ("reservations.settings.get", settings_read(json!({ "require_phone": 1, "require_email": 1 }))),
+                ("reservations.slots.count_for", slots_read(full_day_slot())),
+                ("reservations.blocked_dates.on_date", json!([])),
+            ],
+        ))
+        .expect("a refusal is an output, not a fault");
+        assert_eq!(refusal_code(&out), "reservations.phone_required");
+        assert!(out.operations.is_empty(), "a refusal must not carry operations");
+    }
+
+    #[test]
+    fn create_missing_email_is_refused_only_when_the_settings_ask_for_it() {
+        let mut payload = base_payload();
+        payload["guest_phone"] = json!("600123123");
+        let requires = create_reservation_pure(create_input(
+            payload.clone(),
+            vec![
+                ("reservations.settings.get", settings_read(json!({ "require_email": 1 }))),
+                ("reservations.slots.count_for", slots_read(full_day_slot())),
+                ("reservations.blocked_dates.on_date", json!([])),
+            ],
+        ))
+        .unwrap();
+        assert_eq!(refusal_code(&requires), "reservations.email_required");
+
+        let lax = create_reservation_pure(create_input(payload, healthy_reads())).unwrap();
+        assert_eq!(refusal_code(&lax), "", "no flags on: an email-less booking is fine");
+    }
+
+    #[test]
+    fn create_refusal_names_the_party_size_limit() {
+        let mut payload = base_payload();
+        payload["party_size"] = json!(40); // settings max: 20
+        let out = create_reservation_pure(create_input(payload, healthy_reads())).unwrap();
+        assert_eq!(refusal_code(&out), "reservations.party_size_exceeded");
+    }
+
+    #[test]
+    fn create_refusal_names_the_blocked_date() {
+        let reads = vec![
+            ("reservations.settings.get", settings_read(json!({}))),
+            ("reservations.slots.count_for", slots_read(full_day_slot())),
+            (
+                "reservations.blocked_dates.on_date",
+                json!([{ "id": "b1", "date": "2026-08-20", "reason": "staff party",
+                        "is_full_day": 1, "blocked_from": Value::Null, "blocked_until": Value::Null }]),
+            ),
+        ];
+        let out = create_reservation_pure(create_input(base_payload(), reads)).unwrap();
+        assert_eq!(refusal_code(&out), "reservations.date_blocked");
+    }
+
+    #[test]
+    fn create_refusal_names_the_day_without_service() {
+        // No slot that day at all…
+        let reads = vec![
+            ("reservations.settings.get", settings_read(json!({}))),
+            ("reservations.slots.count_for", slots_read(json!([]))),
+            ("reservations.blocked_dates.on_date", json!([])),
+        ];
+        let out = create_reservation_pure(create_input(base_payload(), reads)).unwrap();
+        assert_eq!(refusal_code(&out), "reservations.no_service_day");
+
+        // …and a slot that day which does not CONTAIN the requested time.
+        let lunch_only = json!([{
+            "timeslot_id": "s-lunch", "start_time": "13:00:00", "end_time": "15:00:00",
+            "max_reservations": 3, "reserved": 0, "available": 3
+        }]);
+        let reads = vec![
+            ("reservations.settings.get", settings_read(json!({}))),
+            ("reservations.slots.count_for", slots_read(lunch_only)),
+            ("reservations.blocked_dates.on_date", json!([])),
+        ];
+        let out = create_reservation_pure(create_input(base_payload(), reads)).unwrap();
+        assert_eq!(refusal_code(&out), "reservations.no_service_day");
+    }
+
+    #[test]
+    fn create_refusal_names_the_full_slot() {
+        let full = json!([{
+            "timeslot_id": "s-dinner", "start_time": "20:00:00", "end_time": "23:00:00",
+            "max_reservations": 2, "reserved": 2, "available": 0
+        }]);
+        let reads = vec![
+            ("reservations.settings.get", settings_read(json!({}))),
+            ("reservations.slots.count_for", slots_read(full)),
+            ("reservations.blocked_dates.on_date", json!([])),
+        ];
+        let out = create_reservation_pure(create_input(base_payload(), reads)).unwrap();
+        assert_eq!(refusal_code(&out), "reservations.no_capacity");
+    }
+
+    #[test]
+    fn create_refuses_to_decide_without_its_reads() {
+        // The runtime did not deliver the reads → fail closed, never fall back to the payload.
+        let mut bare = create_input(base_payload(), Vec::new());
+        bare["context"]["reads"] = json!({});
+        let out = create_reservation_pure(bare).unwrap();
+        assert_eq!(refusal_code(&out), "reservations.reads_unavailable");
+    }
+
+    #[test]
+    fn create_with_everything_healthy_still_emits_the_gated_insert() {
+        let out = create_reservation_pure(create_input(base_payload(), healthy_reads())).unwrap();
+        assert_eq!(refusal_code(&out), "");
+        assert_eq!(out.operations.len(), 1);
+        assert_eq!(out.operations[0].command, "reservations._create_gated");
+        assert_eq!(out.operations[0].params.get("time"), Some(&json!("21:00:00")));
+    }
+
+    #[test]
+    fn manifest_preloads_the_three_reads_the_create_handler_decides_from() {
+        let m = manifest();
+        let cmd = &m["commands"]["reservations.reservations.create"];
+        let reads = cmd["reads"].as_array().expect("create declares its reads");
+        let find = |q: &str| {
+            reads
+                .iter()
+                .find(|r| r["query"] == q)
+                .unwrap_or_else(|| panic!("create must read `{q}`"))
+        };
+        assert_eq!(
+            find("reservations.settings.get")["required"],
+            json!(true),
+            "the settings the handler decides with must be a required read"
+        );
+        assert_eq!(find("reservations.slots.count_for")["params"]["date"], json!("payload.date"));
+        assert_eq!(find("reservations.slots.count_for")["required"], json!(true));
+        assert_eq!(
+            find("reservations.blocked_dates.on_date")["params"]["date"],
+            json!("payload.date")
+        );
+        assert_eq!(find("reservations.blocked_dates.on_date")["required"], json!(true));
     }
 
     #[test]

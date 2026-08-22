@@ -51,6 +51,37 @@ function erplora(): ErploraClientLike {
   return c;
 }
 
+/** The `errors` catalog of `locales/{en,es}.json`, resolved by the active language.
+ *
+ *  It is NOT reachable through `erplora().t()`: that helper splits the key on dots to walk the
+ *  catalog, and this module's `errors` block is FLAT — the whole namespaced code is ONE key
+ *  (`"reservations.no_capacity"`), the same shape `appointments` and `customers` ship. */
+function catalogError(code: string): string {
+  for (const lang of [erplora().locale, 'en']) {
+    const dict = (CATALOG[lang] as { errors?: Record<string, string> } | undefined)?.errors;
+    const text = dict?.[code];
+    if (typeof text === 'string' && text) return text;
+  }
+  return '';
+}
+
+/** A business refusal (hub#139) travels as a stable `code` plus the handler's English fallback
+ *  sentence: paint the code's TRANSLATION, and keep the sentence for codes the catalog has not
+ *  learned yet — same idea as `appointments` (`erp-appointments-list.ts::domainErrorText`).
+ *
+ *  reservations#31: until the create pre-check existed, EVERY rejection surfaced as the raw
+ *  `reservations__gate` CHECK constraint — full slot, day without service and an oversized
+ *  party were the same unreadable sentence. */
+function domainErrorText(e: unknown, fallbackKey: string): string {
+  const code = (e as { code?: unknown } | null)?.code;
+  const message = e instanceof Error ? e.message : '';
+  if (typeof code === 'string' && code.startsWith('reservations.')) {
+    const text = catalogError(code);
+    if (text) return text;
+  }
+  return message || erplora().t(CATALOG, fallbackKey);
+}
+
 export class ErpReservationsList extends LitElement {
   static styles = css`
     :host { display:flex; flex-direction:column; height:100%; min-height:0; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
@@ -176,7 +207,7 @@ export class ErpReservationsList extends LitElement {
       this.dataTable()?.close(); // si no, el panel se queda abierto tapando la reserva recién creada
       await this.ctrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateReservation');
+      this.formError = domainErrorText(e, 'ui.errCreateReservation');
     } finally {
       this.saving = false;
     }
@@ -200,7 +231,7 @@ export class ErpReservationsList extends LitElement {
       });
       await this.ctrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSetStatus');
+      this.formError = domainErrorText(e, 'ui.errSetStatus');
     }
   }
 

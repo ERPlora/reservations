@@ -82,7 +82,8 @@
   "migrations": {
     "postgres": [
       "migrations/postgres/001_init.sql",
-      "migrations/postgres/002_gate.sql"
+      "migrations/postgres/002_gate.sql",
+      "migrations/postgres/003_gate_reason.sql"
     ]
   },
   "queries": {
@@ -202,6 +203,13 @@
       "sql": "queries/slots_count_for.sql",
       "ai": {
         "description": "Counts live reservations per time slot for a date (reserved vs max, seats available) — the read side of the overbooking gate; optional time narrows to one slot"
+      }
+    },
+    "reservations.blocked_dates.on_date": {
+      "permission": "reservations.view_blockeddate",
+      "sql": "queries/blocked_dates_on_date.sql",
+      "ai": {
+        "description": "Loads the blocked dates (holidays or closures) covering one exact date, used by the create handler to refuse a booking on a blocked day authoritatively (runtime reads)"
       }
     },
     "reservations.blocked_dates.list": {
@@ -325,6 +333,26 @@
         "function": "create_reservation"
       },
       "schema": "schemas/reservation_create.json",
+      "reads": [
+        {
+          "query": "reservations.settings.get",
+          "required": true
+        },
+        {
+          "query": "reservations.slots.count_for",
+          "params": {
+            "date": "payload.date"
+          },
+          "required": true
+        },
+        {
+          "query": "reservations.blocked_dates.on_date",
+          "params": {
+            "date": "payload.date"
+          },
+          "required": true
+        }
+      ],
       "ai": {
         "description": "Creates a new reservation for a customer at a table and time slot (validates availability, blocked dates, slot capacity and advance window)"
       }
@@ -567,7 +595,7 @@
       "catch_up": "collapse"
     }
   ],
-  "ai_context": "Module: Reservations (id: reservations, v3.0.3). Table and resource reservations with time slots, blocked dates, waitlist and a per-hub settings record. Entities: reservation (guest booking with a status machine pending->confirmed->seated->completed, plus cancelled/no_show), timeslot (available windows per day_of_week), blocked_date (holidays/closures), waitlist entry (for full slots, convertible into a reservation), settings (party-size limits, advance booking window, auto-confirm, no-show window, reminders). Depends on the tables and customers modules. Reservations reference customer_id and table_id by contract (no FK). Non-CRUD logic implemented as a Tier 2 WASM handler (dist/handler.wasm): availability gate on create (party-size limits, blocked dates, active time slot, atomic slot capacity, advance-booking window), status-transition state machine with authoritative timestamps, and atomic waitlist promotion (waitlist.update with is_converted creates and links the reservation in one transaction). Scheduled task release_unconfirmed (every 15 min) cancels pending reservations whose time passed the no-show grace window so they stop counting against the slot. Still pending: reminders and WhatsApp booking — see WASM-TODO.md.",
+  "ai_context": "Module: Reservations (id: reservations, v3.0.3). Table and resource reservations with time slots, blocked dates, waitlist and a per-hub settings record. Entities: reservation (guest booking with a status machine pending->confirmed->seated->completed, plus cancelled/no_show), timeslot (available windows per day_of_week), blocked_date (holidays/closures), waitlist entry (for full slots, convertible into a reservation), settings (party-size limits, advance booking window, auto-confirm, no-show window, reminders). Depends on the tables and customers modules. Reservations reference customer_id and table_id by contract (no FK). Non-CRUD logic implemented as a Tier 2 WASM handler (dist/handler.wasm): availability gate on create (party-size limits, blocked dates, active time slot, atomic slot capacity, advance-booking window) with a translated pre-check from preloaded reads (require_phone/require_email enforcement and refusal codes no_capacity/no_service_day/party_size_exceeded/date_blocked; the gate's abort row carries the reason since migration 003), status-transition state machine with authoritative timestamps, and atomic waitlist promotion (waitlist.update with is_converted creates and links the reservation in one transaction). Scheduled task release_unconfirmed (every 15 min) cancels pending reservations whose time passed the no-show grace window so they stop counting against the slot. Still pending: reminders and WhatsApp booking — see WASM-TODO.md.",
   "ui": {
     "entry": "dist/reservations.esm.js"
   }

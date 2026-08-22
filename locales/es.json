@@ -78,5 +78,14 @@
     "errBlockDate": "No se pudo bloquear la fecha",
     "errDeleteSlot": "No se pudo borrar la franja",
     "errDeleteBlocked": "No se pudo borrar la fecha"
+  },
+  "errors": {
+    "reservations.phone_required": "Este negocio exige un teléfono en toda reserva.",
+    "reservations.email_required": "Este negocio exige un email en toda reserva.",
+    "reservations.party_size_exceeded": "Ese número de comensales está fuera de los límites configurados del negocio.",
+    "reservations.date_blocked": "Esa fecha está bloqueada (festivo o cierre); no se aceptan reservas ese día.",
+    "reservations.no_service_day": "No hay servicio a esa hora: ninguna franja abierta la cubre.",
+    "reservations.no_capacity": "Esa franja está completa para esa fecha.",
+    "reservations.reads_unavailable": "No se pudieron leer los ajustes de reservas; no se ha reservado nada."
   }
 }
