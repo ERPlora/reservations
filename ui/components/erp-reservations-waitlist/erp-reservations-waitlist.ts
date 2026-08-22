@@ -32,6 +32,27 @@ interface WaitlistEntry {
   is_converted: number;
 }
 
+// ── reservations#34: wall-clock text painted for humans ────────────────────────────────────
+// Same rule as the reservations list: `date`/`preferred_time` are ISO TEXT (ADR-0007) and the
+// table showed them raw. `preferred_time` can even be a legacy `HH:MM` (the schema always
+// accepted it) — both shapes paint as the locale's hour without seconds.
+
+/** `YYYY-MM-DD` → the locale's date. Anything else (empty, malformed) paints verbatim. */
+function fmtDate(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(erplora().locale || 'es');
+}
+
+/** `HH:MM[:SS]` → the hour the dining room reads, without the seconds. */
+function fmtTime(time: string): string {
+  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(time)) return time;
+  const wide = time.length === 5 ? `${time}:00` : time;
+  return new Date(`2000-01-01T${wide}`).toLocaleTimeString(erplora().locale || 'es', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function erplora(): ErploraClientLike {
   const c = (globalThis as { erplora?: ErploraClientLike }).erplora;
   if (!c) throw new Error('erplora SDK no inicializado por el shell');
@@ -75,8 +96,8 @@ export class ErpReservationsWaitlist extends LitElement {
   private get columns(): DataTableColumn[] {
     const t = (k: string): string => erplora().t(CATALOG, k);
     return [
-    { key: 'date', header: t('ui.colDate'), sortable: true, filterable: true, filterType: 'daterange' },
-    { key: 'preferred_time', header: t('ui.colPreferredTime'), sortable: true, filterable: true, filterType: 'text' },
+    { key: 'date', header: t('ui.colDate'), sortable: true, filterable: true, filterType: 'daterange', format: (r) => fmtDate(r.date as string) },
+    { key: 'preferred_time', header: t('ui.colPreferredTime'), sortable: true, filterable: true, filterType: 'text', format: (r) => fmtTime(r.preferred_time as string) },
     { key: 'guest_name', header: t('ui.colGuestName'), sortable: true, filterable: true, filterType: 'text' },
     { key: 'guest_phone', header: t('ui.colGuestPhone'), sortable: true, filterable: true, filterType: 'text' },
     { key: 'party_size', header: t('ui.colPartySize'), align: 'right', sortable: true, filterable: true, filterType: 'text' },
