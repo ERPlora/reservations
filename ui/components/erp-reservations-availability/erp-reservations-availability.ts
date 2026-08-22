@@ -37,6 +37,17 @@ interface BlockedDate {
   is_full_day: number;
 }
 
+/** Una franja del día con su ocupación — lo que `reservations.slots.count_for` devuelve
+ * (reservations#4): cuenta EXACTAMENTE lo que cuenta el gate anti-overbooking. */
+interface SlotOccupancy {
+  timeslot_id: string;
+  start_time: string;
+  end_time: string;
+  max_reservations: number;
+  reserved: number;
+  available: number;
+}
+
 // Índice (day_of_week, 0=lunes) → clave i18n del nombre del día.
 const DAY_KEYS = [
   'ui.dayMonday',
@@ -54,6 +65,19 @@ function erplora(): ErploraClientLike {
   return c;
 }
 
+/** Today as `YYYY-MM-DD` in the TERMINAL's local time (the dining room asks about "tonight",
+ * not about UTC): `toISOString()` would shift the day around midnight and timezones. */
+function todayLocal(): string {
+  const d = new Date();
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** `HH:MM[:SS]` → `HH:MM` (the hour the dining room reads, without seconds). */
+function hhmm(time: string): string {
+  return /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : time;
+}
+
 export class ErpReservationsAvailability extends LitElement {
   // Sin `fill`: la vista apila DOS tablas, así que cada una mantiene su alto natural y scrollea la
   // página. `fill` es para la tabla ÚNICA que llena el alto de la vista.
@@ -64,6 +88,10 @@ export class ErpReservationsAvailability extends LitElement {
     .form { display:flex; flex-direction:column; gap:.7rem; }
     .form ion-button { align-self:flex-end; }
     .err { color:#d9480f; font-weight:600; }
+    /* El selector de fecha de la ocupación: táctil (44px, ADR de usabilidad del shell) y sin
+       robar ancho a la barra — la fecha es un filtro, no un alta. */
+    .occ-date { display:flex; align-items:center; padding:0 .25rem; }
+    .occ-date ion-input { --min-height:44px; min-height:44px; font-size:.9rem; }
   `;
 
   @state() saving = false;
@@ -83,6 +111,18 @@ export class ErpReservationsAvailability extends LitElement {
   @state() blockDate = '';
 
   @state() blockReason = '';
+
+  // ── reservations#38: the occupancy table — «how much is left tonight?» ────────────────────
+  // The date the floor manager is looking at (default: today, local). One row per active slot
+  // of that day's weekday, counted exactly like the anti-overbooking gate counts.
+
+  @state() occDate = todayLocal();
+
+  @state() occRows: SlotOccupancy[] = [];
+
+  @state() occLoading = false;
+
+  @state() occError = '';
 
   private slotsCtrl!: ListController<TimeSlot>;
 
@@ -135,6 +175,70 @@ export class ErpReservationsAvailability extends LitElement {
     return [{ id: 'remove', label: t('ui.actionRemove'), icon: 'trash-outline', color: 'danger' }];
   }
 
+  // A slot with no room left: the row stays VISIBLE but dimmed and stamped «Full» — the market
+  // pattern (OpenTable/Resy show the sold-out slot unselectable, they do not hide it; hiding
+  // leaves the reader wondering whether the slot exists at all).
+  private occIsFull(row: Record<string, unknown>): boolean {
+    return Number(row.available ?? 0) <= 0;
+  }
+
+  /** Full-row attenuation, cell by cell (ok-data-table has no per-row class hook): the whole
+   *  full row reads faded, the «Full» badge carries the meaning. */
+  private occCell(row: Record<string, unknown>, content: unknown): unknown {
+    return this.occIsFull(row) ? html`<span style="opacity:.55">${content}</span>` : content;
+  }
+
+  private get occColumns(): DataTableColumn[] {
+    const t = (k: string): string => erplora().t(CATALOG, k);
+    return [
+      {
+        key: 'slot',
+        header: t('ui.colSlot'),
+        format: (r) => `${hhmm(String(r.start_time ?? ''))}–${hhmm(String(r.end_time ?? ''))}`,
+        render: (r) => this.occCell(r, `${hhmm(String(r.start_time ?? ''))}–${hhmm(String(r.end_time ?? ''))}`),
+      },
+      {
+        key: 'reserved',
+        header: t('ui.colReserved'),
+        align: 'right',
+        render: (r) => this.occCell(r, String(r.reserved ?? 0)),
+      },
+      {
+        key: 'max',
+        header: t('ui.colMax'),
+        align: 'right',
+        render: (r) => this.occCell(r, String(r.max_reservations ?? 0)),
+      },
+      {
+        key: 'available',
+        header: t('ui.colAvailable'),
+        align: 'right',
+        render: (r) =>
+          this.occIsFull(r)
+            ? html`<ion-badge color="danger">${t('ui.full')}</ion-badge>`
+            : html`<strong>${String(r.available ?? 0)}</strong>`,
+      },
+    ];
+  }
+
+  /** The occupancy of the chosen date, straight from the gate's read side (#4). Plain counts —
+   *  thousands separators are the hub's CLDR helper's business (hub#1090), not this module's. */
+  async loadOccupancy(): Promise<void> {
+    this.occLoading = true;
+    this.occError = '';
+    try {
+      this.occRows = (await erplora().query<SlotOccupancy[]>('reservations.slots.count_for', {
+        date: this.occDate,
+      })) ?? [];
+    } catch (e) {
+      this.occRows = [];
+      this.occError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errOccupancy');
+    } finally {
+      this.occLoading = false;
+      this.requestUpdate();
+    }
+  }
+
   // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
   // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
   // sola vez tras el primer render, considera firstUpdated() en su lugar.
@@ -153,13 +257,19 @@ export class ErpReservationsAvailability extends LitElement {
       sort: 'id',
       dir: 'asc',
     });
-    await Promise.all([this.slotsCtrl.load(), this.blockedCtrl.load()]);
+    await Promise.all([this.slotsCtrl.load(), this.blockedCtrl.load(), this.loadOccupancy()]);
     try {
       const offs = [
         erplora().on('reservations.timeslot.created', () => this.slotsCtrl.load()),
         erplora().on('reservations.timeslot.deleted', () => this.slotsCtrl.load()),
         erplora().on('reservations.blocked_date.created', () => this.blockedCtrl.load()),
         erplora().on('reservations.blocked_date.deleted', () => this.blockedCtrl.load()),
+        // The occupancy is LIVE during service: every booking that lands (or moves, or is
+        // cancelled — `status_changed` carries the cancellation) changes what is left tonight.
+        erplora().on('reservations.reservation.created', () => this.loadOccupancy()),
+        erplora().on('reservations.reservation.updated', () => this.loadOccupancy()),
+        erplora().on('reservations.reservation.status_changed', () => this.loadOccupancy()),
+        erplora().on('reservations.reservation.deleted', () => this.loadOccupancy()),
       ];
       this.unsub = () => offs.forEach((o) => o());
     } catch {
@@ -252,8 +362,17 @@ export class ErpReservationsAvailability extends LitElement {
     const t = (k: string): string => erplora().t(CATALOG, k);
     return html`<div>
         ${this.formError ? html`<p class="err">${this.formError}</p>` : nothing}
+        ${this.occError ? html`<p class="err">${this.occError}</p>` : nothing}
         ${this.slotsCtrl?.error ? html`<p class="err">${this.slotsCtrl.error}</p>` : nothing}
         ${this.blockedCtrl?.error ? html`<p class="err">${this.blockedCtrl.error}</p>` : nothing}
+        <h3>${t('ui.sectionOccupancy')}</h3>
+        <ok-data-table id="occupancy" .columns=${this.occColumns} .rows=${this.occRows} .rowKeyField=${'timeslot_id'} .pageSize=${50} .emptyMessage=${this.occLoading ? t('ui.loading') : t('ui.emptyOccupancy')}>
+          <!-- The date being looked at lives in THIS table's toolbar (no loose controls outside
+               the tables) — touch-sized: the floor manager picks it with a thumb. -->
+          <div slot="toolbar" class="occ-date">
+            <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" .value=${this.occDate} @ionInput=${(e: CustomEvent) => { const v = (e.target as HTMLInputElement).value; if (v) { this.occDate = v; void this.loadOccupancy(); } }}></ion-input>
+          </div>
+        </ok-data-table>
         <h3>${t('ui.sectionTimeSlots')}</h3>
         <ok-data-table id="slots" .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => `${DAY_KEYS[Number(row.day_of_week)] ? t(DAY_KEYS[Number(row.day_of_week)]) : '—'} · ${String(row.start_time ?? '')}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t('ui.loading') : t('ui.emptyTimeSlots')} @rowAction=${(e: CustomEvent) => this.onSlotAction(e)} @pageChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.slotsCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.slotsCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.slotsCtrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Se proyecta SIEMPRE (aunque el panel esté cerrado): si no, el «+» abriría un panel vacío. -->

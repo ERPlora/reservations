@@ -17,6 +17,7 @@
     "titleAvailability": "Availability",
     "sectionTimeSlots": "Time slots",
     "sectionBlockedDates": "Blocked dates",
+    "sectionOccupancy": "Occupancy",
     "colDate": "Date",
     "colTime": "Time",
     "colPreferredTime": "Pref. time",
@@ -29,6 +30,10 @@
     "colStart": "From",
     "colEnd": "To",
     "colMax": "Max",
+    "colSlot": "Slot",
+    "colReserved": "Reserved",
+    "colAvailable": "Available",
+    "full": "Full",
     "colReason": "Reason",
     "colFullDay": "Full day",
     "statusPending": "Pending",
@@ -69,6 +74,7 @@
     "emptyWaitlist": "Waitlist is empty.",
     "emptyTimeSlots": "No time slots.",
     "emptyBlockedDates": "No blocked dates.",
+    "emptyOccupancy": "No service that day (no active time slots).",
     "errCreateReservation": "Could not create the reservation",
     "errSetStatus": "Could not change the status",
     "errAddWaitlist": "Could not add to the waitlist",
@@ -76,7 +82,8 @@
     "errCreateSlot": "Could not create the slot",
     "errBlockDate": "Could not block the date",
     "errDeleteSlot": "Could not delete the slot",
-    "errDeleteBlocked": "Could not delete the date"
+    "errDeleteBlocked": "Could not delete the date",
+    "errOccupancy": "Could not load the occupancy"
   },
   "errors": {
     "reservations.phone_required": "This business requires a phone number for every reservation.",
