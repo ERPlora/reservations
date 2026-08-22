@@ -3232,6 +3232,7 @@ var es_default = {
     titleAvailability: "Disponibilidad",
     sectionTimeSlots: "Franjas horarias",
     sectionBlockedDates: "Fechas bloqueadas",
+    sectionOccupancy: "Ocupaci\xF3n",
     colDate: "Fecha",
     colTime: "Hora",
     colPreferredTime: "Hora pref.",
@@ -3244,6 +3245,10 @@ var es_default = {
     colStart: "Desde",
     colEnd: "Hasta",
     colMax: "M\xE1x",
+    colSlot: "Franja",
+    colReserved: "Reservadas",
+    colAvailable: "Disponibles",
+    full: "Lleno",
     colReason: "Motivo",
     colFullDay: "D\xEDa completo",
     statusPending: "Pendiente",
@@ -3284,6 +3289,7 @@ var es_default = {
     emptyWaitlist: "Lista de espera vac\xEDa.",
     emptyTimeSlots: "Sin franjas horarias.",
     emptyBlockedDates: "Sin fechas bloqueadas.",
+    emptyOccupancy: "Sin servicio ese d\xEDa (sin franjas activas).",
     errCreateReservation: "No se pudo crear la reserva",
     errSetStatus: "No se pudo cambiar el estado",
     errAddWaitlist: "No se pudo a\xF1adir a la lista de espera",
@@ -3291,7 +3297,8 @@ var es_default = {
     errCreateSlot: "No se pudo crear la franja",
     errBlockDate: "No se pudo bloquear la fecha",
     errDeleteSlot: "No se pudo borrar la franja",
-    errDeleteBlocked: "No se pudo borrar la fecha"
+    errDeleteBlocked: "No se pudo borrar la fecha",
+    errOccupancy: "No se pudo cargar la ocupaci\xF3n"
   },
   errors: {
     "reservations.phone_required": "Este negocio exige un tel\xE9fono en toda reserva.",
@@ -3325,6 +3332,7 @@ var en_default = {
     titleAvailability: "Availability",
     sectionTimeSlots: "Time slots",
     sectionBlockedDates: "Blocked dates",
+    sectionOccupancy: "Occupancy",
     colDate: "Date",
     colTime: "Time",
     colPreferredTime: "Pref. time",
@@ -3337,6 +3345,10 @@ var en_default = {
     colStart: "From",
     colEnd: "To",
     colMax: "Max",
+    colSlot: "Slot",
+    colReserved: "Reserved",
+    colAvailable: "Available",
+    full: "Full",
     colReason: "Reason",
     colFullDay: "Full day",
     statusPending: "Pending",
@@ -3377,6 +3389,7 @@ var en_default = {
     emptyWaitlist: "Waitlist is empty.",
     emptyTimeSlots: "No time slots.",
     emptyBlockedDates: "No blocked dates.",
+    emptyOccupancy: "No service that day (no active time slots).",
     errCreateReservation: "Could not create the reservation",
     errSetStatus: "Could not change the status",
     errAddWaitlist: "Could not add to the waitlist",
@@ -3384,7 +3397,8 @@ var en_default = {
     errCreateSlot: "Could not create the slot",
     errBlockDate: "Could not block the date",
     errDeleteSlot: "Could not delete the slot",
-    errDeleteBlocked: "Could not delete the date"
+    errDeleteBlocked: "Could not delete the date",
+    errOccupancy: "Could not load the occupancy"
   },
   errors: {
     "reservations.phone_required": "This business requires a phone number for every reservation.",
@@ -3414,6 +3428,14 @@ function erplora() {
   if (!c5) throw new Error("erplora SDK no inicializado por el shell");
   return c5;
 }
+function todayLocal() {
+  const d3 = /* @__PURE__ */ new Date();
+  const pad = (n6) => String(n6).padStart(2, "0");
+  return `${d3.getFullYear()}-${pad(d3.getMonth() + 1)}-${pad(d3.getDate())}`;
+}
+function hhmm(time) {
+  return /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : time;
+}
 var ErpReservationsAvailability = class extends i3 {
   constructor() {
     super(...arguments);
@@ -3426,6 +3448,10 @@ var ErpReservationsAvailability = class extends i3 {
     this.slotMax = "10";
     this.blockDate = "";
     this.blockReason = "";
+    this.occDate = todayLocal();
+    this.occRows = [];
+    this.occLoading = false;
+    this.occError = "";
     // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
     // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
     // sola vez tras el primer render, considera firstUpdated() en su lugar.
@@ -3441,6 +3467,10 @@ var ErpReservationsAvailability = class extends i3 {
     .form { display:flex; flex-direction:column; gap:.7rem; }
     .form ion-button { align-self:flex-end; }
     .err { color:#d9480f; font-weight:600; }
+    /* El selector de fecha de la ocupación: táctil (44px, ADR de usabilidad del shell) y sin
+       robar ancho a la barra — la fecha es un filtro, no un alta. */
+    .occ-date { display:flex; align-items:center; padding:0 .25rem; }
+    .occ-date ion-input { --min-height:44px; min-height:44px; font-size:.9rem; }
   `;
   }
   // Getters (no campos): se re-evalúan en cada render → los textos cambian con el idioma activo
@@ -3485,6 +3515,63 @@ var ErpReservationsAvailability = class extends i3 {
     const t5 = (k2) => erplora().t(CATALOG, k2);
     return [{ id: "remove", label: t5("ui.actionRemove"), icon: "trash-outline", color: "danger" }];
   }
+  // A slot with no room left: the row stays VISIBLE but dimmed and stamped «Full» — the market
+  // pattern (OpenTable/Resy show the sold-out slot unselectable, they do not hide it; hiding
+  // leaves the reader wondering whether the slot exists at all).
+  occIsFull(row) {
+    return Number(row.available ?? 0) <= 0;
+  }
+  /** Full-row attenuation, cell by cell (ok-data-table has no per-row class hook): the whole
+   *  full row reads faded, the «Full» badge carries the meaning. */
+  occCell(row, content) {
+    return this.occIsFull(row) ? b2`<span style="opacity:.55">${content}</span>` : content;
+  }
+  get occColumns() {
+    const t5 = (k2) => erplora().t(CATALOG, k2);
+    return [
+      {
+        key: "slot",
+        header: t5("ui.colSlot"),
+        format: (r6) => `${hhmm(String(r6.start_time ?? ""))}\u2013${hhmm(String(r6.end_time ?? ""))}`,
+        render: (r6) => this.occCell(r6, `${hhmm(String(r6.start_time ?? ""))}\u2013${hhmm(String(r6.end_time ?? ""))}`)
+      },
+      {
+        key: "reserved",
+        header: t5("ui.colReserved"),
+        align: "right",
+        render: (r6) => this.occCell(r6, String(r6.reserved ?? 0))
+      },
+      {
+        key: "max",
+        header: t5("ui.colMax"),
+        align: "right",
+        render: (r6) => this.occCell(r6, String(r6.max_reservations ?? 0))
+      },
+      {
+        key: "available",
+        header: t5("ui.colAvailable"),
+        align: "right",
+        render: (r6) => this.occIsFull(r6) ? b2`<ion-badge color="danger">${t5("ui.full")}</ion-badge>` : b2`<strong>${String(r6.available ?? 0)}</strong>`
+      }
+    ];
+  }
+  /** The occupancy of the chosen date, straight from the gate's read side (#4). Plain counts —
+   *  thousands separators are the hub's CLDR helper's business (hub#1090), not this module's. */
+  async loadOccupancy() {
+    this.occLoading = true;
+    this.occError = "";
+    try {
+      this.occRows = await erplora().query("reservations.slots.count_for", {
+        date: this.occDate
+      }) ?? [];
+    } catch (e5) {
+      this.occRows = [];
+      this.occError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errOccupancy");
+    } finally {
+      this.occLoading = false;
+      this.requestUpdate();
+    }
+  }
   async connectedCallback() {
     super.connectedCallback();
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
@@ -3498,13 +3585,19 @@ var ErpReservationsAvailability = class extends i3 {
       sort: "id",
       dir: "asc"
     });
-    await Promise.all([this.slotsCtrl.load(), this.blockedCtrl.load()]);
+    await Promise.all([this.slotsCtrl.load(), this.blockedCtrl.load(), this.loadOccupancy()]);
     try {
       const offs = [
         erplora().on("reservations.timeslot.created", () => this.slotsCtrl.load()),
         erplora().on("reservations.timeslot.deleted", () => this.slotsCtrl.load()),
         erplora().on("reservations.blocked_date.created", () => this.blockedCtrl.load()),
-        erplora().on("reservations.blocked_date.deleted", () => this.blockedCtrl.load())
+        erplora().on("reservations.blocked_date.deleted", () => this.blockedCtrl.load()),
+        // The occupancy is LIVE during service: every booking that lands (or moves, or is
+        // cancelled — `status_changed` carries the cancellation) changes what is left tonight.
+        erplora().on("reservations.reservation.created", () => this.loadOccupancy()),
+        erplora().on("reservations.reservation.updated", () => this.loadOccupancy()),
+        erplora().on("reservations.reservation.status_changed", () => this.loadOccupancy()),
+        erplora().on("reservations.reservation.deleted", () => this.loadOccupancy())
       ];
       this.unsub = () => offs.forEach((o7) => o7());
     } catch {
@@ -3587,8 +3680,23 @@ var ErpReservationsAvailability = class extends i3 {
     const t5 = (k2) => erplora().t(CATALOG, k2);
     return b2`<div>
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
+        ${this.occError ? b2`<p class="err">${this.occError}</p>` : A}
         ${this.slotsCtrl?.error ? b2`<p class="err">${this.slotsCtrl.error}</p>` : A}
         ${this.blockedCtrl?.error ? b2`<p class="err">${this.blockedCtrl.error}</p>` : A}
+        <h3>${t5("ui.sectionOccupancy")}</h3>
+        <ok-data-table id="occupancy" .columns=${this.occColumns} .rows=${this.occRows} .rowKeyField=${"timeslot_id"} .pageSize=${50} .emptyMessage=${this.occLoading ? t5("ui.loading") : t5("ui.emptyOccupancy")}>
+          <!-- The date being looked at lives in THIS table's toolbar (no loose controls outside
+               the tables) — touch-sized: the floor manager picks it with a thumb. -->
+          <div slot="toolbar" class="occ-date">
+            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.occDate} @ionInput=${(e5) => {
+      const v3 = e5.target.value;
+      if (v3) {
+        this.occDate = v3;
+        void this.loadOccupancy();
+      }
+    }}></ion-input>
+          </div>
+        </ok-data-table>
         <h3>${t5("ui.sectionTimeSlots")}</h3>
         <ok-data-table id="slots" .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => `${DAY_KEYS[Number(row.day_of_week)] ? t5(DAY_KEYS[Number(row.day_of_week)]) : "\u2014"} \xB7 ${String(row.start_time ?? "")}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.slotsCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Se proyecta SIEMPRE (aunque el panel esté cerrado): si no, el «+» abriría un panel vacío. -->
@@ -3638,6 +3746,18 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpReservationsAvailability.prototype, "blockReason", 2);
+__decorateClass([
+  r5()
+], ErpReservationsAvailability.prototype, "occDate", 2);
+__decorateClass([
+  r5()
+], ErpReservationsAvailability.prototype, "occRows", 2);
+__decorateClass([
+  r5()
+], ErpReservationsAvailability.prototype, "occLoading", 2);
+__decorateClass([
+  r5()
+], ErpReservationsAvailability.prototype, "occError", 2);
 define("erp-reservations-availability", ErpReservationsAvailability);
 
 // modules/reservations/ui/components/erp-reservations-list/erp-reservations-list.ts

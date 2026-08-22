@@ -5,6 +5,7 @@
     "queries": [
       "reservations.blocked_dates.list",
       "reservations.reservations.list",
+      "reservations.slots.count_for",
       "reservations.timeslots.list",
       "reservations.waitlist.list"
     ],

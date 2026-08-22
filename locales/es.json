@@ -18,6 +18,7 @@
     "titleAvailability": "Disponibilidad",
     "sectionTimeSlots": "Franjas horarias",
     "sectionBlockedDates": "Fechas bloqueadas",
+    "sectionOccupancy": "Ocupación",
     "colDate": "Fecha",
     "colTime": "Hora",
     "colPreferredTime": "Hora pref.",
@@ -30,6 +31,10 @@
     "colStart": "Desde",
     "colEnd": "Hasta",
     "colMax": "Máx",
+    "colSlot": "Franja",
+    "colReserved": "Reservadas",
+    "colAvailable": "Disponibles",
+    "full": "Lleno",
     "colReason": "Motivo",
     "colFullDay": "Día completo",
     "statusPending": "Pendiente",
@@ -70,6 +75,7 @@
     "emptyWaitlist": "Lista de espera vacía.",
     "emptyTimeSlots": "Sin franjas horarias.",
     "emptyBlockedDates": "Sin fechas bloqueadas.",
+    "emptyOccupancy": "Sin servicio ese día (sin franjas activas).",
     "errCreateReservation": "No se pudo crear la reserva",
     "errSetStatus": "No se pudo cambiar el estado",
     "errAddWaitlist": "No se pudo añadir a la lista de espera",
@@ -77,7 +83,8 @@
     "errCreateSlot": "No se pudo crear la franja",
     "errBlockDate": "No se pudo bloquear la fecha",
     "errDeleteSlot": "No se pudo borrar la franja",
-    "errDeleteBlocked": "No se pudo borrar la fecha"
+    "errDeleteBlocked": "No se pudo borrar la fecha",
+    "errOccupancy": "No se pudo cargar la ocupación"
   },
   "errors": {
     "reservations.phone_required": "Este negocio exige un teléfono en toda reserva.",

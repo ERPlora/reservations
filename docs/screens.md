@@ -77,7 +77,19 @@ booking, no half-converted entry. Requires `reservations.change_waitlistentry`.
 
 ## Availability
 
-The screen for the rules that decide when you can be booked.
+The screen that answers the floor manager's every-night question — **how much is left tonight?** —
+and holds the rules that decide when you can be booked.
+
+### Occupancy (reservations#38)
+
+One row per active slot of the chosen **date** (defaults to today, picked from the table's
+toolbar): the window, how many reservations are taken, the maximum, and what is **left**. A slot
+with nothing left stays visible but dimmed and stamped **Full** — seeing that a window is closed
+(and which one still has room) is what prevents most «turno completo» refusals before they happen.
+
+The numbers come from `reservations.slots.count_for` (reservations#4): it counts exactly what the
+anti-overbooking gate counts, so what you see is what the gate will enforce. The table refreshes
+live as reservations land, move or cancel. Viewing needs `reservations.view_reservation`.
 
 ### Time slots
 
