@@ -77,5 +77,14 @@
     "errBlockDate": "Could not block the date",
     "errDeleteSlot": "Could not delete the slot",
     "errDeleteBlocked": "Could not delete the date"
+  },
+  "errors": {
+    "reservations.phone_required": "This business requires a phone number for every reservation.",
+    "reservations.email_required": "This business requires an email address for every reservation.",
+    "reservations.party_size_exceeded": "That party size is outside the limits configured for this business.",
+    "reservations.date_blocked": "That date is blocked (holiday or closure); no reservations are taken that day.",
+    "reservations.no_service_day": "There is no service at that time: no open time slot covers it.",
+    "reservations.no_capacity": "That time slot is fully booked for that date.",
+    "reservations.reads_unavailable": "The reservation settings could not be read; nothing was booked."
   }
 }

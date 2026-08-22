@@ -1,0 +1,18 @@
+-- Reservations · 003 — la tabla guardia dice POR QUÉ abortó (reservations#31).
+--
+-- 002 creó `reservations__gate (gate, ok)` con `CHECK (ok = 1)`: el mecanismo de aborto. Pero
+-- TODOS los rechazos del alta colapsaban en el mismo par ('reservation_available', 0) — turno
+-- lleno, día sin turno y comensales de más llegaban al usuario como el MISMO CHECK crudo de
+-- Postgres. Esta migración añade la columna `reason` SIN tocar la 002 (append-only: los hubs ya
+-- instalados la corrieron): el assert (`_create_gated_assert.sql`) escribe el motivo en la misma
+-- fila que aborta, evaluando las condiciones del gate en el mismo orden que el pre-check del
+-- handler (party_size → ventana → bloqueo → sin turno → lleno).
+--
+-- El motivo no sobrevive al rollback (la fila abortada no se commitea): es el diagnóstico del
+-- guardián — quien depure un rechazo reproduce el SELECT del assert y lee el motivo, y el
+-- usuario ya no lo necesita porque el handler WASM devuelve el código de dominio traducido
+-- (`reservations.no_capacity`, `…no_service_day`, …) ANTES de llegar aquí. El CHECK original
+-- queda intacto y sigue siendo lo que revierte la transacción.
+--
+-- Reversible: `ALTER TABLE reservations__gate DROP COLUMN reason;` (expansión pura, sin datos).
+ALTER TABLE reservations__gate ADD COLUMN reason TEXT NOT NULL DEFAULT '';
