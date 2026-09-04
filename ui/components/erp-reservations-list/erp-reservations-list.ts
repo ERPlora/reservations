@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-data-table';
+import '@erplora/outfitkit/ok-empty-state';
 import type { DataTableColumn } from '@erplora/outfitkit';
 import { createListController } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
@@ -114,9 +115,23 @@ export class ErpReservationsList extends LitElement {
     .form { display:flex; flex-direction:column; gap:.7rem; }
     .form ion-button { align-self:flex-end; }
     .err { color:#d9480f; font-weight:600; }
+    /* reservations#41 — la tabla se aparta cuando no tiene NADA que enseñar (primera vez,
+       cargando, error): el vacío de un listado es una pantalla, no una fila gris. */
+    ok-data-table[hidden] { display:none; }
+    .state { flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6rem; padding:2.5rem 1.25rem; text-align:center; }
+    .state p { margin:0; max-width:38ch; color:var(--ion-color-medium, #92949c); }
+    .hint { margin:.25rem 0 0; font-size:.85rem; color:var(--ion-color-medium, #92949c); max-width:38ch; }
+    /* «Sin resultados» NO oculta la tabla: su buscador es la herramienta para corregir la
+       consulta, así que la acción de limpiar va en una barra fina debajo. */
+    .noresults { flex:0 0 auto; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.75rem; padding:.75rem 1rem; text-align:center; }
+    .noresults p { margin:0; color:var(--ion-color-medium, #92949c); }
   `;
 
   @state() saving = false;
+
+  /** El panel de alta está abierto. Espeja el `panel` de la tabla para poder enseñar el estado
+   *  vacío SIN perder el formulario, que vive en el panel lateral de la propia tabla. */
+  @state() creating = false;
 
   @state() formError = '';
 
@@ -208,6 +223,47 @@ export class ErpReservationsList extends LitElement {
       | null;
   }
 
+  /** ¿El vacío lo ha provocado el usuario al buscar/filtrar, o es que no hay ninguna reserva?
+   *  Son dos pantallas distintas: a un restaurante con 300 reservas que filtra mal no se le
+   *  puede decir «todavía no tienes reservas». */
+  private get hasQuery(): boolean {
+    const s = this.ctrl?.state;
+    if (!s) return false;
+    return s.search.trim() !== '' || Object.keys(s.filters).length > 0;
+  }
+
+  /** La tabla abre y cierra su panel por su cuenta (también con la «X») y no emite ningún
+   *  evento al hacerlo; el click sí burbujea hasta el host, así que aquí se relee el estado
+   *  real en vez de suponerlo. */
+  private readonly syncPanel = (): void => {
+    const open = (this.dataTable() as { panel?: string } | null)?.panel === 'create';
+    if (open !== this.creating) this.creating = open;
+  };
+
+  /** Acción primaria: la misma alta desde el estado vacío y desde la barra. */
+  private openCreate(): void {
+    this.creating = true;
+    this.dataTable()?.open('create');
+  }
+
+  /** Deshace la búsqueda y los filtros en una sola recarga.
+   *
+   *  El buscador de la tabla es NO controlado en modo `serverSide` (pinta sin `.value`), así que
+   *  limpiar solo el estado dejaría el texto escrito en pantalla contradiciendo a la lista: se
+   *  vacía también el `ion-searchbar`. Que la tabla acepte el valor desde fuera es cosa de
+   *  outfitkit, no de este módulo. */
+  private clearQuery(): void {
+    const s = this.ctrl.state;
+    s.search = '';
+    for (const col of Object.keys(s.filters)) delete s.filters[col];
+    s.page = 0;
+    const bar = (this.dataTable() as { shadowRoot?: ShadowRoot } | null)?.shadowRoot?.querySelector(
+      'ion-searchbar',
+    ) as { value?: string } | null;
+    if (bar) bar.value = '';
+    void this.ctrl.load();
+  }
+
   private async createReservation(ev: Event) {
     ev.preventDefault();
     if (!this.newName.trim() || !this.newDate || !this.newTime) return;
@@ -227,6 +283,7 @@ export class ErpReservationsList extends LitElement {
       this.newTime = '';
       this.newParty = '2';
       this.dataTable()?.close(); // si no, el panel se queda abierto tapando la reserva recién creada
+      this.creating = false;
       await this.ctrl.load();
     } catch (e) {
       this.formError = domainErrorText(e, 'ui.errCreateReservation');
@@ -258,23 +315,80 @@ export class ErpReservationsList extends LitElement {
   }
 
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
+  //
+  // reservations#41 — los cuatro estados de la pantalla se pintan, ninguno se deja en una tabla
+  // gris: CARGANDO, ERROR (con reintento), VACÍO DE PRIMERA VEZ (cabecera + explicación + acción
+  // primaria rotulada, patrón `help` de Odoo y EmptyState de Polaris) y VACÍO POR BÚSQUEDA (que
+  // conserva el buscador y ofrece limpiar). La acción primaria va SIEMPRE con texto: el «+» de
+  // `addable` era el cuarto icono de cuatro iguales.
   render() {
     const t = (k: string): string => erplora().t(CATALOG, k);
+    const loading = this.ctrl?.loading ?? false;
+    const error = this.ctrl?.error ?? '';
+    const total = this.ctrl?.total ?? 0;
+    const empty = !loading && !error && total === 0;
+    const firstRun = empty && !this.hasQuery;
+    const noResults = empty && this.hasQuery;
+    // La tabla solo se aparta cuando no tiene NADA que enseñar. Si el panel de alta está abierto
+    // se queda: el formulario vive dentro de ella.
+    const hideTable = total === 0 && !this.creating && (loading || !!error || firstRun);
+
+    const createButton = (slot?: string) => html`
+      <ion-button
+        slot=${slot ?? nothing}
+        size="small"
+        data-action="create"
+        @click=${() => this.openCreate()}
+      >${t('ui.emptyCta')}</ion-button>
+    `;
+
     return html`<div class="page">
         ${this.formError ? html`<p class="err">${this.formError}</p>` : nothing}
-        ${this.ctrl?.error ? html`<p class="err">${this.ctrl.error}</p>` : nothing}
-        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyReservations')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+        ${error
+          ? html`<div class="state" data-state="error">
+              <p class="err">${error}</p>
+              <ion-button size="small" data-action="retry" @click=${() => void this.ctrl.load()}>${t('ui.btnRetry')}</ion-button>
+            </div>`
+          : nothing}
+        ${loading
+          ? html`<div class="state" data-state="loading">
+              <ion-spinner></ion-spinner>
+              <p>${t('ui.loading')}</p>
+            </div>`
+          : nothing}
+        ${firstRun
+          ? html`<ok-empty-state
+              class="state"
+              data-empty="first-run"
+              icon="calendar-outline"
+              .heading=${t('ui.emptyTitle')}
+              .message=${t('ui.emptyBody')}
+            >
+              <p class="hint">${t('ui.emptyHint')}</p>
+              ${createButton('action')}
+            </ok-empty-state>`
+          : nothing}
+        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${false} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${t('ui.noResultsTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+          <!-- Acción primaria ROTULADA en la barra (reservations#41). Se proyecta dentro de la
+               tabla, así que sigue sin haber ningún control de alta suelto fuera de ella. -->
+          ${createButton('toolbar')}
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
-               solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
+               solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" @submit=${(e: Event) => this.createReservation(e)}>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.phGuestName')} .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.phGuestPhone')} .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.colTime')} type="time" .value=${this.newTime} @ionInput=${(e: any) => (this.newTime = e.target.value)}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.phPartySize')} type="number" min="1" .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.phGuestName')} .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.phGuestPhone')} .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.colDate')} type="date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.colTime')} type="time" .value=${this.newTime} @ionInput=${(e: any) => (this.newTime = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.phPartySize')} type="number" min="1" .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
             <ion-button type="submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
           </form>
         </ok-data-table>
+        ${noResults
+          ? html`<div class="noresults" data-empty="no-results">
+              <p>${t('ui.noResultsBody')}</p>
+              <ion-button size="small" fill="clear" data-action="clear-filters" @click=${() => this.clearQuery()}>${t('ui.btnClearFilters')}</ion-button>
+            </div>`
+          : nothing}
       </div>`;
   }
 }
