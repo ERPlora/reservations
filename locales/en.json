@@ -83,7 +83,15 @@
     "errBlockDate": "Could not block the date",
     "errDeleteSlot": "Could not delete the slot",
     "errDeleteBlocked": "Could not delete the date",
-    "errOccupancy": "Could not load the occupancy"
+    "errOccupancy": "Could not load the occupancy",
+    "emptyTitle": "No reservations yet",
+    "emptyBody": "Bookings you take by phone, online or at the door show up here, with the table held for the guest until they arrive.",
+    "emptyHint": "Set your service times and how long a table is held in the Availability tab.",
+    "emptyCta": "New reservation",
+    "noResultsTitle": "No reservations match your search",
+    "noResultsBody": "Try another name, phone or date, or clear the filters to see the whole book.",
+    "btnClearFilters": "Clear filters",
+    "btnRetry": "Retry"
   },
   "errors": {
     "reservations.phone_required": "This business requires a phone number for every reservation.",

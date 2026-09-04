@@ -1707,6 +1707,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     this.page = 0;
     this.searchable = false;
     this.sortDir = "asc";
+    this.filterValues = {};
     this.title = "";
     this.views = false;
     this.exportable = false;
@@ -1724,6 +1725,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     this.clientSortDir = "asc";
     this.clientFilters = {};
     this.filterDraft = {};
+    this.serverFilters = {};
     this.panel = "none";
     this.viewMode = "table";
     this.viewChosenByUser = false;
@@ -2336,11 +2338,54 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   get hasFilterRow() {
     return this.filterColumns.length > 0;
   }
-  /** Nº de filtros activos (modo cliente) → badge del botón Filtros. */
+  /** Nº de filtros activos → badge del botón Filtros. En servidor cuenta `filterValues` (#106): sin
+   *  esto el embudo no daba NINGUNA señal de que la lista venía acotada. */
   get activeFilterCount() {
+    if (this.serverSide) {
+      return Object.keys(this.serverFilters).filter((k2) => this.serverFilterState(k2) !== void 0).length;
+    }
     return Object.values(this.clientFilters).filter(
       (f3) => f3.values && f3.values.size > 0 || f3.from || f3.to
     ).length;
+  }
+  // ── Estado de filtro VISIBLE (#106) ──────────────────────────────────────────────────────────
+  /** Traduce un valor de `filterValues` (la forma que emite `filterChange`) a la forma interna que
+   *  usan los `render*Filter`. `undefined` = ese filtro no está puesto. */
+  serverFilterState(key) {
+    const raw = this.serverFilters[key];
+    if (raw === void 0 || raw === null || raw === "") return void 0;
+    if (Array.isArray(raw)) {
+      const values = raw.filter((v3) => v3 !== null && v3 !== void 0 && v3 !== "").map((v3) => String(v3));
+      return values.length ? { values: new Set(values) } : void 0;
+    }
+    if (typeof raw === "object") {
+      const range = raw;
+      const from = range.from === null || range.from === void 0 || range.from === "" ? void 0 : String(range.from);
+      const to = range.to === null || range.to === void 0 || range.to === "" ? void 0 : String(range.to);
+      return from !== void 0 || to !== void 0 ? { from, to } : void 0;
+    }
+    return { values: /* @__PURE__ */ new Set([String(raw)]) };
+  }
+  /** Estado de filtro efectivo de una columna: servidor → `filterValues`/espejo; cliente → memoria. */
+  filterStateOf(key) {
+    return this.serverSide ? this.serverFilterState(key) : this.clientFilters[key];
+  }
+  /** Fija (o borra) el valor visible de un filtro en el espejo de servidor. */
+  setServerFilter(key, value) {
+    const next = { ...this.serverFilters };
+    const empty = value === void 0 || value === null || value === "" || Array.isArray(value) && value.length === 0;
+    if (empty) delete next[key];
+    else next[key] = value;
+    this.serverFilters = next;
+  }
+  /** Fija UN extremo de un rango en el espejo. Los dos extremos viajan en eventos SEPARADOS
+   *  (`{from}` y luego `{to}`), así que aquí se MEZCLA: reemplazar borraría el otro extremo. */
+  setServerRangeEdge(key, edge, value) {
+    const prev = this.serverFilters[key];
+    const base = prev && typeof prev === "object" && !Array.isArray(prev) ? { ...prev } : {};
+    base[edge] = value;
+    const alive = (v3) => v3 !== void 0 && v3 !== null && v3 !== "";
+    this.setServerFilter(key, alive(base.from) || alive(base.to) ? base : void 0);
   }
   /** Valor crudo de una columna para ordenar/filtrar (usa format si lo hay, si no row[key]). */
   rawValue(col, row) {
@@ -2430,15 +2475,18 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   }
   onFilterInput(col, ev) {
     const value = ev.target.value ?? "";
+    this.setServerFilter(col.key, value);
     this.emit("filterChange", { col: col.key, value });
   }
   onRangeInput(col, edge, ev) {
     const raw = ev.target.value ?? "";
     const v3 = raw === "" ? "" : Number(raw);
+    this.setServerRangeEdge(col.key, edge, v3);
     this.emit("filterChange", { col: col.key, value: { [edge]: v3 } });
   }
   onDateRangeInput(col, edge, ev) {
     const v3 = ev.target.value ?? "";
+    this.setServerRangeEdge(col.key, edge, v3);
     this.emit("filterChange", { col: col.key, value: { [edge]: v3 } });
   }
   // ── Filtros EN LÍNEA (toolbar) ────────────────────────────────────────────────────────────
@@ -2458,7 +2506,9 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   // `filterChange`; en cliente escribe `clientFilters` (multiselect ⇒ filtra por inclusión).
   onFilterSelect(col, value, multi) {
     if (this.serverSide) {
-      this.emit("filterChange", { col: col.key, value: value ?? (multi ? [] : "") });
+      const next = value ?? (multi ? [] : "");
+      this.setServerFilter(col.key, next);
+      this.emit("filterChange", { col: col.key, value: next });
       return;
     }
     if (multi) {
@@ -2472,6 +2522,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   onInlineRange(col, edge, ev) {
     const v3 = ev.target.value ?? "";
     if (this.serverSide) {
+      this.setServerRangeEdge(col.key, edge, v3);
       this.emit("filterChange", { col: col.key, value: { [edge]: v3 } });
       return;
     }
@@ -2502,6 +2553,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
    */
   willUpdate(changed) {
     this.applyInitialView();
+    if (changed.has("filterValues")) this.serverFilters = { ...this.filterValues ?? {} };
     if (!this.serverSide && changed.has("rows") && this.mobileShown !== 0) this.mobileShown = 0;
   }
   applyInitialView() {
@@ -2524,9 +2576,11 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   renderFilterControl(col) {
     if (!col.filterable) return A;
     const type = col.filterType ?? "text";
+    const f3 = this.filterStateOf(col.key);
     if (type === "select" || type === "multiselect") {
       const multi = type === "multiselect";
       const opts = col.options ?? this.distinctValues(col).map((v3) => ({ value: v3, label: v3 }));
+      const current = this.selectValue(f3, multi);
       return b2`
         <ion-select
           label=${col.header}
@@ -2536,6 +2590,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
           interface="modal"
           .interfaceOptions=${{ cssClass: "ok-overlay" }}
           placeholder=${this.t.select}
+          .value=${current}
           @ionChange=${(e5) => this.onFilterSelect(col, e5.detail.value, multi)}
         >
           ${multi ? A : b2`<ion-select-option value="">${this.t.select}</ion-select-option>`}
@@ -2551,8 +2606,10 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
           <span class="flabel">${col.header}</span>
           <div class="frange">
             <ion-input type=${t5} fill="outline" mode="md" placeholder=${type === "daterange" ? this.t.from : this.t.gte}
+              .value=${f3?.from ?? ""}
               @ionInput=${(e5) => onEdge(col, "from", e5)}></ion-input>
             <ion-input type=${t5} fill="outline" mode="md" placeholder=${type === "daterange" ? this.t.to : this.t.lte}
+              .value=${f3?.to ?? ""}
               @ionInput=${(e5) => onEdge(col, "to", e5)}></ion-input>
           </div>
         </div>
@@ -2566,9 +2623,17 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
         label=${col.header}
         label-placement="stacked"
         placeholder=${this.t.filterPlaceholder}
+        .value=${this.selectValue(f3, false)}
         @ionInput=${(e5) => this.onFilterInput(col, e5)}
       ></ion-input>
     `;
+  }
+  /** Valor para un control de un solo valor (`ion-select`/`ion-input`) o multi (`ion-select
+   *  multiple`) a partir del estado de filtro interno. '' / [] = sin filtro. */
+  selectValue(f3, multi) {
+    const values = [...f3?.values ?? /* @__PURE__ */ new Set()];
+    if (multi) return values;
+    return values.length ? values[0] : "";
   }
   // Controles de filtro COMPACTOS para la toolbar (modo `inlineFilters`). Solo select y rango de
   // fechas (los del screenshot); el resto de tipos siguen disponibles vía el drawer si no se activa
@@ -2583,11 +2648,11 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   }
   renderInlineFilter(col) {
     const type = col.filterType ?? "text";
-    const f3 = this.clientFilters[col.key];
+    const f3 = this.filterStateOf(col.key);
     if (type === "select" || type === "multiselect") {
       const multi = type === "multiselect";
       const opts = col.options ?? this.distinctValues(col).map((v3) => ({ value: v3, label: v3 }));
-      const current = multi ? [...f3?.values ?? /* @__PURE__ */ new Set()] : f3?.values && f3.values.size ? [...f3.values][0] : "";
+      const current = this.selectValue(f3, multi);
       return b2`
         <ion-select
           class="tk-filter"
@@ -2653,6 +2718,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       (a3) => {
         const loading = a3.loading?.(row) === true;
         const disabled = loading || a3.disabled?.(row) === true;
+        const label = typeof a3.label === "function" ? a3.label(row) : a3.label;
         return b2`
             <ion-button
               size="small"
@@ -2660,11 +2726,11 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
               color=${a3.color ?? "medium"}
               ?disabled=${disabled}
               aria-disabled=${disabled ? "true" : A}
-              aria-label=${a3.label}
-              title=${a3.label}
+              aria-label=${label}
+              title=${label}
               @click=${() => this.emit("rowAction", { actionId: a3.id, row })}
             >
-              ${loading ? b2`<ion-spinner slot="icon-only" name="dots"></ion-spinner>` : a3.icon ? b2`<ion-icon slot="icon-only" .icon=${okIcon(a3.icon)}></ion-icon>` : a3.label}
+              ${loading ? b2`<ion-spinner slot="icon-only" name="dots"></ion-spinner>` : a3.icon ? b2`<ion-icon slot="icon-only" .icon=${okIcon(a3.icon)}></ion-icon>` : label}
             </ion-button>
           `;
       }
@@ -2785,7 +2851,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
                             ${this.toolButton("grid-outline", this.viewMode === "cards", () => this.setViewMode("cards"), this.t.viewCards)}
                           </span>
                         ` : A}
-                    ${this.hasFilterRow && !this.inlineFilters ? this.toolButton("funnel-outline", this.panel === "filters" || this.activeFilterCount > 0, () => this.toggle("filters"), this.t.filters, this.serverSide ? void 0 : this.activeFilterCount) : A}
+                    ${this.hasFilterRow && !this.inlineFilters ? this.toolButton("funnel-outline", this.panel === "filters" || this.activeFilterCount > 0, () => this.toggle("filters"), this.t.filters, this.activeFilterCount) : A}
                     ${this.effImport ? b2`
                           ${this.toolButton("cloud-upload-outline", false, () => this.renderRoot.querySelector(".tk-file")?.click(), this.t.importCsv)}
                           <input class="tk-file" type="file" accept=".csv,text/csv" hidden @change=${(e5) => this.onImportFile(e5)} />
@@ -3097,6 +3163,9 @@ __decorateClass2([
   n4({ attribute: "sort-dir" })
 ], _OkDataTable.prototype, "sortDir");
 __decorateClass2([
+  n4({ attribute: false })
+], _OkDataTable.prototype, "filterValues");
+__decorateClass2([
   n4()
 ], _OkDataTable.prototype, "title");
 __decorateClass2([
@@ -3168,6 +3237,9 @@ __decorateClass2([
 __decorateClass2([
   r5()
 ], _OkDataTable.prototype, "filterDraft");
+__decorateClass2([
+  r5()
+], _OkDataTable.prototype, "serverFilters");
 __decorateClass2([
   r5()
 ], _OkDataTable.prototype, "panel");
@@ -3397,7 +3469,15 @@ var es_default = {
     errBlockDate: "No se pudo bloquear la fecha",
     errDeleteSlot: "No se pudo borrar la franja",
     errDeleteBlocked: "No se pudo borrar la fecha",
-    errOccupancy: "No se pudo cargar la ocupaci\xF3n"
+    errOccupancy: "No se pudo cargar la ocupaci\xF3n",
+    emptyTitle: "A\xFAn no hay reservas",
+    emptyBody: "Las reservas que tomes por tel\xE9fono, por internet o en la puerta aparecen aqu\xED, con la mesa guardada para el cliente hasta que llegue.",
+    emptyHint: "Configura los turnos y cu\xE1nto tiempo se guarda la mesa en la pesta\xF1a Disponibilidad.",
+    emptyCta: "Nueva reserva",
+    noResultsTitle: "Ninguna reserva coincide con la b\xFAsqueda",
+    noResultsBody: "Prueba con otro nombre, tel\xE9fono o fecha, o limpia los filtros para ver todo el libro de reservas.",
+    btnClearFilters: "Limpiar filtros",
+    btnRetry: "Reintentar"
   },
   errors: {
     "reservations.phone_required": "Este negocio exige un tel\xE9fono en toda reserva.",
@@ -3497,7 +3577,15 @@ var en_default = {
     errBlockDate: "Could not block the date",
     errDeleteSlot: "Could not delete the slot",
     errDeleteBlocked: "Could not delete the date",
-    errOccupancy: "Could not load the occupancy"
+    errOccupancy: "Could not load the occupancy",
+    emptyTitle: "No reservations yet",
+    emptyBody: "Bookings you take by phone, online or at the door show up here, with the table held for the guest until they arrive.",
+    emptyHint: "Set your service times and how long a table is held in the Availability tab.",
+    emptyCta: "New reservation",
+    noResultsTitle: "No reservations match your search",
+    noResultsBody: "Try another name, phone or date, or clear the filters to see the whole book.",
+    btnClearFilters: "Clear filters",
+    btnRetry: "Retry"
   },
   errors: {
     "reservations.phone_required": "This business requires a phone number for every reservation.",
@@ -3859,6 +3947,106 @@ __decorateClass([
 ], ErpReservationsAvailability.prototype, "occError", 2);
 define("erp-reservations-availability", ErpReservationsAvailability);
 
+// @erplora/outfitkit/dist/ok-empty-state.js
+var __defProp3 = Object.defineProperty;
+var __decorateClass3 = (decorators, target, key, kind) => {
+  var result = void 0;
+  for (var i7 = decorators.length - 1, decorator; i7 >= 0; i7--)
+    if (decorator = decorators[i7])
+      result = decorator(target, key, result) || result;
+  if (result) __defProp3(target, key, result);
+  return result;
+};
+var OkEmptyState = class extends i3 {
+  constructor() {
+    super(...arguments);
+    this.icon = "file-tray-outline";
+  }
+  static {
+    this.styles = i`
+    /* Ancho máximo del contenedor; bloque a 100%. */
+    :host {
+      display: block;
+      width: 100%;
+      /* Tokens propios estilo Ionic (overridables): --ok-* → --ion-* → hex. */
+      --icon-color: var(--ok-color-medium, var(--ion-color-medium, #92949c));
+      --heading-color: var(--ok-text-color, var(--ion-text-color, #1f2933));
+      --message-color: var(--ok-color-medium, var(--ion-color-medium, #92949c));
+      --icon-size: 64px;
+      --padding: 2.5rem 1.25rem;
+    }
+
+    /* Centrado vertical y horizontal del contenido. */
+    .wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 0.5rem;
+      padding: var(--padding);
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    ion-icon {
+      font-size: var(--icon-size);
+      color: var(--icon-color);
+      opacity: 0.5; /* atenuado */
+      margin-bottom: 0.25rem;
+    }
+
+    .heading {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--heading-color);
+    }
+
+    .message {
+      margin: 0;
+      font-size: 0.9375rem;
+      color: var(--message-color);
+      max-width: 38ch;
+    }
+
+    /* Acción debajo del texto. */
+    .action {
+      margin-top: 1rem;
+    }
+
+    /* Oculta los wrappers si no hay contenido. */
+    .heading:empty,
+    .message:empty {
+      display: none;
+    }
+  `;
+  }
+  render() {
+    return b2`
+      <div class="wrap">
+        <ion-icon .icon=${okIcon(this.icon)} aria-hidden="true"></ion-icon>
+        ${this.heading ? b2`<h2 class="heading">${this.heading}</h2>` : null}
+        ${this.message ? b2`<p class="message">${this.message}</p>` : null}
+        <slot></slot>
+        <div class="action">
+          <slot name="action"></slot>
+        </div>
+      </div>
+    `;
+  }
+};
+__decorateClass3([
+  n4()
+], OkEmptyState.prototype, "icon");
+__decorateClass3([
+  n4()
+], OkEmptyState.prototype, "heading");
+__decorateClass3([
+  n4()
+], OkEmptyState.prototype, "message");
+define("ok-empty-state", OkEmptyState);
+
 // ui/components/erp-reservations-list/erp-reservations-list.ts
 var CATALOG2 = { es: es_default, en: en_default };
 var STATUS_KEYS = {
@@ -3907,6 +4095,7 @@ var ErpReservationsList = class extends i3 {
   constructor() {
     super(...arguments);
     this.saving = false;
+    this.creating = false;
     this.formError = "";
     this.tick = 0;
     this.newName = "";
@@ -3918,6 +4107,13 @@ var ErpReservationsList = class extends i3 {
     // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
     // sola vez tras el primer render, considera firstUpdated() en su lugar.
     this.onLocaleChange = () => this.requestUpdate();
+    /** La tabla abre y cierra su panel por su cuenta (también con la «X») y no emite ningún
+     *  evento al hacerlo; el click sí burbujea hasta el host, así que aquí se relee el estado
+     *  real en vez de suponerlo. */
+    this.syncPanel = () => {
+      const open = this.dataTable()?.panel === "create";
+      if (open !== this.creating) this.creating = open;
+    };
   }
   static {
     this.styles = i`
@@ -3929,6 +4125,16 @@ var ErpReservationsList = class extends i3 {
     .form { display:flex; flex-direction:column; gap:.7rem; }
     .form ion-button { align-self:flex-end; }
     .err { color:#d9480f; font-weight:600; }
+    /* reservations#41 — la tabla se aparta cuando no tiene NADA que enseñar (primera vez,
+       cargando, error): el vacío de un listado es una pantalla, no una fila gris. */
+    ok-data-table[hidden] { display:none; }
+    .state { flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6rem; padding:2.5rem 1.25rem; text-align:center; }
+    .state p { margin:0; max-width:38ch; color:var(--ion-color-medium, #92949c); }
+    .hint { margin:.25rem 0 0; font-size:.85rem; color:var(--ion-color-medium, #92949c); max-width:38ch; }
+    /* «Sin resultados» NO oculta la tabla: su buscador es la herramienta para corregir la
+       consulta, así que la acción de limpiar va en una barra fina debajo. */
+    .noresults { flex:0 0 auto; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.75rem; padding:.75rem 1rem; text-align:center; }
+    .noresults p { margin:0; color:var(--ion-color-medium, #92949c); }
   `;
   }
   // Getter (no campo): se re-evalúa en cada render → los textos cambian con el idioma activo
@@ -3990,6 +4196,36 @@ var ErpReservationsList = class extends i3 {
   dataTable() {
     return this.renderRoot.querySelector("ok-data-table");
   }
+  /** ¿El vacío lo ha provocado el usuario al buscar/filtrar, o es que no hay ninguna reserva?
+   *  Son dos pantallas distintas: a un restaurante con 300 reservas que filtra mal no se le
+   *  puede decir «todavía no tienes reservas». */
+  get hasQuery() {
+    const s5 = this.ctrl?.state;
+    if (!s5) return false;
+    return s5.search.trim() !== "" || Object.keys(s5.filters).length > 0;
+  }
+  /** Acción primaria: la misma alta desde el estado vacío y desde la barra. */
+  openCreate() {
+    this.creating = true;
+    this.dataTable()?.open("create");
+  }
+  /** Deshace la búsqueda y los filtros en una sola recarga.
+   *
+   *  El buscador de la tabla es NO controlado en modo `serverSide` (pinta sin `.value`), así que
+   *  limpiar solo el estado dejaría el texto escrito en pantalla contradiciendo a la lista: se
+   *  vacía también el `ion-searchbar`. Que la tabla acepte el valor desde fuera es cosa de
+   *  outfitkit, no de este módulo. */
+  clearQuery() {
+    const s5 = this.ctrl.state;
+    s5.search = "";
+    for (const col of Object.keys(s5.filters)) delete s5.filters[col];
+    s5.page = 0;
+    const bar = this.dataTable()?.shadowRoot?.querySelector(
+      "ion-searchbar"
+    );
+    if (bar) bar.value = "";
+    void this.ctrl.load();
+  }
   async createReservation(ev) {
     ev.preventDefault();
     if (!this.newName.trim() || !this.newDate || !this.newTime) return;
@@ -4009,6 +4245,7 @@ var ErpReservationsList = class extends i3 {
       this.newTime = "";
       this.newParty = "2";
       this.dataTable()?.close();
+      this.creating = false;
       await this.ctrl.load();
     } catch (e5) {
       this.formError = domainErrorText(e5, "ui.errCreateReservation");
@@ -4038,29 +4275,78 @@ var ErpReservationsList = class extends i3 {
     }
   }
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
+  //
+  // reservations#41 — los cuatro estados de la pantalla se pintan, ninguno se deja en una tabla
+  // gris: CARGANDO, ERROR (con reintento), VACÍO DE PRIMERA VEZ (cabecera + explicación + acción
+  // primaria rotulada, patrón `help` de Odoo y EmptyState de Polaris) y VACÍO POR BÚSQUEDA (que
+  // conserva el buscador y ofrece limpiar). La acción primaria va SIEMPRE con texto: el «+» de
+  // `addable` era el cuarto icono de cuatro iguales.
   render() {
     const t5 = (k2) => erplora2().t(CATALOG2, k2);
+    const loading = this.ctrl?.loading ?? false;
+    const error = this.ctrl?.error ?? "";
+    const total = this.ctrl?.total ?? 0;
+    const bare = total === 0 && !this.creating && !this.hasQuery;
+    const firstRun = bare && !loading && !error;
+    const noResults = total === 0 && !error && this.hasQuery;
+    const showLoading = loading && bare;
+    const hideTable = bare;
+    const createButton = (slot) => b2`
+      <ion-button
+        slot=${slot ?? A}
+        size="small"
+        data-action="create"
+        @click=${() => this.openCreate()}
+      >${t5("ui.emptyCta")}</ion-button>
+    `;
     return b2`<div class="page">
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
-        ${this.ctrl?.error ? b2`<p class="err">${this.ctrl.error}</p>` : A}
-        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyReservations")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        ${error ? b2`<div class="state" data-state="error">
+              <p class="err">${error}</p>
+              <ion-button size="small" data-action="retry" @click=${() => void this.ctrl.load()}>${t5("ui.btnRetry")}</ion-button>
+            </div>` : A}
+        ${showLoading ? b2`<div class="state" data-state="loading">
+              <ion-spinner></ion-spinner>
+              <p>${t5("ui.loading")}</p>
+            </div>` : A}
+        ${firstRun ? b2`<ok-empty-state
+              class="state"
+              data-empty="first-run"
+              icon="calendar-outline"
+              .heading=${t5("ui.emptyTitle")}
+              .message=${t5("ui.emptyBody")}
+            >
+              <p class="hint">${t5("ui.emptyHint")}</p>
+              ${createButton("action")}
+            </ok-empty-state>` : A}
+        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${false} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+          <!-- Acción primaria ROTULADA en la barra (reservations#41). Se proyecta dentro de la
+               tabla, así que sigue sin haber ningún control de alta suelto fuera de ella. -->
+          ${createButton("toolbar")}
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
-               solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
+               solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" @submit=${(e5) => this.createReservation(e5)}>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colTime")} type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.colTime")} type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
             <ion-button type="submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
           </form>
         </ok-data-table>
+        ${noResults ? b2`<div class="noresults" data-empty="no-results">
+              <p>${t5("ui.noResultsBody")}</p>
+              <ion-button size="small" fill="clear" data-action="clear-filters" @click=${() => this.clearQuery()}>${t5("ui.btnClearFilters")}</ion-button>
+            </div>` : A}
       </div>`;
   }
 };
 __decorateClass([
   r5()
 ], ErpReservationsList.prototype, "saving", 2);
+__decorateClass([
+  r5()
+], ErpReservationsList.prototype, "creating", 2);
 __decorateClass([
   r5()
 ], ErpReservationsList.prototype, "formError", 2);

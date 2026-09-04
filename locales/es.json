@@ -84,7 +84,15 @@
     "errBlockDate": "No se pudo bloquear la fecha",
     "errDeleteSlot": "No se pudo borrar la franja",
     "errDeleteBlocked": "No se pudo borrar la fecha",
-    "errOccupancy": "No se pudo cargar la ocupación"
+    "errOccupancy": "No se pudo cargar la ocupación",
+    "emptyTitle": "Aún no hay reservas",
+    "emptyBody": "Las reservas que tomes por teléfono, por internet o en la puerta aparecen aquí, con la mesa guardada para el cliente hasta que llegue.",
+    "emptyHint": "Configura los turnos y cuánto tiempo se guarda la mesa en la pestaña Disponibilidad.",
+    "emptyCta": "Nueva reserva",
+    "noResultsTitle": "Ninguna reserva coincide con la búsqueda",
+    "noResultsBody": "Prueba con otro nombre, teléfono o fecha, o limpia los filtros para ver todo el libro de reservas.",
+    "btnClearFilters": "Limpiar filtros",
+    "btnRetry": "Reintentar"
   },
   "errors": {
     "reservations.phone_required": "Este negocio exige un teléfono en toda reserva.",

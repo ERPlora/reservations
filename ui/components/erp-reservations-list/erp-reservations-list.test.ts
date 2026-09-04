@@ -59,9 +59,16 @@ type Tabla = HTMLElement & { addable: boolean; fill: boolean; panel: string; ope
 const tabla = (el: HTMLElement & { shadowRoot: ShadowRoot }) => el.shadowRoot.querySelector('ok-data-table') as Tabla | null;
 
 describe('el alta vive DENTRO de la tabla (paridad con /employees e inventory)', () => {
-  it('la tabla declara `addable` → pinta el «+» en su barra', async () => {
+  // reservations#41 — el contrato CAMBIÓ por decisión de mercado: `addable` pintaba un «+» de
+  // 36 px indistinguible de los otros tres iconos de la barra. Odoo, Business Central,
+  // WooCommerce Bookings, Lightspeed y Fresha rotulan su acción de alta, y NN/g reserva los
+  // botones sin rótulo para acciones universales. El alta sigue viviendo dentro de la tabla,
+  // pero entra por un botón CON TEXTO proyectado en su barra (ver `empty-state.test.ts`).
+  it('la tabla ya no declara `addable`: el alta entra por un botón rotulado de la barra', async () => {
     const el = await montar();
-    expect(tabla(el)?.addable, 'sin `addable` no hay «+» en la barra de la tabla').toBe(true);
+    expect(tabla(el)?.addable, 'vuelve el «+» anónimo de la barra').toBe(false);
+    const btn = el.shadowRoot.querySelector('[slot="toolbar"][data-action="create"]');
+    expect(btn, 'no hay acción de alta rotulada en la barra').toBeTruthy();
   });
 
   it('la tabla llena el alto de la vista (`fill`)', async () => {
