@@ -326,12 +326,17 @@ export class ErpReservationsList extends LitElement {
     const loading = this.ctrl?.loading ?? false;
     const error = this.ctrl?.error ?? '';
     const total = this.ctrl?.total ?? 0;
-    const empty = !loading && !error && total === 0;
-    const firstRun = empty && !this.hasQuery;
-    const noResults = empty && this.hasQuery;
-    // La tabla solo se aparta cuando no tiene NADA que enseñar. Si el panel de alta está abierto
-    // se queda: el formulario vive dentro de ella.
-    const hideTable = total === 0 && !this.creating && (loading || !!error || firstRun);
+    // "Bare": no rows, no create panel open, no search or filter — nothing to show and no tool in
+    // use. ONLY then does the table step aside and one full block (loading / error / first-run
+    // empty state) takes the screen. With the create panel open the table stays: the form lives in
+    // its drawer. With a search or filter active it stays EVEN while loading: the searchbar is what
+    // the person is using, and hiding the table (display:none) dropped the focus on every key
+    // (review of #44). With rows it never steps aside, and no loading block is stacked above it.
+    const bare = total === 0 && !this.creating && !this.hasQuery;
+    const firstRun = bare && !loading && !error;
+    const noResults = total === 0 && !error && this.hasQuery;
+    const showLoading = loading && bare;
+    const hideTable = bare;
 
     const createButton = (slot?: string) => html`
       <ion-button
@@ -350,7 +355,7 @@ export class ErpReservationsList extends LitElement {
               <ion-button size="small" data-action="retry" @click=${() => void this.ctrl.load()}>${t('ui.btnRetry')}</ion-button>
             </div>`
           : nothing}
-        ${loading
+        ${showLoading
           ? html`<div class="state" data-state="loading">
               <ion-spinner></ion-spinner>
               <p>${t('ui.loading')}</p>
@@ -368,7 +373,7 @@ export class ErpReservationsList extends LitElement {
               ${createButton('action')}
             </ok-empty-state>`
           : nothing}
-        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${false} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${t('ui.noResultsTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${false} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Acción primaria ROTULADA en la barra (reservations#41). Se proyecta dentro de la
                tabla, así que sigue sin haber ningún control de alta suelto fuera de ella. -->
           ${createButton('toolbar')}

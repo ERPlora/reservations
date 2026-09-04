@@ -4286,10 +4286,11 @@ var ErpReservationsList = class extends i3 {
     const loading = this.ctrl?.loading ?? false;
     const error = this.ctrl?.error ?? "";
     const total = this.ctrl?.total ?? 0;
-    const empty = !loading && !error && total === 0;
-    const firstRun = empty && !this.hasQuery;
-    const noResults = empty && this.hasQuery;
-    const hideTable = total === 0 && !this.creating && (loading || !!error || firstRun);
+    const bare = total === 0 && !this.creating && !this.hasQuery;
+    const firstRun = bare && !loading && !error;
+    const noResults = total === 0 && !error && this.hasQuery;
+    const showLoading = loading && bare;
+    const hideTable = bare;
     const createButton = (slot) => b2`
       <ion-button
         slot=${slot ?? A}
@@ -4304,7 +4305,7 @@ var ErpReservationsList = class extends i3 {
               <p class="err">${error}</p>
               <ion-button size="small" data-action="retry" @click=${() => void this.ctrl.load()}>${t5("ui.btnRetry")}</ion-button>
             </div>` : A}
-        ${loading ? b2`<div class="state" data-state="loading">
+        ${showLoading ? b2`<div class="state" data-state="loading">
               <ion-spinner></ion-spinner>
               <p>${t5("ui.loading")}</p>
             </div>` : A}
@@ -4318,7 +4319,7 @@ var ErpReservationsList = class extends i3 {
               <p class="hint">${t5("ui.emptyHint")}</p>
               ${createButton("action")}
             </ok-empty-state>` : A}
-        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${false} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${t5("ui.noResultsTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${false} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Acción primaria ROTULADA en la barra (reservations#41). Se proyecta dentro de la
                tabla, así que sigue sin haber ningún control de alta suelto fuera de ella. -->
           ${createButton("toolbar")}

@@ -267,3 +267,69 @@ describe('5 · i18n y controles de formulario', () => {
     expect(ofensores.map((o) => o.n), 'controles de formulario con fill="outline"').toEqual([]);
   });
 });
+
+// ── Review of PR #44 (rv-44): the blocks must not stack, and the table must not step aside while
+// the person is USING it. Written red-first against the worker's implementation.
+describe('6 · review #44: the blocks do not stack and the table stays while it is in use', () => {
+  type TablaFull = Tabla & { emptyMessage: string; close: () => void };
+  const tablaFull = (el: HTMLElement & { shadowRoot: ShadowRoot }) => tabla(el) as TablaFull;
+
+  it('first run + create panel open: the table with its form is on screen, and the empty-state is NOT stacked above it', async () => {
+    const el = await montar();
+    (root(el).querySelector('[data-action="create"]') as HTMLElement).click();
+    await settle(el);
+    const t = tablaFull(el);
+    expect(t.panel).toBe('create');
+    expect(
+      root(el).querySelector('[data-empty="first-run"]'),
+      'the first-run empty-state is still painted above the table while the create panel is open',
+    ).toBeNull();
+    expect(t.hasAttribute('hidden'), 'the table is hidden while its create panel is open').toBe(false);
+    expect(t.emptyMessage, 'the table says «no results match your search» without any search').toBe('ui.emptyTitle');
+  });
+
+  it('closing the create panel without saving brings the first-run empty-state back', async () => {
+    const el = await montar();
+    (root(el).querySelector('[data-action="create"]') as HTMLElement).click();
+    await settle(el);
+    const t = tablaFull(el);
+    t.close(); // what the «X» / scrim do inside the table; the click that did it bubbles to the host
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    await settle(el);
+    expect(root(el).querySelector('[data-empty="first-run"]'), 'the first-run empty-state does not come back').toBeTruthy();
+  });
+
+  it('reloading with rows on screen neither hides the table nor stacks a loading block above it', async () => {
+    page = { rows: [unaReserva], total: 1 };
+    const el = await montar();
+    pending = true;
+    tabla(el)!.dispatchEvent(new CustomEvent('searchChange', { detail: 'a' }));
+    await settle(el);
+    expect(tabla(el)!.hasAttribute('hidden'), 'the table with rows is hidden while reloading').toBe(false);
+    expect(root(el).querySelector('[data-state="loading"]'), 'a loading block is stacked above a table that has rows').toBeNull();
+  });
+
+  it('typing past «no results» keeps the table (and its searchbar focus): it is not hidden while the query is in flight', async () => {
+    const el = await montar();
+    tabla(el)!.dispatchEvent(new CustomEvent('searchChange', { detail: 'zzzz' }));
+    await settle(el);
+    expect(root(el).querySelector('[data-empty="no-results"]')).toBeTruthy();
+    pending = true;
+    tabla(el)!.dispatchEvent(new CustomEvent('searchChange', { detail: 'zzzzz' }));
+    await settle(el);
+    expect(tabla(el)!.hasAttribute('hidden'), 'the table goes display:none mid-query and the searchbar loses focus').toBe(false);
+    expect(root(el).querySelector('[data-state="loading"]'), 'the loading block replaces the table the person is typing in').toBeNull();
+  });
+
+  it('«Clear filters» also empties the table searchbar (uncontrolled in serverSide — outfitkit#112)', async () => {
+    const el = await montar();
+    tabla(el)!.dispatchEvent(new CustomEvent('searchChange', { detail: 'zzzz' }));
+    await settle(el);
+    const bar = tabla(el)!.shadowRoot!.querySelector('ion-searchbar') as (HTMLElement & { value?: string }) | null;
+    expect(bar, 'the table no longer paints an ion-searchbar: clearQuery() points at nothing').toBeTruthy();
+    bar!.value = 'zzzz';
+    (root(el).querySelector('[data-action="clear-filters"]') as HTMLElement).click();
+    await settle(el);
+    expect(bar!.value, 'the text stays written in the searchbar after clearing').toBe('');
+  });
+});
