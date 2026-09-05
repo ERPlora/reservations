@@ -145,7 +145,9 @@ def main():
         ["docker", "exec", CONTAINER, "createdb", "-U", "postgres", db], check=True
     )
     try:
-        for rel in MANIFEST["migrations"]["postgres"]:
+        # A declared migration is a path OR the `{file, kind, since}` form
+        # (`MigrationEntry`, hub#542), the only way to declare a `contract`. 004 uses it.
+        for rel in [e if isinstance(e, str) else e["file"] for e in MANIFEST["migrations"]["postgres"]]:
             r = psql(db, (MODULE_DIR / rel).read_text())
             if r.returncode != 0:
                 print(f"FAIL: migration {rel} does not apply\n{r.stderr}")

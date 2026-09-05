@@ -226,7 +226,9 @@ def main() -> int:
         ["docker", "exec", CONTAINER, "createdb", "-U", "postgres", db], check=True
     )
     try:
-        for rel in MANIFEST["migrations"]["postgres"]:
+        # A declared migration is a path OR the `{file, kind, since}` form
+        # (`MigrationEntry`, hub#542), the only way to declare a `contract`. 004 uses it.
+        for rel in [e if isinstance(e, str) else e["file"] for e in MANIFEST["migrations"]["postgres"]]:
             psql(db, (MODULE_DIR / rel).read_text())
         seed(db)
 
