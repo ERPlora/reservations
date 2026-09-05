@@ -164,10 +164,17 @@ def main() -> int:
         print(f"SKIPPED: no Postgres in container {CONTAINER} (nothing was verified)")
         return 0
 
-    migrations = MANIFEST["migrations"]["postgres"]
+    # A declared migration is a path OR the `{file, kind, since}` form (`MigrationEntry`,
+    # hub#542), the only way to declare a `contract`. 004 uses it.
+    migrations = [e if isinstance(e, str) else e["file"] for e in MANIFEST["migrations"]["postgres"]]
     check(
-        "migration 003 is declared (append-only: 001+002 untouched)",
-        ["migrations/postgres/001_init.sql", "migrations/postgres/002_gate.sql", "migrations/postgres/003_gate_reason.sql"],
+        "003 and 004 are declared (append-only: 001+002 untouched)",
+        [
+            "migrations/postgres/001_init.sql",
+            "migrations/postgres/002_gate.sql",
+            "migrations/postgres/003_gate_reason.sql",
+            "migrations/postgres/004_named_gate_constraints.sql",
+        ],
         migrations,
     )
 

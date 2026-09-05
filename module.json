@@ -83,7 +83,12 @@
     "postgres": [
       "migrations/postgres/001_init.sql",
       "migrations/postgres/002_gate.sql",
-      "migrations/postgres/003_gate_reason.sql"
+      "migrations/postgres/003_gate_reason.sql",
+      {
+        "file": "migrations/postgres/004_named_gate_constraints.sql",
+        "kind": "contract",
+        "since": "3.0.26"
+      }
     ]
   },
   "queries": {
