@@ -410,4 +410,25 @@ describe('6 · review #44: the blocks do not stack and the table stays while it 
       'el embudo sigue marcando un filtro que la lista ya no aplica: la pantalla se contradice',
     ).toBe(0);
   });
+
+  // reservations#47 — `filterValues` is bound by IDENTITY: one object, replaced only on clear. A
+  // fresh `{ ...state.filters }` per render passes every test above and is still wrong: the table
+  // reseeds its mirror whenever the bound object changes identity, so a re-render of this view for
+  // an unrelated reason (a locale change, a load finishing) would wipe what the person has just
+  // picked in the panel. This is the guard for that contract (review rv-48).
+  it('a re-render for an unrelated reason does not wipe the filter the person just picked in the table', async () => {
+    const el = await montar();
+    // The table's mirror moves BEFORE the module hears about it (`setServerFilter` runs first, then
+    // the event). Here the module never hears about it at all: the widest gap there can be.
+    tabla(el)!.setServerFilter('status', 'confirmed');
+    await settle(el);
+    expect(tabla(el)!.activeFilterCount).toBe(1);
+
+    window.dispatchEvent(new Event('erplora:locale-changed')); // any re-render of the module
+    await settle(el);
+    expect(
+      tabla(el)!.activeFilterCount,
+      'the module re-render reseeded the table mirror: a new `filterValues` object per render',
+    ).toBe(1);
+  });
 });
