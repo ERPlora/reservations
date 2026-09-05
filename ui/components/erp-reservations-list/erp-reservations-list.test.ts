@@ -55,20 +55,38 @@ async function montar() {
   return el as HTMLElement & { shadowRoot: ShadowRoot };
 }
 
-type Tabla = HTMLElement & { addable: boolean; fill: boolean; panel: string; open: (p?: 'filters' | 'create') => void };
+type Tabla = HTMLElement & {
+  addable: boolean;
+  fill: boolean;
+  panel: string;
+  open: (p?: 'filters' | 'create') => void;
+  search?: string;
+  filterValues?: Record<string, unknown>;
+};
 const tabla = (el: HTMLElement & { shadowRoot: ShadowRoot }) => el.shadowRoot.querySelector('ok-data-table') as Tabla | null;
 
 describe('el alta vive DENTRO de la tabla (paridad con /employees e inventory)', () => {
-  // reservations#41 — el contrato CAMBIÓ por decisión de mercado: `addable` pintaba un «+» de
-  // 36 px indistinguible de los otros tres iconos de la barra. Odoo, Business Central,
-  // WooCommerce Bookings, Lightspeed y Fresha rotulan su acción de alta, y NN/g reserva los
-  // botones sin rótulo para acciones universales. El alta sigue viviendo dentro de la tabla,
-  // pero entra por un botón CON TEXTO proyectado en su barra (ver `empty-state.test.ts`).
-  it('la tabla ya no declara `addable`: el alta entra por un botón rotulado de la barra', async () => {
+  // reservations#41 apagó `addable` y proyectó un botón propio en la barra porque en ESCRITORIO
+  // `addable` era un «+» de 36 px indistinguible de los otros tres iconos. La decisión de mercado
+  // —Odoo, Business Central, WooCommerce Bookings, Lightspeed, Fresha y NN/g: la acción principal
+  // de un listado se ROTULA— sigue en pie; lo que cambió (reservations#47) es quién la cumple:
+  // outfitkit#113 rotula `addable` en los DOS viewports, así que el botón a mano sobra.
+  it('la tabla declara `addable`: el alta la pinta ella y el módulo no proyecta la suya', async () => {
     const el = await montar();
-    expect(tabla(el)?.addable, 'vuelve el «+» anónimo de la barra').toBe(false);
+    expect(tabla(el)?.addable, 'el alta sigue fuera del contrato de la tabla').toBe(true);
     const btn = el.shadowRoot.querySelector('[slot="toolbar"][data-action="create"]');
-    expect(btn, 'no hay acción de alta rotulada en la barra').toBeTruthy();
+    expect(btn, 'sigue el botón de alta hecho a mano en la barra').toBeNull();
+  });
+
+  // reservations#47 — la lista es DUEÑA de la consulta, así que se la declara a la tabla en vez de
+  // leerla solo: sin esto, «limpiar» tenía que meter la mano en el shadow root de la tabla.
+  //
+  // Solo se afirma sobre `search`: `filterValues` ya nace en `{}` dentro de ok-data-table, así que
+  // un `toEqual({})` pasaría igual SIN el enlace — no probaría nada. Que los filtros viajen de
+  // verdad se comprueba por comportamiento en `empty-state.test.ts` («Limpiar» deja el embudo a 0).
+  it('la tabla recibe la búsqueda que el módulo está aplicando', async () => {
+    const el = await montar();
+    expect(tabla(el)?.search, 'la tabla no sabe qué búsqueda está aplicando el módulo').toBe('');
   });
 
   it('la tabla llena el alto de la vista (`fill`)', async () => {
