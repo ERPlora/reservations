@@ -121,7 +121,7 @@
             "op": "like"
           },
           "guest_phone": {
-            "op": "eq"
+            "op": "like"
           },
           "guest_email": {
             "op": "like"
@@ -130,10 +130,10 @@
             "op": "range"
           },
           "time": {
-            "op": "eq"
+            "op": "like"
           },
           "party_size": {
-            "op": "eq"
+            "op": "range"
           },
           "duration_minutes": {
             "op": "eq"
@@ -180,10 +180,10 @@
             "op": "eq"
           },
           "start_time": {
-            "op": "eq"
+            "op": "like"
           },
           "end_time": {
-            "op": "eq"
+            "op": "like"
           },
           "max_reservations": {
             "op": "range"
@@ -283,7 +283,7 @@
             "op": "like"
           },
           "guest_phone": {
-            "op": "eq"
+            "op": "like"
           },
           "guest_email": {
             "op": "like"
@@ -292,10 +292,10 @@
             "op": "range"
           },
           "preferred_time": {
-            "op": "eq"
+            "op": "like"
           },
           "party_size": {
-            "op": "eq"
+            "op": "range"
           },
           "notes": {
             "op": "like"

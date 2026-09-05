@@ -160,7 +160,7 @@ export class ErpReservationsList extends LitElement {
     { key: 'time', header: t('ui.colTime'), sortable: true, filterable: true, filterType: 'text', format: (r) => fmtTime(r.time as string) },
     { key: 'guest_name', header: t('ui.colGuestName'), sortable: true, filterable: true, filterType: 'text' },
     { key: 'guest_phone', header: t('ui.colGuestPhone'), sortable: true, filterable: true, filterType: 'text' },
-    { key: 'party_size', header: t('ui.colPartySize'), align: 'right', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'party_size', header: t('ui.colPartySize'), align: 'right', sortable: true, filterable: true, filterType: 'range' },
     {
       key: 'status',
       header: t('ui.colStatus'),

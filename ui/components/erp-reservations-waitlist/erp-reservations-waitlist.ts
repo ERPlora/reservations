@@ -100,7 +100,7 @@ export class ErpReservationsWaitlist extends LitElement {
     { key: 'preferred_time', header: t('ui.colPreferredTime'), sortable: true, filterable: true, filterType: 'text', format: (r) => fmtTime(r.preferred_time as string) },
     { key: 'guest_name', header: t('ui.colGuestName'), sortable: true, filterable: true, filterType: 'text' },
     { key: 'guest_phone', header: t('ui.colGuestPhone'), sortable: true, filterable: true, filterType: 'text' },
-    { key: 'party_size', header: t('ui.colPartySize'), align: 'right', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'party_size', header: t('ui.colPartySize'), align: 'right', sortable: true, filterable: true, filterType: 'range' },
     {
       key: 'is_contacted',
       header: t('ui.colContacted'),

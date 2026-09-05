@@ -4146,7 +4146,7 @@ var ErpReservationsList = class extends i3 {
       { key: "time", header: t5("ui.colTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime(r6.time) },
       { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
       { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
-      { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "text" },
+      { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "range" },
       {
         key: "status",
         header: t5("ui.colStatus"),
@@ -4426,7 +4426,7 @@ var ErpReservationsWaitlist = class extends i3 {
       { key: "preferred_time", header: t5("ui.colPreferredTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime2(r6.preferred_time) },
       { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
       { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
-      { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "text" },
+      { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "range" },
       {
         key: "is_contacted",
         header: t5("ui.colContacted"),
