@@ -102,6 +102,8 @@
     "reservations.no_service_day": "No hay servicio a esa hora: ninguna franja abierta la cubre.",
     "reservations.no_capacity": "Esa franja está completa para esa fecha.",
     "reservations.illegal_transition": "Ese cambio de estado no es posible desde el estado actual de la reserva (el flujo es pendiente → confirmada → sentada → completada).",
-    "reservations.reads_unavailable": "No se pudieron leer los ajustes de reservas; no se ha reservado nada."
+    "reservations.reads_unavailable": "No se pudieron leer los ajustes de reservas; no se ha reservado nada.",
+    "reservations.customer_mismatch": "Esa reserva es de otro comensal, así que no se puede gestionar en su nombre.",
+    "reservations.staff_only_field": "La mesa y las notas internas del restaurante las pone el restaurante; no se pueden cambiar desde tu reserva."
   }
 }

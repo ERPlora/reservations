@@ -372,7 +372,29 @@
     },
     "reservations.reservations.update": {
       "permission": "reservations.change_reservation",
-      "transaction": true,
+      "handler": {
+        "type": "wasm",
+        "file": "dist/handler.wasm",
+        "function": "update_reservation"
+      },
+      "schema": "schemas/reservation_update.json",
+      "reads": [
+        {
+          "query": "reservations.reservations.get",
+          "params": {
+            "reservation_id": "payload.reservation_id"
+          }
+        }
+      ],
+      "emit": [
+        "reservations.reservation.updated"
+      ],
+      "ai": {
+        "description": "Updates the details of an existing reservation (date, time, party size, guest contact). Staff can edit any reservation; an edit on behalf of the guest (channel=customer) must carry that guest's `customer_id`, is refused when the reservation belongs to somebody else, and cannot touch the table assignment or the restaurant's internal notes. The change still has to pass the availability gate (party-size limits, advance window, blocked days, slot capacity)."
+      }
+    },
+    "reservations._apply_update": {
+      "permission": "reservations.change_reservation",
       "sql": [
         "commands/reservation_update.sql"
       ],
@@ -381,13 +403,6 @@
         "n": 1,
         "error": "reservations.update_rejected",
         "message": "That change is not available: the slot is full, the day is blocked, the party size is out of range, or the new time falls outside the booking window."
-      },
-      "schema": "schemas/reservation_update.json",
-      "emit": [
-        "reservations.reservation.updated"
-      ],
-      "ai": {
-        "description": "Updates the details of an existing reservation (date, time, party size)"
       }
     },
     "reservations.reservations.set_status": {
@@ -407,7 +422,7 @@
         }
       ],
       "ai": {
-        "description": "Changes the status of a reservation validating the state machine (confirmed, seated, completed, cancelled, no_show)"
+        "description": "Changes the status of a reservation validating the state machine (confirmed, seated, completed, cancelled, no_show). Staff can change any reservation; a change on behalf of the guest (channel=customer) must carry that guest's `customer_id` and is refused when the reservation belongs to somebody else."
       }
     },
     "reservations._apply_status": {
