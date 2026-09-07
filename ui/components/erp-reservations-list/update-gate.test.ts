@@ -8,6 +8,12 @@
 // The second half is smaller and just as annoying in a dining room: `table_id = COALESCE(:table_id,
 // table_id)` means NULL is "leave it alone", so **there is no way to say "take the table off"**. A
 // reservation assigned by mistake stays assigned.
+//
+// reservations#50 MOVED this gate without changing it. `update` is now a WASM handler, so that
+// both customer-facing doors can ask the one identity guard; the availability SQL it always had
+// went with it, intact, to the private `reservations._apply_update` the handler delegates to.
+// This file follows it there — and pins the delegation itself, because a gate hanging off a
+// command nobody calls reads exactly like a gate that is armed.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -15,9 +21,19 @@ import { describe, expect, it } from 'vitest';
 const ROOT = join(__dirname, '../../..');
 const manifest = JSON.parse(readFileSync(join(ROOT, 'module.json'), 'utf8')) as {
   id: string;
-  commands: Record<string, { sql?: string[]; expect_rows?: { op: string; n: number; error: string; message?: string } }>;
+  commands: Record<
+    string,
+    {
+      sql?: string[];
+      handler?: { function?: string };
+      reads?: { query: string; params?: Record<string, string> }[];
+      expect_rows?: { op: string; n: number; error: string; message?: string };
+    }
+  >;
 };
-const cmd = manifest.commands['reservations.reservations.update'];
+const door = manifest.commands['reservations.reservations.update'];
+const cmd = manifest.commands['reservations._apply_update'];
+const handlerSrc = readFileSync(join(ROOT, 'handler/src/lib.rs'), 'utf8');
 const sql = (cmd.sql ?? [])
   .map((f) => readFileSync(join(ROOT, f), 'utf8').split('\n').filter((l) => !l.trim().startsWith('--')).join('\n'))
   .join('\n');
@@ -75,5 +91,20 @@ describe('a refused edit fails instead of reporting success', () => {
     expect(gate!.n).toBeGreaterThanOrEqual(1);
     expect(gate!.error.split('.')[0]).toBe(manifest.id);
     expect(gate!.message).toBeTruthy();
+  });
+});
+
+describe('the edit still goes through the gate it was moved behind', () => {
+  it('the public door is the handler, and it reads the reservation row it decides with', () => {
+    expect(door.handler?.function, 'update must reach the shared identity guard').toBe('update_reservation');
+    expect(door.sql, 'the public door no longer runs SQL by itself').toBeUndefined();
+    const read = (door.reads ?? []).find((r) => r.query === 'reservations.reservations.get');
+    expect(read?.params?.reservation_id).toBe('payload.reservation_id');
+  });
+
+  it('and the handler delegates to the command that carries this gate', () => {
+    // Without this, repointing the handler elsewhere would leave every assertion above green
+    // while checking SQL that no longer runs.
+    expect(handlerSrc).toContain('Operation::sql("reservations._apply_update"');
   });
 });

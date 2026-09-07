@@ -10,6 +10,17 @@
       "type": "string",
       "enum": ["pending", "confirmed", "seated", "completed", "cancelled", "no_show"]
     },
-    "cancellation_reason": { "type": "string", "default": "" }
+    "cancellation_reason": { "type": "string", "default": "" },
+    "channel": {
+      "type": "string",
+      "enum": ["staff", "customer"],
+      "default": "staff",
+      "description": "Who is changing the status: `staff` (someone operating the hub, the default \u2014 the reservations screen sends no channel and keeps managing every table: the dining room is its own) or `customer` (the guest through an external channel, bound to say who they are with `customer_id`)."
+    },
+    "customer_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who is asking, on the `customer` channel (reservations#50): the id of that guest in `customers`, as the external channel resolved them (the WhatsApp automation looks the guest up by phone before listing anything). The status change is refused when the reservation belongs to somebody else. MANDATORY whenever `channel` is `customer`, and applied by the handler rather than here: it is a rule about two fields at once, decided against the reservation row this schema cannot see. The staff channel never sends it."
+    }
   }
 }
