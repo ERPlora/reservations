@@ -1564,7 +1564,19 @@ mod tests {
         assert_eq!(gated["expect_rows"]["op"], json!("min"));
         assert_eq!(gated["expect_rows"]["n"], json!(1));
         assert_eq!(gated["expect_rows"]["error"], json!("reservations.update_rejected"));
-        assert_eq!(gated["permission"], json!("reservations.change_reservation"));
+        // Anchored against the PUBLIC door instead of a literal: the point is that moving the SQL
+        // did not drop or drift the permission it demands, and a hardcoded `reservations.<x>`
+        // string in the handler is read by the toolkit as an emitted error code (ADR-0398),
+        // which this one is not — it is a permission.
+        let public_permission = &m["commands"]["reservations.reservations.update"]["permission"];
+        assert!(
+            public_permission.as_str().is_some_and(|p| !p.is_empty()),
+            "the public door still demands a permission"
+        );
+        assert_eq!(
+            gated["permission"], *public_permission,
+            "the private command demands the same permission as the door that delegates to it"
+        );
         assert!(
             m["commands"]["reservations.reservations.update"].get("sql").is_none(),
             "the public door no longer runs SQL by itself"
