@@ -561,6 +561,26 @@
         "description": "Removes an entry from the waitlist (destructive)"
       }
     },
+    "reservations.settings.set_auto_confirm": {
+      "permission": "reservations.manage_settings",
+      "transaction": true,
+      "sql": [
+        "commands/settings_set_auto_confirm.sql"
+      ],
+      "schema": "schemas/settings_set_auto_confirm.json",
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "reservations.cannot_update_settings",
+        "message": "The reservation settings could not be changed: this restaurant has no settings in use right now."
+      },
+      "emit": [
+        "reservations.settings.updated"
+      ],
+      "ai": {
+        "description": "Turns on or off whether a reservation the guest booked herself \u2014 online or through an automation such as WhatsApp \u2014 is created already confirmed. It changes that single setting and leaves every other reservations setting exactly as the restaurant left it."
+      }
+    },
     "reservations.settings.upsert": {
       "permission": "reservations.manage_settings",
       "transaction": true,
