@@ -1,7 +1,7 @@
 {
   "id": "reservations",
   "name": "Reservations",
-  "version": "3.0.27",
+  "version": "3.0.28",
   "description": "Table and resource reservations, with configurable time slots and blocked dates.",
   "agent": {
     "description": "Manages table and resource reservations: create, update and track bookings, configure time slots and blocked dates, and handle the waitlist.",
@@ -578,7 +578,7 @@
         "reservations.settings.updated"
       ],
       "ai": {
-        "description": "Turns on or off whether a reservation the guest booked herself \u2014 online or through an automation such as WhatsApp \u2014 is created already confirmed. It changes that single setting and leaves every other reservations setting exactly as the restaurant left it."
+        "description": "Turns on or off whether a reservation the guest booked herself — online or through an automation such as WhatsApp — is created already confirmed. It changes that single setting and leaves every other reservations setting exactly as the restaurant left it."
       }
     },
     "reservations.settings.upsert": {
