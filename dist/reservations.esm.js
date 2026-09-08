@@ -3488,6 +3488,7 @@ var es_default = {
     "reservations.no_capacity": "Esa franja est\xE1 completa para esa fecha.",
     "reservations.illegal_transition": "Ese cambio de estado no es posible desde el estado actual de la reserva (el flujo es pendiente \u2192 confirmada \u2192 sentada \u2192 completada).",
     "reservations.reads_unavailable": "No se pudieron leer los ajustes de reservas; no se ha reservado nada.",
+    "reservations.cannot_update_settings": "No se han podido cambiar los ajustes de reservas: este restaurante no tiene ajustes en uso ahora mismo.",
     "reservations.customer_mismatch": "Esa reserva es de otro comensal, as\xED que no se puede gestionar en su nombre.",
     "reservations.staff_only_field": "La mesa y las notas internas del restaurante las pone el restaurante; no se pueden cambiar desde tu reserva."
   }
@@ -3598,6 +3599,7 @@ var en_default = {
     "reservations.no_capacity": "That time slot is fully booked for that date.",
     "reservations.illegal_transition": "That status change is not possible from the reservation's current status (the flow is pending \u2192 confirmed \u2192 seated \u2192 completed).",
     "reservations.reads_unavailable": "The reservation settings could not be read; nothing was booked.",
+    "reservations.cannot_update_settings": "The reservation settings could not be changed: this restaurant has no settings in use right now.",
     "reservations.customer_mismatch": "That reservation belongs to a different guest, so it cannot be managed on their behalf.",
     "reservations.staff_only_field": "The table and the restaurant's internal notes are set by the restaurant; they cannot be changed from your booking."
   }
