@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reservations.settings.set_auto_confirm",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["auto_confirm"],
+  "properties": {
+    "auto_confirm": {
+      "type": "boolean",
+      "title": "Confirm bookings made by the guest automatically",
+      "description": "When on, a reservation the guest booked herself — online or through an automation such as WhatsApp — is created already confirmed, so nobody has to accept it one by one. Turn it off to review every one of them before the table is held. Plainly `boolean` and required: the wide settings form declares this field nullable because there NULL means «leave it alone», and a door that exists to set this one value has no such meaning to express."
+    }
+  }
+}
