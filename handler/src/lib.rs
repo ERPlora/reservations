@@ -55,6 +55,12 @@ pub fn set_status(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
+pub fn update_reservation(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
+    update_reservation_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+}
+
+#[cfg(feature = "guest")]
+#[plugin_fn]
 pub fn waitlist_update(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
     waitlist_update_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
 }
@@ -349,6 +355,103 @@ pub fn create_reservation_pure(input: Value) -> Result<Output, String> {
     })
 }
 
+// ── reservations#50: WHO is asking, and is the table theirs? ─────────────────
+//
+// The mirror of appointments#140 (`cancel`) and appointments#142 (`reschedule`), same rule and
+// same shape: ONE guard, asked by BOTH customer-facing doors. Two copies of «is this yours» is
+// how one of them ends up drifting open again.
+
+/// Who is asking. `staff` = someone operating the hub (the DEFAULT: the reservations screen
+/// never sends a channel); `customer` = the guest herself through an external channel — today
+/// the WhatsApp automation acting on her behalf (whatsapp_inbox#60).
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum CallerChannel {
+    Staff,
+    Customer,
+}
+
+fn caller_channel(payload: &Value) -> Result<CallerChannel, String> {
+    match payload.get("channel").map(as_str).as_deref() {
+        None | Some("") | Some("staff") => Ok(CallerChannel::Staff),
+        Some("customer") => Ok(CallerChannel::Customer),
+        Some(other) => Err(format!(
+            "`channel` inválido: `{other}` no es ninguno de staff|customer"
+        )),
+    }
+}
+
+/// The reservation row the runtime pre-loaded via `reads` (`reservations.reservations.get`,
+/// filtered by `payload.reservation_id`, ADR-0069). `Value::Null` when the read is missing or
+/// empty — graceful by contract (#13) on the staff path, fail-closed on the customer one.
+fn reservation_row(input: &Value) -> Value {
+    input
+        .pointer("/context/reads/reservations.reservations.get/0")
+        .cloned()
+        .unwrap_or(Value::Null)
+}
+
+/// WHOSE reservation is it? Asked by `set_status` AND by `update`, in both cases straight after
+/// the authoritative read and BEFORE the state machine, the availability gate and the policy —
+/// so a caller holding an id that is not theirs always gets the same answer, «not yours»,
+/// instead of a refusal that tells them whether that id exists and what state it is in.
+///
+/// `Ok(None)` = the caller may go on; `Ok(Some(err))` = the table is somebody else's;
+/// `Err` = the payload itself is broken.
+fn customer_identity_refusal(
+    channel: CallerChannel,
+    payload: &Value,
+    row: &Value,
+) -> Result<Option<DomainError>, String> {
+    // Only the customer channel is bound: the staff channel is the dining room's own counter,
+    // which manages every table in the room and never acts on anybody's behalf. A `customer_id`
+    // it happens to send is NOT an identity claim — reading it as one would let a mistyped id
+    // refuse the receptionist her own work, which is a business regression, not security.
+    if channel != CallerChannel::Customer {
+        return Ok(None);
+    }
+    let asking = as_str(payload.get("customer_id").unwrap_or(&Value::Null));
+    let asking = asking.trim();
+    if asking.is_empty() {
+        // A payload contract bug, not a business refusal — the same treatment as a missing
+        // `reservation_id`. A `channel: customer` that names nobody proves nothing, so it fails
+        // closed and LOUDLY: an external channel wired without the guest must be fixed, not
+        // answered with a sentence the guest is told to act on.
+        return Err("`customer_id` es obligatorio cuando `channel` es `customer`".to_string());
+    }
+    // `row.customer_id` is the reservation's OWN link, from the authoritative read — never from
+    // the payload. Null or empty (a walk-in the counter typed with no customer attached) matches
+    // nobody: `asking` is non-empty by the check above. A missing read lands here too, which is
+    // what makes the customer path fail closed where the staff path degrades to the SQL gate.
+    if as_str(row.get("customer_id").unwrap_or(&Value::Null)) != asking {
+        return Ok(Some(DomainError::new(
+            "reservations.customer_mismatch",
+            "That reservation belongs to a different guest, so it cannot be managed on their behalf.",
+        )));
+    }
+    Ok(None)
+}
+
+/// Fields of a reservation that only the counter writes: the table it sits at (assigning your
+/// own table is the dining room's decision, not the guest's) and the restaurant's private notes
+/// about the booking. They are in the `update` schema because staff edits them from the screen;
+/// opening the customer channel without this would hand the guest a pen for both.
+const STAFF_ONLY_UPDATE_FIELDS: [&str; 2] = ["table_id", "internal_notes"];
+
+/// The other half of the customer door on `update`: what a guest may change about her own
+/// booking. Whoever it is, it is still not hers to seat or to annotate.
+fn staff_only_field_refusal(channel: CallerChannel, payload: &Value) -> Option<DomainError> {
+    if channel != CallerChannel::Customer {
+        return None;
+    }
+    let field = STAFF_ONLY_UPDATE_FIELDS
+        .iter()
+        .find(|f| !matches!(payload.get(**f), None | Some(Value::Null)))?;
+    Some(DomainError::new(
+        "reservations.staff_only_field",
+        format!("`{field}` is set by the restaurant; a guest cannot change it from their booking."),
+    ))
+}
+
 // ── §1 máquina de estados ────────────────────────────────────────────────────
 
 /// Estados destino válidos (a `pending` no se transiciona nunca; los orígenes
@@ -405,6 +508,7 @@ fn illegal_transition_error(current: &str, target: &str) -> DomainError {
 pub fn set_status_pure(input: Value) -> Result<Output, String> {
     let (payload, _) = payload_and_ids(&input);
 
+    let channel = caller_channel(&payload)?;
     let reservation_id = req_str(&payload, "reservation_id")?;
     let status = req_str(&payload, "status")?;
     if !TARGET_STATUSES.contains(&status.as_str()) {
@@ -426,10 +530,14 @@ pub fn set_status_pure(input: Value) -> Result<Output, String> {
     // to it and holds/releases the table (`tables._hold_from_reservation`). The command declares
     // no `emit` for it: that would queue the same fact twice, once bare and once enriched.
     // If the read is missing (rule 3, graceful) the fact is still announced without table data.
-    let row = input
-        .pointer("/context/reads/reservations.reservations.get/0")
-        .cloned()
-        .unwrap_or(Value::Null);
+    let row = reservation_row(&input);
+
+    // reservations#50: WHOSE reservation is it? Decided from that same authoritative row and
+    // BEFORE the state machine, so a stranger who guesses an id cannot cancel a table that is
+    // not hers — nor use the state refusals to learn anything about it.
+    if let Some(refusal) = customer_identity_refusal(channel, &payload, &row)? {
+        return Ok(Output::new().with_error(refusal));
+    }
 
     // reservations#37: the readable refusal in front of the state machine. The same preloaded
     // row that enriches the event says whether the transition is legal; when the guest KNOWS it
@@ -467,6 +575,64 @@ pub fn set_status_pure(input: Value) -> Result<Output, String> {
     Ok(Output {
         operations: vec![Operation::sql("reservations._apply_status", p)],
         events: vec![event],
+        ..Default::default()
+    })
+}
+
+// ── reservations#50: `update` behind the same door ───────────────────────────
+
+/// Every field of the reservation the SQL of `_apply_update` can write, in the order the
+/// `UPDATE` sets them. The handler carries them VERBATIM: `COALESCE(:field, field)` reads a
+/// missing bind as «leave it as it was», which is what a partial edit means, and the driver
+/// binds a missing key and an explicit `null` identically (both `DynNull`) — so forwarding the
+/// payload field by field is byte-for-byte what the declarative command used to send.
+const UPDATE_FIELDS: [&str; 10] = [
+    "guest_name",
+    "guest_phone",
+    "guest_email",
+    "date",
+    "time",
+    "party_size",
+    "duration_minutes",
+    "table_id",
+    "notes",
+    "internal_notes",
+];
+
+/// `{payload, context}` → intención `reservations._apply_update`.
+///
+/// `update` was Tier 0 (payload → `commands/reservation_update.sql`) and it moved here for ONE
+/// reason: so it can ask the SAME identity guard `set_status` asks (reservations#50). Everything
+/// the SQL decided, the SQL still decides — party-size limits, advance window, blocked days,
+/// active slot with room, and the `expect_rows` rejection — inside the same transaction, now
+/// hanging off the private `reservations._apply_update`. The handler adds no availability rule
+/// and takes none away; it answers «who is asking, and is this table theirs».
+pub fn update_reservation_pure(input: Value) -> Result<Output, String> {
+    let (payload, _) = payload_and_ids(&input);
+
+    let channel = caller_channel(&payload)?;
+    let reservation_id = req_str(&payload, "reservation_id")?;
+    let row = reservation_row(&input);
+
+    // Asked FIRST, against the authoritative row, and before anything that could answer
+    // differently depending on the row: a caller holding an id that is not theirs learns
+    // nothing about it beyond «not yours».
+    if let Some(refusal) = customer_identity_refusal(channel, &payload, &row)? {
+        return Ok(Output::new().with_error(refusal));
+    }
+    if let Some(refusal) = staff_only_field_refusal(channel, &payload) {
+        return Ok(Output::new().with_error(refusal));
+    }
+
+    let mut p = Map::new();
+    p.insert("reservation_id".into(), json!(reservation_id));
+    for field in UPDATE_FIELDS {
+        p.insert(field.into(), payload.get(field).cloned().unwrap_or(Value::Null));
+    }
+
+    Ok(Output {
+        operations: vec![Operation::sql("reservations._apply_update", p)],
+        events: vec![],
         ..Default::default()
     })
 }
@@ -918,4 +1084,532 @@ mod tests {
             .iter()
             .any(|e| e == "reservations.reservation.status_changed"));
     }
+
+    // ── reservations#50: WHOSE table is it? ──────────────────────────────────────
+    //
+    // The mirror of appointments#140 (`cancel`) and appointments#142 (`reschedule`). A change
+    // asked FOR the guest — the WhatsApp automation acting on her behalf — carries the id of the
+    // reservation and nothing else, and the handler never looked at whose reservation it was: any
+    // reservation id that reached the door was managed. `reservations.reservations.list` filters
+    // `guest_phone` with `like`, so guessing one is not the hard part.
+
+    /// A reservation of `customer_id`, in `status`. The counter's walk-ins have no customer at
+    /// all (`customer_id` null), which is a row that belongs to NOBODY on the customer channel.
+    fn row_of(customer_id: Value, status: &str) -> Value {
+        json!([{
+            "id": "r-ana", "customer_id": customer_id, "guest_name": "Ana",
+            "guest_phone": "+34600111222", "guest_email": "",
+            "date": "2026-08-20", "time": "21:00:00", "party_size": 4,
+            "duration_minutes": 90, "table_id": "t1", "status": status,
+        }])
+    }
+
+    fn reads_of(rows: Value) -> Option<Value> {
+        Some(json!({ "reservations.reservations.get": rows }))
+    }
+
+    #[test]
+    fn set_status_on_the_customer_channel_refuses_a_reservation_THAT_IS_NOT_HERS() {
+        // THE case: the row belongs to `c-ana` and `c-bob` is the one asking. Cancelling it is a
+        // legal transition, so nothing else in the handler would have stopped it.
+        let out = set_status_pure(input(
+            json!({
+                "reservation_id": "r-ana", "status": "cancelled",
+                "channel": "customer", "customer_id": "c-bob",
+            }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("a refusal is an output, not a fault");
+        assert_eq!(refusal_code(&out), "reservations.customer_mismatch");
+        assert!(out.operations.is_empty(), "somebody else's table must not be touched");
+        assert!(out.events.is_empty(), "and nothing may be announced about it");
+    }
+
+    #[test]
+    fn set_status_on_the_customer_channel_goes_on_when_the_reservation_is_hers() {
+        let out = set_status_pure(input(
+            json!({
+                "reservation_id": "r-ana", "status": "cancelled",
+                "channel": "customer", "customer_id": "c-ana",
+            }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("her own reservation");
+        assert_eq!(refusal_code(&out), "");
+        assert_eq!(out.operations[0].command, "reservations._apply_status");
+    }
+
+    #[test]
+    fn set_status_on_the_customer_channel_without_a_customer_id_is_a_payload_fault() {
+        // Fails CLOSED and LOUDLY: a `channel: customer` that names nobody is an external
+        // channel wired wrong, not a sentence to show a guest.
+        let err = set_status_pure(input(
+            json!({ "reservation_id": "r-ana", "status": "cancelled", "channel": "customer" }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect_err("a broken payload is a fault, not a refusal");
+        assert!(err.contains("customer_id"), "{err}");
+    }
+
+    #[test]
+    fn set_status_by_the_counter_still_touches_any_reservation() {
+        // The regression this guard must NOT cause: the dining room is the staff's own. No
+        // channel = staff, and staff never says who it is asking for.
+        let out = set_status_pure(input(
+            json!({ "reservation_id": "r-ana", "status": "seated" }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("the counter seats whoever sits down");
+        assert_eq!(refusal_code(&out), "");
+        assert_eq!(out.operations[0].command, "reservations._apply_status");
+    }
+
+    #[test]
+    fn a_customer_id_sent_on_the_staff_channel_is_not_an_identity_claim() {
+        // Reading it as one would let a mistyped id refuse the receptionist her own work.
+        let out = set_status_pure(input(
+            json!({
+                "reservation_id": "r-ana", "status": "seated",
+                "channel": "staff", "customer_id": "c-bob",
+            }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("staff is not acting on anybody's behalf");
+        assert_eq!(refusal_code(&out), "");
+        assert_eq!(out.operations[0].command, "reservations._apply_status");
+    }
+
+    #[test]
+    fn set_status_refuses_a_channel_that_is_neither_staff_nor_customer() {
+        let err = set_status_pure(input(
+            json!({ "reservation_id": "r-ana", "status": "seated", "channel": "kitchen" }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect_err("an unknown channel is a payload fault");
+        assert!(err.contains("kitchen"), "{err}");
+    }
+
+    #[test]
+    fn set_status_asks_WHOSE_reservation_it_is_before_the_state_machine() {
+        // Order matters and is the whole point: a stranger holding an id that is not hers gets
+        // the SAME answer whatever the row is doing — «not yours». If the state machine ran
+        // first, the refusals would tell her whether that id exists and what state it is in.
+        let out = set_status_pure(input(
+            json!({
+                "reservation_id": "r-ana", "status": "completed",
+                "channel": "customer", "customer_id": "c-bob",
+            }),
+            // `pending → completed` is illegal: the state machine has an answer ready for it.
+            reads_of(row_of(json!("c-ana"), "pending")),
+        ))
+        .expect("a refusal is an output");
+        assert_eq!(
+            refusal_code(&out),
+            "reservations.customer_mismatch",
+            "identity is decided BEFORE the state machine, or the refusal leaks the row's state"
+        );
+    }
+
+    #[test]
+    fn set_status_on_the_customer_channel_refuses_a_walk_in_that_belongs_to_nobody() {
+        // A table the counter typed with no customer attached matches nobody: the asking id is
+        // non-empty by the check above, so an empty link can never equal it.
+        for orphan in [json!(null), json!("")] {
+            let out = set_status_pure(input(
+                json!({
+                    "reservation_id": "r-ana", "status": "cancelled",
+                    "channel": "customer", "customer_id": "c-bob",
+                }),
+                reads_of(row_of(orphan.clone(), "confirmed")),
+            ))
+            .expect("a refusal is an output");
+            assert_eq!(
+                refusal_code(&out),
+                "reservations.customer_mismatch",
+                "a walk-in ({orphan}) is nobody's to manage"
+            );
+        }
+    }
+
+    #[test]
+    fn set_status_on_the_customer_channel_refuses_when_the_row_never_arrived() {
+        // The read is graceful by contract (#13) and the staff path degrades to the SQL gate.
+        // The customer path cannot: with no row there is nothing to compare, so it fails closed.
+        let out = set_status_pure(input(
+            json!({
+                "reservation_id": "r-ana", "status": "cancelled",
+                "channel": "customer", "customer_id": "c-bob",
+            }),
+            None,
+        ))
+        .expect("a refusal is an output");
+        assert_eq!(refusal_code(&out), "reservations.customer_mismatch");
+        assert!(out.operations.is_empty());
+    }
+
+
+    // ── reservations#50, the other door: `update` ────────────────────────────────
+    //
+    // `update` was a Tier 0 declarative command: payload → SQL, and the SQL's only question was
+    // «does this row exist in this hub». It now goes through the handler for ONE reason — so it
+    // can ask the SAME guard `set_status` asks. The availability gate it always had (capacity,
+    // advance window, blocked days, active slot) did not move: it is still the SQL of
+    // `reservations._apply_update`, still inside the transaction, still `expect_rows`.
+
+    /// Every field the SQL of `_apply_update` binds. A field the handler forgets to carry binds
+    /// NULL, and `COALESCE(:field, field)` reads that as «leave it as it was» — an edit that
+    /// silently does nothing, which is the failure this list exists to prevent.
+    const APPLY_UPDATE_BINDS: [&str; 10] = [
+        "guest_name", "guest_phone", "guest_email", "date", "time",
+        "party_size", "duration_minutes", "table_id", "notes", "internal_notes",
+    ];
+
+    #[test]
+    fn update_on_the_customer_channel_refuses_a_reservation_THAT_IS_NOT_HERS() {
+        let out = update_reservation_pure(input(
+            json!({
+                "reservation_id": "r-ana", "party_size": 8,
+                "channel": "customer", "customer_id": "c-bob",
+            }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("a refusal is an output, not a fault");
+        assert_eq!(refusal_code(&out), "reservations.customer_mismatch");
+        assert!(out.operations.is_empty(), "somebody else's table must not be edited");
+        assert!(out.events.is_empty());
+    }
+
+    #[test]
+    fn update_on_the_customer_channel_goes_on_when_the_reservation_is_hers() {
+        let out = update_reservation_pure(input(
+            json!({
+                "reservation_id": "r-ana", "party_size": 8,
+                "channel": "customer", "customer_id": "c-ana",
+            }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("her own reservation");
+        assert_eq!(refusal_code(&out), "");
+        assert_eq!(out.operations[0].command, "reservations._apply_update");
+        assert_eq!(out.operations[0].params.get("party_size"), Some(&json!(8)));
+    }
+
+    #[test]
+    fn update_on_the_customer_channel_without_a_customer_id_is_a_payload_fault() {
+        let err = update_reservation_pure(input(
+            json!({ "reservation_id": "r-ana", "party_size": 8, "channel": "customer" }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect_err("a broken payload is a fault, not a refusal");
+        assert!(err.contains("customer_id"), "{err}");
+    }
+
+    #[test]
+    fn update_by_the_counter_still_edits_any_reservation() {
+        // The business regression this guard must NOT cause.
+        let out = update_reservation_pure(input(
+            json!({ "reservation_id": "r-ana", "party_size": 8, "internal_notes": "VIP" }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("the dining room is the counter's");
+        assert_eq!(refusal_code(&out), "");
+        assert_eq!(out.operations[0].command, "reservations._apply_update");
+    }
+
+    #[test]
+    fn update_by_the_counter_needs_no_reservation_row_at_all() {
+        // The read is graceful and the staff path does not depend on it: the SQL gate inside the
+        // transaction stays the authority, exactly as before this handler existed.
+        let out = update_reservation_pure(input(
+            json!({ "reservation_id": "r-ana", "party_size": 8 }),
+            None,
+        ))
+        .expect("staff edits do not wait for the read");
+        assert_eq!(refusal_code(&out), "");
+        assert_eq!(out.operations[0].command, "reservations._apply_update");
+    }
+
+    #[test]
+    fn a_customer_id_sent_on_the_staff_update_channel_is_not_an_identity_claim() {
+        let out = update_reservation_pure(input(
+            json!({
+                "reservation_id": "r-ana", "party_size": 8,
+                "channel": "staff", "customer_id": "c-bob",
+            }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("staff is not acting on anybody's behalf");
+        assert_eq!(refusal_code(&out), "");
+    }
+
+    #[test]
+    fn update_refuses_a_channel_that_is_neither_staff_nor_customer() {
+        let err = update_reservation_pure(input(
+            json!({ "reservation_id": "r-ana", "party_size": 8, "channel": "kitchen" }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect_err("an unknown channel is a payload fault");
+        assert!(err.contains("kitchen"), "{err}");
+    }
+
+    #[test]
+    fn update_on_the_customer_channel_refuses_a_walk_in_that_belongs_to_nobody() {
+        for orphan in [json!(null), json!("")] {
+            let out = update_reservation_pure(input(
+                json!({
+                    "reservation_id": "r-ana", "party_size": 8,
+                    "channel": "customer", "customer_id": "c-bob",
+                }),
+                reads_of(row_of(orphan.clone(), "confirmed")),
+            ))
+            .expect("a refusal is an output");
+            assert_eq!(refusal_code(&out), "reservations.customer_mismatch", "orphan {orphan}");
+        }
+    }
+
+    #[test]
+    fn update_on_the_customer_channel_refuses_when_the_row_never_arrived() {
+        let out = update_reservation_pure(input(
+            json!({
+                "reservation_id": "r-ana", "party_size": 8,
+                "channel": "customer", "customer_id": "c-bob",
+            }),
+            None,
+        ))
+        .expect("a refusal is an output");
+        assert_eq!(refusal_code(&out), "reservations.customer_mismatch");
+        assert!(out.operations.is_empty());
+    }
+
+    #[test]
+    fn update_asks_WHOSE_reservation_it_is_before_anything_it_could_leak() {
+        // Same ordering rule as `set_status`: whoever is asking with an id that is not theirs
+        // gets «not yours» and NO operation, so the SQL gate never runs on that row and its
+        // rejection cannot be read as an oracle either.
+        let out = update_reservation_pure(input(
+            json!({
+                "reservation_id": "r-ana", "table_id": "t9", "internal_notes": "x",
+                "channel": "customer", "customer_id": "c-bob",
+            }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("a refusal is an output");
+        assert_eq!(
+            refusal_code(&out),
+            "reservations.customer_mismatch",
+            "identity comes first: a foreign row is not even told which of its fields are staff-only"
+        );
+    }
+
+    #[test]
+    fn update_on_the_customer_channel_refuses_the_fields_only_the_restaurant_writes() {
+        // Opening the customer door without this would hand the guest her own table assignment
+        // and the restaurant's private notes — a new hole dug by the change that closes another.
+        for (field, value) in [
+            ("table_id", json!("t9")),
+            ("table_id", json!("")), // the «unassign» sentinel is an assignment too
+            ("internal_notes", json!("free bottle for this one")),
+        ] {
+            let mut payload = json!({
+                "reservation_id": "r-ana", "channel": "customer", "customer_id": "c-ana",
+            });
+            payload[field] = value.clone();
+            let out = update_reservation_pure(input(
+                payload,
+                reads_of(row_of(json!("c-ana"), "confirmed")),
+            ))
+            .expect("a refusal is an output");
+            assert_eq!(
+                refusal_code(&out),
+                "reservations.staff_only_field",
+                "{field} = {value} on her OWN reservation"
+            );
+            assert!(out.operations.is_empty(), "{field} must not reach the SQL");
+        }
+    }
+
+    #[test]
+    fn update_on_the_customer_channel_still_changes_what_the_booking_IS() {
+        // What a guest legitimately asks for by message: another day, another time, more people,
+        // her phone, a note about the highchair.
+        let out = update_reservation_pure(input(
+            json!({
+                "reservation_id": "r-ana", "date": "2026-08-21", "time": "20:30:00",
+                "party_size": 6, "guest_phone": "+34600999888", "notes": "highchair",
+                "channel": "customer", "customer_id": "c-ana",
+            }),
+            reads_of(row_of(json!("c-ana"), "confirmed")),
+        ))
+        .expect("her own booking");
+        assert_eq!(refusal_code(&out), "");
+        let p = &out.operations[0].params;
+        assert_eq!(p.get("date"), Some(&json!("2026-08-21")));
+        assert_eq!(p.get("party_size"), Some(&json!(6)));
+        assert_eq!(p.get("notes"), Some(&json!("highchair")));
+    }
+
+    #[test]
+    fn update_carries_every_bind_the_sql_reads_and_leaves_the_untouched_ones_null() {
+        // A missing bind and an explicit NULL are the same thing for the driver (both `DynNull`),
+        // which is what `COALESCE(:field, field)` needs: «not sent» = «leave it as it was».
+        let out = update_reservation_pure(input(
+            json!({ "reservation_id": "r-ana", "time": "20:30:00" }),
+            None,
+        ))
+        .expect("a partial edit is the normal case");
+        let p = &out.operations[0].params;
+        assert_eq!(p.get("reservation_id"), Some(&json!("r-ana")));
+        for bind in APPLY_UPDATE_BINDS {
+            let got = p.get(bind).unwrap_or_else(|| panic!("`{bind}` is not carried to the SQL"));
+            if bind == "time" {
+                assert_eq!(got, &json!("20:30:00"));
+            } else {
+                assert_eq!(got, &json!(null), "`{bind}` was not sent, so it must bind NULL");
+            }
+        }
+    }
+
+    #[test]
+    fn update_ignores_anything_the_caller_makes_up_beyond_the_binds() {
+        // `additionalProperties: false` already refuses it at the door; the handler does not
+        // forward it either, so a param that is not a bind cannot reach the SQL by a second path.
+        let out = update_reservation_pure(input(
+            json!({ "reservation_id": "r-ana", "hub_id": "other-hub", "status": "completed" }),
+            None,
+        ))
+        .expect("staff edit");
+        let p = &out.operations[0].params;
+        assert!(p.get("hub_id").is_none(), "the hub is the runtime's, never the payload's");
+        assert!(p.get("status").is_none(), "status changes have their own door");
+        assert_eq!(p.len(), APPLY_UPDATE_BINDS.len() + 1, "reservation_id + the binds, nothing else");
+    }
+
+    // ── the guard is ONE rule in ONE place, and both doors ask it ────────────────
+
+    fn production_source() -> String {
+        let src = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib.rs"))
+            .expect("the handler can read its own source");
+        let cut = src.find("#[cfg(test)]").expect("the test module is still there");
+        src[..cut].to_string()
+    }
+
+    /// The body of a top-level `fn`, cut at the next one.
+    fn body_of(src: &str, signature: &str) -> String {
+        let start = src.find(signature).unwrap_or_else(|| panic!("`{signature}` is gone"));
+        let rest = &src[start + signature.len()..];
+        let end = ["\npub fn ", "\nfn "]
+            .iter()
+            .filter_map(|marker| rest.find(marker))
+            .min()
+            .unwrap_or(rest.len());
+        rest[..end].to_string()
+    }
+
+    #[test]
+    fn both_customer_facing_doors_ask_the_SAME_guard_and_the_rule_lives_in_ONE_place() {
+        // reservations#50 is the third time this rule is written (appointments#140 for `cancel`,
+        // appointments#142 for `reschedule`), and the lesson of the second one was that two
+        // copies of «is this yours» drift apart until one of them is open again. So: exactly one
+        // place mints the refusal, and every door reaches it by CALLING that place.
+        let src = production_source();
+        assert_eq!(
+            src.matches("\"reservations.customer_mismatch\"").count(),
+            1,
+            "the mismatch refusal is minted in exactly one place — a second copy is a second rule"
+        );
+        for door in ["pub fn set_status_pure", "pub fn update_reservation_pure"] {
+            assert!(
+                body_of(&src, door).contains("customer_identity_refusal("),
+                "`{door}` must ASK the shared guard, not re-implement it"
+            );
+        }
+    }
+
+    #[test]
+    fn the_guard_reads_the_owner_from_the_ROW_and_never_from_the_payload() {
+        // The mutant this kills: comparing `payload.customer_id` with itself (or with anything
+        // else the caller sent) is a guard that always passes. The authority is the row the
+        // runtime pre-loaded, which is why the check sits AFTER the read.
+        let body = body_of(&production_source(), "fn customer_identity_refusal");
+        assert!(
+            body.contains("row.get(\"customer_id\")"),
+            "the owner comes from the reservation row: {body}"
+        );
+    }
+
+    #[test]
+    fn manifest_preloads_the_reservation_row_for_update_too() {
+        let m = manifest();
+        let cmd = &m["commands"]["reservations.reservations.update"];
+        assert_eq!(
+            cmd["handler"]["function"], json!("update_reservation"),
+            "update goes through the handler so it can ask the identity guard"
+        );
+        let read = cmd["reads"]
+            .as_array()
+            .expect("update declares `reads`")
+            .iter()
+            .find(|r| r["query"] == "reservations.reservations.get")
+            .expect("reads the reservation row by id");
+        assert_eq!(read["params"]["reservation_id"], json!("payload.reservation_id"));
+    }
+
+    #[test]
+    fn the_update_gate_keeps_its_own_refusal_and_its_own_sql() {
+        // What did NOT move: the availability gate of reservations#14 and the translatable
+        // rejection it raises. It now hangs off the private command the handler delegates to.
+        let m = manifest();
+        let gated = &m["commands"]["reservations._apply_update"];
+        assert_eq!(gated["sql"], json!(["commands/reservation_update.sql"]));
+        assert_eq!(gated["expect_rows"]["op"], json!("min"));
+        assert_eq!(gated["expect_rows"]["n"], json!(1));
+        assert_eq!(gated["expect_rows"]["error"], json!("reservations.update_rejected"));
+        // Anchored against the PUBLIC door instead of a literal: the point is that moving the SQL
+        // did not drop or drift the permission it demands, and a hardcoded `reservations.<x>`
+        // string in the handler is read by the toolkit as an emitted error code (ADR-0398),
+        // which this one is not — it is a permission.
+        let public_permission = &m["commands"]["reservations.reservations.update"]["permission"];
+        assert!(
+            public_permission.as_str().is_some_and(|p| !p.is_empty()),
+            "the public door still demands a permission"
+        );
+        assert_eq!(
+            gated["permission"], *public_permission,
+            "the private command demands the same permission as the door that delegates to it"
+        );
+        assert!(
+            m["commands"]["reservations.reservations.update"].get("sql").is_none(),
+            "the public door no longer runs SQL by itself"
+        );
+    }
+
+    #[test]
+    fn both_customer_facing_schemas_declare_who_is_asking() {
+        // The mechanical half of the guard: a door whose schema has no `channel`/`customer_id`
+        // cannot be asked on behalf of a guest at all — `additionalProperties: false` drops them
+        // — so the guard would sit there looking armed and never fire.
+        for door in ["reservation_set_status", "reservation_update"] {
+            let raw = std::fs::read_to_string(format!(
+                "{}/../schemas/{door}.json",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap_or_else(|_| panic!("schemas/{door}.json"));
+            let s: Value = serde_json::from_str(&raw).expect("the schema parses");
+            assert_eq!(s["additionalProperties"], json!(false), "{door}");
+            assert_eq!(
+                s["properties"]["channel"]["enum"],
+                json!(["staff", "customer"]),
+                "{door} must name both channels"
+            );
+            assert_eq!(
+                s["properties"]["channel"]["default"], json!("staff"),
+                "{door}: no channel means the counter, which is what the screen sends"
+            );
+            assert_eq!(
+                s["properties"]["customer_id"]["type"], json!("string"),
+                "{door} must be able to say WHO is asking"
+            );
+        }
+    }
+
 }

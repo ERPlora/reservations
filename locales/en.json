@@ -101,6 +101,9 @@
     "reservations.no_service_day": "There is no service at that time: no open time slot covers it.",
     "reservations.no_capacity": "That time slot is fully booked for that date.",
     "reservations.illegal_transition": "That status change is not possible from the reservation's current status (the flow is pending → confirmed → seated → completed).",
-    "reservations.reads_unavailable": "The reservation settings could not be read; nothing was booked."
+    "reservations.reads_unavailable": "The reservation settings could not be read; nothing was booked.",
+    "reservations.cannot_update_settings": "The reservation settings could not be changed: this restaurant has no settings in use right now.",
+    "reservations.customer_mismatch": "That reservation belongs to a different guest, so it cannot be managed on their behalf.",
+    "reservations.staff_only_field": "The table and the restaurant's internal notes are set by the restaurant; they cannot be changed from your booking."
   }
 }

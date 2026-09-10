@@ -1,7 +1,7 @@
 {
   "id": "reservations",
   "name": "Reservations",
-  "version": "3.0.25",
+  "version": "3.0.28",
   "description": "Table and resource reservations, with configurable time slots and blocked dates.",
   "agent": {
     "description": "Manages table and resource reservations: create, update and track bookings, configure time slots and blocked dates, and handle the waitlist.",
@@ -83,7 +83,12 @@
     "postgres": [
       "migrations/postgres/001_init.sql",
       "migrations/postgres/002_gate.sql",
-      "migrations/postgres/003_gate_reason.sql"
+      "migrations/postgres/003_gate_reason.sql",
+      {
+        "file": "migrations/postgres/004_named_gate_constraints.sql",
+        "kind": "contract",
+        "since": "3.0.26"
+      }
     ]
   },
   "queries": {
@@ -367,7 +372,29 @@
     },
     "reservations.reservations.update": {
       "permission": "reservations.change_reservation",
-      "transaction": true,
+      "handler": {
+        "type": "wasm",
+        "file": "dist/handler.wasm",
+        "function": "update_reservation"
+      },
+      "schema": "schemas/reservation_update.json",
+      "reads": [
+        {
+          "query": "reservations.reservations.get",
+          "params": {
+            "reservation_id": "payload.reservation_id"
+          }
+        }
+      ],
+      "emit": [
+        "reservations.reservation.updated"
+      ],
+      "ai": {
+        "description": "Updates the details of an existing reservation (date, time, party size, guest contact). Staff can edit any reservation; an edit on behalf of the guest (channel=customer) must carry that guest's `customer_id`, is refused when the reservation belongs to somebody else, and cannot touch the table assignment or the restaurant's internal notes. The change still has to pass the availability gate (party-size limits, advance window, blocked days, slot capacity)."
+      }
+    },
+    "reservations._apply_update": {
+      "permission": "reservations.change_reservation",
       "sql": [
         "commands/reservation_update.sql"
       ],
@@ -376,13 +403,6 @@
         "n": 1,
         "error": "reservations.update_rejected",
         "message": "That change is not available: the slot is full, the day is blocked, the party size is out of range, or the new time falls outside the booking window."
-      },
-      "schema": "schemas/reservation_update.json",
-      "emit": [
-        "reservations.reservation.updated"
-      ],
-      "ai": {
-        "description": "Updates the details of an existing reservation (date, time, party size)"
       }
     },
     "reservations.reservations.set_status": {
@@ -402,7 +422,7 @@
         }
       ],
       "ai": {
-        "description": "Changes the status of a reservation validating the state machine (confirmed, seated, completed, cancelled, no_show)"
+        "description": "Changes the status of a reservation validating the state machine (confirmed, seated, completed, cancelled, no_show). Staff can change any reservation; a change on behalf of the guest (channel=customer) must carry that guest's `customer_id` and is refused when the reservation belongs to somebody else."
       }
     },
     "reservations._apply_status": {
@@ -539,6 +559,26 @@
       ],
       "ai": {
         "description": "Removes an entry from the waitlist (destructive)"
+      }
+    },
+    "reservations.settings.set_auto_confirm": {
+      "permission": "reservations.manage_settings",
+      "transaction": true,
+      "sql": [
+        "commands/settings_set_auto_confirm.sql"
+      ],
+      "schema": "schemas/settings_set_auto_confirm.json",
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "reservations.cannot_update_settings",
+        "message": "The reservation settings could not be changed: this restaurant has no settings in use right now."
+      },
+      "emit": [
+        "reservations.settings.updated"
+      ],
+      "ai": {
+        "description": "Turns on or off whether a reservation the guest booked herself — online or through an automation such as WhatsApp — is created already confirmed. It changes that single setting and leaves every other reservations setting exactly as the restaurant left it."
       }
     },
     "reservations.settings.upsert": {
