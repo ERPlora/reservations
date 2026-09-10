@@ -1,7 +1,7 @@
 {
   "id": "reservations",
   "name": "Reservations",
-  "version": "3.0.29",
+  "version": "3.0.30",
   "description": "Table and resource reservations, with configurable time slots and blocked dates.",
   "agent": {
     "description": "Manages table and resource reservations: create, update and track bookings, configure time slots and blocked dates, and handle the waitlist.",
