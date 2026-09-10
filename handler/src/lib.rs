@@ -865,13 +865,18 @@ mod tests {
     // normal output (`with_error`, hub#139) — the SQL gate stays as the authoritative race guard.
 
     /// The settings singleton as the read returns it, with `over` patched on top.
+    ///
+    /// The flags are JSON `true`/`false` because that is what `reservations.settings.get` hands
+    /// over since reservations#54 (`col <> 0`); at rest they are still INTEGER 0/1. Writing them
+    /// here as the wire carries them is what keeps these cases exercising the real input — and
+    /// `truthy` reads Bool, Number and String alike, so the gate did not have to change.
     fn settings_read(over: Value) -> Value {
         let mut row = json!({
             "id": "s1", "time_slot_duration": 30, "min_party_size": 1, "max_party_size": 20,
-            "min_advance_hours": 1, "max_advance_days": 30, "auto_confirm": 0,
-            "require_phone": 0, "require_email": 0, "no_show_window_minutes": 15,
-            "default_duration_minutes": 120, "send_confirmation_email": 0,
-            "send_reminder_email": 0, "reminder_hours_before": 24
+            "min_advance_hours": 1, "max_advance_days": 30, "auto_confirm": false,
+            "require_phone": false, "require_email": false, "no_show_window_minutes": 15,
+            "default_duration_minutes": 120, "send_confirmation_email": false,
+            "send_reminder_email": false, "reminder_hours_before": 24
         });
         if let (Some(dst), Some(src)) = (row.as_object_mut(), over.as_object()) {
             for (k, v) in src {
@@ -926,7 +931,7 @@ mod tests {
         let out = create_reservation_pure(create_input(
             base_payload(),
             vec![
-                ("reservations.settings.get", settings_read(json!({ "require_phone": 1, "require_email": 1 }))),
+                ("reservations.settings.get", settings_read(json!({ "require_phone": true, "require_email": true }))),
                 ("reservations.slots.count_for", slots_read(full_day_slot())),
                 ("reservations.blocked_dates.on_date", json!([])),
             ],
@@ -943,7 +948,7 @@ mod tests {
         let requires = create_reservation_pure(create_input(
             payload.clone(),
             vec![
-                ("reservations.settings.get", settings_read(json!({ "require_email": 1 }))),
+                ("reservations.settings.get", settings_read(json!({ "require_email": true }))),
                 ("reservations.slots.count_for", slots_read(full_day_slot())),
                 ("reservations.blocked_dates.on_date", json!([])),
             ],
@@ -971,7 +976,7 @@ mod tests {
             (
                 "reservations.blocked_dates.on_date",
                 json!([{ "id": "b1", "date": "2026-08-20", "reason": "staff party",
-                        "is_full_day": 1, "blocked_from": Value::Null, "blocked_until": Value::Null }]),
+                        "is_full_day": true, "blocked_from": Value::Null, "blocked_until": Value::Null }]),
             ),
         ];
         let out = create_reservation_pure(create_input(base_payload(), reads)).unwrap();

@@ -25,8 +25,8 @@ beforeEach(() => {
           date: '2026-07-13',
           preferred_time: '21:00:00',
           party_size: 2,
-          is_contacted: 0,
-          is_converted: 0,
+          is_contacted: false,
+          is_converted: false,
         },
       ],
       total: 1,
@@ -92,7 +92,10 @@ describe('los filtros van en la tabla, y «contactado» (dominio cerrado) es un 
     const cols = (el as unknown as { columns: { key: string; filterType?: string; options?: { value: string }[] }[] }).columns;
     const contactado = cols.find((c) => c.key === 'is_contacted');
     expect(contactado?.filterType).toBe('select');
-    expect(contactado?.options?.map((o) => o.value)).toEqual(['1', '0']);
+    // reservations#54: mismo motivo que en `is_full_day` (ver el componente de disponibilidad).
+    // El flag viaja como booleano JSON y el motor compara el filtro como texto, así que el dominio
+    // cerrado que ofrece la caja es `'true'`/`'false'`; con `'1'`/`'0'` el embudo saldría vacío.
+    expect(contactado?.options?.map((o) => o.value)).toEqual(['true', 'false']);
   });
 });
 

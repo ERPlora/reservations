@@ -28,8 +28,8 @@ interface WaitlistEntry {
   date: string;
   preferred_time: string;
   party_size: number;
-  is_contacted: number;
-  is_converted: number;
+  is_contacted: boolean;
+  is_converted: boolean;
 }
 
 // ── reservations#34: wall-clock text painted for humans ────────────────────────────────────
@@ -107,9 +107,13 @@ export class ErpReservationsWaitlist extends LitElement {
       sortable: true,
       filterable: true,
       filterType: 'select',
+      // reservations#54: the query answers this flag as a JSON boolean, and the list engine
+      // compares a filter as TEXT (`CAST(sub.<col> AS TEXT) = CAST(:f_<col> AS TEXT)`), where a
+      // boolean renders `'true'`/`'false'`. Offering `'1'`/`'0'` here would match nothing and the
+      // table would look empty instead of filtered (hub#1182).
       options: [
-        { value: '1', label: t('ui.yes') },
-        { value: '0', label: t('ui.no') },
+        { value: 'true', label: t('ui.yes') },
+        { value: 'false', label: t('ui.no') },
       ],
       format: (r) => (r.is_contacted ? t('ui.yes') : t('ui.no')),
     },
