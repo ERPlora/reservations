@@ -147,6 +147,14 @@ export class ErpReservationsList extends LitElement {
 
   @state() newParty = '2';
 
+  /** Los filtros que ESTE módulo le declara a la tabla (contrato `filterValues`, outfitkit#106).
+   *
+   *  La tabla reasigna su espejo de filtros solo cuando el objeto enlazado cambia de IDENTIDAD
+   *  (Lit compara por identidad, y una mutación in-situ no llega a su `updated`). Eso es justo lo
+   *  que hace falta: mientras siga siendo el mismo objeto, los filtros que la persona elija en el
+   *  panel son suyos y nadie se los pisa; al limpiar se asigna uno NUEVO y la tabla se entera. */
+  @state() private filterMirror: Record<string, unknown> = {};
+
   private ctrl!: ListController<Reservation>;
 
   private unsub?: () => void;
@@ -171,6 +179,25 @@ export class ErpReservationsList extends LitElement {
       format: (r) => (STATUS_KEYS[r.status as string] ? t(STATUS_KEYS[r.status as string]) : (r.status as string)),
     },
     ];
+  }
+
+  private labelsCache?: { locale: string; labels: Record<string, string> };
+
+  /** Las etiquetas que este módulo le impone a la barra de la tabla.
+   *
+   *  El alta se llama «Nueva reserva», no «Añadir»: la acción principal de un listado NOMBRA su
+   *  objeto —Odoo «New», Shopify «Add product», Fresha «Add booking»—, que es la misma decisión de
+   *  mercado de reservations#41. Heredar el alta de la tabla (`addable`) no puede costar el
+   *  rótulo; solo el botón hecho a mano.
+   *
+   *  Memoizado por idioma: un objeto literal nuevo en cada render marcaría `labels` como cambiada
+   *  y le costaría a la tabla un ciclo de actualización por cada render de esta vista. */
+  private get tableLabels(): Record<string, string> {
+    const locale = erplora().locale;
+    if (this.labelsCache?.locale !== locale) {
+      this.labelsCache = { locale, labels: { add: erplora().t(CATALOG, 'ui.emptyCta') } };
+    }
+    return this.labelsCache.labels;
   }
 
   private get actions() {
@@ -248,19 +275,19 @@ export class ErpReservationsList extends LitElement {
 
   /** Deshace la búsqueda y los filtros en una sola recarga.
    *
-   *  El buscador de la tabla es NO controlado en modo `serverSide` (pinta sin `.value`), así que
-   *  limpiar solo el estado dejaría el texto escrito en pantalla contradiciendo a la lista: se
-   *  vacía también el `ion-searchbar`. Que la tabla acepte el valor desde fuera es cosa de
-   *  outfitkit, no de este módulo. */
+   *  Las dos mitades viajan por el CONTRATO de la tabla —`search` (outfitkit#112) y `filterValues`
+   *  (outfitkit#106)—: quien es dueño de la consulta declara lo que la persona está viendo, no solo
+   *  lo lee. Antes esto se hacía a mano, alcanzando el `ion-searchbar` DENTRO del shadow root de la
+   *  tabla para borrarle el texto; funcionaba, pero dejaba a la tabla creyendo que la búsqueda
+   *  seguía puesta, y el día que ese nodo cambiara de nombre el `querySelector` devolvería `null`
+   *  sin fallar: el buscador se quedaría escrito sin que nadie avisara. De los filtros, además, no
+   *  se ocupaba nadie: el embudo seguía marcando uno que la lista ya no aplicaba. */
   private clearQuery(): void {
     const s = this.ctrl.state;
     s.search = '';
     for (const col of Object.keys(s.filters)) delete s.filters[col];
     s.page = 0;
-    const bar = (this.dataTable() as { shadowRoot?: ShadowRoot } | null)?.shadowRoot?.querySelector(
-      'ion-searchbar',
-    ) as { value?: string } | null;
-    if (bar) bar.value = '';
+    this.filterMirror = {};
     void this.ctrl.load();
   }
 
@@ -319,8 +346,9 @@ export class ErpReservationsList extends LitElement {
   // reservations#41 — los cuatro estados de la pantalla se pintan, ninguno se deja en una tabla
   // gris: CARGANDO, ERROR (con reintento), VACÍO DE PRIMERA VEZ (cabecera + explicación + acción
   // primaria rotulada, patrón `help` de Odoo y EmptyState de Polaris) y VACÍO POR BÚSQUEDA (que
-  // conserva el buscador y ofrece limpiar). La acción primaria va SIEMPRE con texto: el «+» de
-  // `addable` era el cuarto icono de cuatro iguales.
+  // conserva el buscador y ofrece limpiar). La acción primaria va SIEMPRE con texto — y desde
+  // reservations#47 eso lo cumple la propia tabla: outfitkit#113 rotula `addable` también en
+  // escritorio, donde antes era un «+» de 36 px, el cuarto de cuatro iconos iguales.
   render() {
     const t = (k: string): string => erplora().t(CATALOG, k);
     const loading = this.ctrl?.loading ?? false;
@@ -338,13 +366,13 @@ export class ErpReservationsList extends LitElement {
     const showLoading = loading && bare;
     const hideTable = bare;
 
-    const createButton = (slot?: string) => html`
-      <ion-button
-        slot=${slot ?? nothing}
-        size="small"
-        data-action="create"
-        @click=${() => this.openCreate()}
-      >${t('ui.emptyCta')}</ion-button>
+    // Solo para el vacío de primera vez: ahí la barra de la tabla no se ve (la tabla se aparta),
+    // así que la acción primaria la pone el propio bloque vacío. Con filas, el alta la pinta la
+    // tabla (`addable`).
+    const createButton = () => html`
+      <ion-button slot="action" size="small" data-action="create" @click=${() => this.openCreate()}
+        >${t('ui.emptyCta')}</ion-button
+      >
     `;
 
     return html`<div class="page">
@@ -370,13 +398,10 @@ export class ErpReservationsList extends LitElement {
               .message=${t('ui.emptyBody')}
             >
               <p class="hint">${t('ui.emptyHint')}</p>
-              ${createButton('action')}
+              ${createButton()}
             </ok-empty-state>`
           : nothing}
-        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${false} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
-          <!-- Acción primaria ROTULADA en la barra (reservations#41). Se proyecta dentro de la
-               tabla, así que sigue sin haber ningún control de alta suelto fuera de ella. -->
-          ${createButton('toolbar')}
+        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .search=${this.ctrl?.state.search ?? ''} .filterValues=${this.filterMirror} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" @submit=${(e: Event) => this.createReservation(e)}>

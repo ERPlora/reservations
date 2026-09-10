@@ -84,6 +84,14 @@ type Tabla = HTMLElement & {
   addable: boolean;
   panel: string;
   open: (p?: 'filters' | 'create') => void;
+  /** outfitkit#112 — la búsqueda que el módulo le IMPONE a la tabla (`undefined` = no la controla). */
+  search?: string;
+  /** outfitkit#106 — los filtros que el módulo le impone; una identidad nueva reasigna el espejo. */
+  filterValues?: Record<string, unknown>;
+  /** Nº de filtros que la tabla se cree puestos → el badge del embudo. */
+  activeFilterCount: number;
+  /** Lo que llama el panel de filtros de la tabla al elegir un valor (`onFilterInput`). */
+  setServerFilter: (key: string, value: unknown) => void;
 };
 
 async function montar() {
@@ -166,28 +174,70 @@ describe('2 · vacío por BÚSQUEDA/FILTRO ≠ vacío de primera vez', () => {
   });
 });
 
-describe('3 · la acción primaria de la barra va ROTULADA, no como «+» anónimo', () => {
-  it('la tabla ya NO declara `addable` (el «+» era el cuarto icono de cuatro iguales)', async () => {
+describe('3 · la acción primaria de la barra la pinta LA TABLA (`addable`)', () => {
+  // POR QUÉ CAMBIÓ ESTE CONTRATO (reservations#47). En #41 la decisión de mercado —Odoo,
+  // Business Central, WooCommerce Bookings, Lightspeed, Fresha y NN/g: la acción principal de un
+  // listado se ROTULA— se cumplió aquí a mano, apagando `addable` y proyectando un botón propio
+  // en el slot `toolbar`, porque en ESCRITORIO `addable` pintaba un «+» de 36 px indistinguible
+  // de los otros tres iconos de la barra. outfitkit#113 lo arregló EN LA TABLA: `addable` pinta
+  // el mismo botón rotulado y relleno en los dos viewports. La decisión de mercado NO cambia; lo
+  // que cambia es quién la cumple. Mantener el botón a mano deja a Reservas fuera de cualquier
+  // mejora futura de esa barra y le obliga a re-alinearlo cada vez que la tabla se mueve.
+  it('la tabla declara `addable`: el alta la pinta ella, rotulada también en escritorio', async () => {
     page = { rows: [unaReserva], total: 1 };
     const el = await montar();
-    expect(tabla(el)?.addable, 'sigue el «+» anónimo de `addable` en la barra').toBe(false);
+    expect(tabla(el)?.addable, 'el alta sigue sin salir de la tabla: `addable` apagado').toBe(true);
   });
 
-  it('la barra recibe un botón de alta CON TEXTO por el slot `toolbar`', async () => {
+  it('el módulo ya NO proyecta un botón de alta propio en la barra', async () => {
     page = { rows: [unaReserva], total: 1 };
     const el = await montar();
-    const btn = root(el).querySelector('[slot="toolbar"][data-action="create"]');
-    expect(btn, 'la barra no lleva acción primaria rotulada').toBeTruthy();
-    expect(texto(btn), 'la acción primaria de la barra no lleva texto').toBe('ui.emptyCta');
-    expect(btn!.closest('ok-data-table'), 'la acción primaria cuelga fuera de la tabla').toBeTruthy();
+    expect(
+      root(el).querySelector('[slot="toolbar"][data-action="create"]'),
+      'sigue el botón de alta hecho a mano: dos altas que mantener y una que se desalinea',
+    ).toBeNull();
   });
 
-  it('el botón de la barra abre el mismo panel de alta', async () => {
+  it('el botón de alta de la tabla lleva TEXTO y abre el panel donde vive el formulario', async () => {
     page = { rows: [unaReserva], total: 1 };
     const el = await montar();
-    (root(el).querySelector('[slot="toolbar"][data-action="create"]') as HTMLElement).click();
+    const alta = tabla(el)!.shadowRoot!.querySelector('ion-button.add-btn') as HTMLElement | null;
+    expect(alta, 'la tabla no pinta ningún botón de alta rotulado en la barra').toBeTruthy();
+    // Y con el rótulo del MÓDULO: heredar el alta de la tabla no puede degradar «Nueva reserva» al
+    // «Añadir» genérico de ok-data-table (misma decisión de mercado que reservations#41).
+    expect(texto(alta), 'el alta de la barra perdió el rótulo propio: dice «Añadir»').toBe('ui.emptyCta');
+
+    alta!.click();
     await settle(el);
-    expect(tabla(el)?.panel).toBe('create');
+    expect(tabla(el)?.panel, 'el alta de la barra no abre el panel `create`').toBe('create');
+    expect(root(el).querySelector('form[slot="create"]'), 'el formulario de alta no está proyectado').toBeTruthy();
+  });
+
+  it('el rótulo del alta sigue al idioma activo (la memoización por idioma no se queda pegada)', async () => {
+    page = { rows: [unaReserva], total: 1 };
+    const erp = (globalThis as Record<string, unknown>).erplora as {
+      locale: string;
+      t: (c: unknown, k: string) => string;
+    };
+    // Doble consciente del idioma: así una etiqueta cacheada de más se ve como texto, no como
+    // detalle interno. Con el catálogo real es la diferencia entre «Nueva reserva» y «New
+    // reservation» en la barra de un hub que cambia de idioma sin recargar (ADR-0055).
+    erp.t = (_c: unknown, k: string) => `${erp.locale}:${k}`;
+    const el = await montar();
+    const alta = () => tabla(el)!.shadowRoot!.querySelector('ion-button.add-btn');
+    expect(texto(alta())).toBe('es:ui.emptyCta');
+
+    erp.locale = 'en';
+    window.dispatchEvent(new Event('erplora:locale-changed'));
+    await settle(el);
+    expect(texto(alta()), 'el alta se queda con el rótulo del idioma anterior').toBe('en:ui.emptyCta');
+  });
+
+  it('el vacío de primera vez sigue teniendo SU botón rotulado (la barra no se ve ahí)', async () => {
+    const el = await montar();
+    const cta = root(el).querySelector('ok-empty-state [data-action="create"]');
+    expect(cta, 'el vacío de primera vez se queda sin acción primaria').toBeTruthy();
+    expect(texto(cta)).toBe('ui.emptyCta');
   });
 });
 
@@ -321,15 +371,64 @@ describe('6 · review #44: the blocks do not stack and the table stays while it 
     expect(root(el).querySelector('[data-state="loading"]'), 'the loading block replaces the table the person is typing in').toBeNull();
   });
 
-  it('«Clear filters» also empties the table searchbar (uncontrolled in serverSide — outfitkit#112)', async () => {
+  // reservations#47 — «Limpiar» deshace la consulta por el CONTRATO de la tabla, no metiendo la
+  // mano en su shadow root. Antes se le borraba el `value` al `ion-searchbar` desde fuera: seguía
+  // funcionando, pero dejaba a la tabla creyendo que la búsqueda era «zzzz», y el día que outfitkit
+  // renombrara ese nodo el buscador se quedaría escrito SIN QUE NADIE AVISARA (el `querySelector`
+  // devuelve null y no falla). Y de los filtros no se ocupaba nadie.
+  it('«Limpiar» le dice a la tabla que la búsqueda es vacía (outfitkit#112), no le borra el nodo', async () => {
     const el = await montar();
-    tabla(el)!.dispatchEvent(new CustomEvent('searchChange', { detail: 'zzzz' }));
-    await settle(el);
     const bar = tabla(el)!.shadowRoot!.querySelector('ion-searchbar') as (HTMLElement & { value?: string }) | null;
-    expect(bar, 'the table no longer paints an ion-searchbar: clearQuery() points at nothing').toBeTruthy();
+    expect(bar, 'la tabla no pinta ningún ion-searchbar').toBeTruthy();
+
+    // Lo que hace la persona: TECLEAR. Así el buscador de la tabla —controlado desde #117— se
+    // queda además con su propio estado interno en «zzzz», que es justo lo que el apaño no tocaba.
     bar!.value = 'zzzz';
+    bar!.dispatchEvent(new CustomEvent('ionInput', { bubbles: true, composed: true }));
+    await settle(el);
+    expect(tabla(el)!.search, 'el módulo no le dice a la tabla qué búsqueda está viendo').toBe('zzzz');
+
     (root(el).querySelector('[data-action="clear-filters"]') as HTMLElement).click();
     await settle(el);
-    expect(bar!.value, 'the text stays written in the searchbar after clearing').toBe('');
+    expect(tabla(el)!.search, 'la tabla no recibe la búsqueda vacía: solo se le borró el nodo a mano').toBe('');
+    expect(bar!.value, 'el texto sigue escrito en el buscador tras limpiar').toBe('');
+  });
+
+  it('«Limpiar» también deshace los filtros DE LA TABLA, no solo los del controlador', async () => {
+    const el = await montar();
+    // Exactamente lo que hace el panel de filtros de la tabla al elegir un estado: fija su espejo
+    // y avisa (`onFilterInput` de ok-data-table).
+    tabla(el)!.setServerFilter('status', 'confirmed');
+    tabla(el)!.dispatchEvent(new CustomEvent('filterChange', { detail: { col: 'status', value: 'confirmed' } }));
+    await settle(el);
+    expect(tabla(el)!.activeFilterCount, 'el embudo de la tabla no cuenta el filtro puesto').toBe(1);
+
+    (root(el).querySelector('[data-action="clear-filters"]') as HTMLElement).click();
+    await settle(el);
+    expect(
+      tabla(el)!.activeFilterCount,
+      'el embudo sigue marcando un filtro que la lista ya no aplica: la pantalla se contradice',
+    ).toBe(0);
+  });
+
+  // reservations#47 — `filterValues` is bound by IDENTITY: one object, replaced only on clear. A
+  // fresh `{ ...state.filters }` per render passes every test above and is still wrong: the table
+  // reseeds its mirror whenever the bound object changes identity, so a re-render of this view for
+  // an unrelated reason (a locale change, a load finishing) would wipe what the person has just
+  // picked in the panel. This is the guard for that contract (review rv-48).
+  it('a re-render for an unrelated reason does not wipe the filter the person just picked in the table', async () => {
+    const el = await montar();
+    // The table's mirror moves BEFORE the module hears about it (`setServerFilter` runs first, then
+    // the event). Here the module never hears about it at all: the widest gap there can be.
+    tabla(el)!.setServerFilter('status', 'confirmed');
+    await settle(el);
+    expect(tabla(el)!.activeFilterCount).toBe(1);
+
+    window.dispatchEvent(new Event('erplora:locale-changed')); // any re-render of the module
+    await settle(el);
+    expect(
+      tabla(el)!.activeFilterCount,
+      'the module re-render reseeded the table mirror: a new `filterValues` object per render',
+    ).toBe(1);
   });
 });
