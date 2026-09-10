@@ -635,7 +635,16 @@
       "catch_up": "collapse"
     }
   ],
-  "ai_context": "Module: Reservations (id: reservations, v3.0.3). Table and resource reservations with time slots, blocked dates, waitlist and a per-hub settings record. Entities: reservation (guest booking with a status machine pending->confirmed->seated->completed, plus cancelled/no_show), timeslot (available windows per day_of_week), blocked_date (holidays/closures), waitlist entry (for full slots, convertible into a reservation), settings (party-size limits, advance booking window, auto-confirm, no-show window, reminders). Depends on the tables and customers modules. Reservations reference customer_id and table_id by contract (no FK). Non-CRUD logic implemented as a Tier 2 WASM handler (dist/handler.wasm): availability gate on create (party-size limits, blocked dates, active time slot, atomic slot capacity, advance-booking window) with a translated pre-check from preloaded reads (require_phone/require_email enforcement and refusal codes no_capacity/no_service_day/party_size_exceeded/date_blocked; the gate's abort row carries the reason since migration 003), status-transition state machine with authoritative timestamps, and atomic waitlist promotion (waitlist.update with is_converted creates and links the reservation in one transaction). Scheduled task release_unconfirmed (every 15 min) cancels pending reservations whose time passed the no-show grace window so they stop counting against the slot. Still pending: reminders and WhatsApp booking — see WASM-TODO.md.",
+  "ai_context": {
+    "summary": "Module: Reservations (id: reservations). Table and resource reservations with time slots, blocked dates, waitlist and a per-hub settings record. Entities: reservation (guest booking with a status machine pending->confirmed->seated->completed, plus cancelled/no_show), timeslot (available windows per day_of_week), blocked_date (holidays/closures), waitlist entry (for full slots, convertible into a reservation), settings (party-size limits, advance booking window, auto-confirm, no-show window, reminders). Depends on the tables and customers modules. Reservations reference customer_id and table_id by contract (no FK). Non-CRUD logic implemented as a Tier 2 WASM handler (dist/handler.wasm): availability gate on create (party-size limits, blocked dates, active time slot, atomic slot capacity, advance-booking window) with a translated pre-check from preloaded reads (require_phone/require_email enforcement and refusal codes no_capacity/no_service_day/party_size_exceeded/date_blocked; the gate's abort row carries the reason since migration 003), status-transition state machine with authoritative timestamps, and atomic waitlist promotion (waitlist.update with is_converted creates and links the reservation in one transaction). Scheduled task release_unconfirmed (every 15 min) cancels pending reservations whose time passed the no-show grace window so they stop counting against the slot. Still pending: reminders and WhatsApp booking — see WASM-TODO.md.",
+    "keywords": [
+      "reservations",
+      "tables",
+      "time slots",
+      "waitlist",
+      "blocked dates"
+    ]
+  },
   "ui": {
     "entry": "dist/reservations.esm.js"
   }
