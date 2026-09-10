@@ -46,7 +46,7 @@ beforeEach(() => {
     queryPage: async (name: string) =>
       name === 'reservations.timeslots.list'
         ? { rows: [{ id: 't1', day_of_week: 0, start_time: '13:00:00', end_time: '16:00:00', max_reservations: 10, is_active: 1 }], total: 1 }
-        : { rows: [{ id: 'b1', date: '2026-12-25', reason: 'Navidad', is_full_day: 1 }], total: 1 },
+        : { rows: [{ id: 'b1', date: '2026-12-25', reason: 'Navidad', is_full_day: true }], total: 1 },
     command: async (name: string, payload: Record<string, unknown>) => {
       comandos.push({ name, payload });
       return {};
@@ -120,7 +120,13 @@ describe('los filtros de dominio cerrado son `select`', () => {
     const cols = (el as unknown as { blockColumns: { key: string; filterType?: string; options?: { value: string }[] }[] }).blockColumns;
     const full = cols.find((c) => c.key === 'is_full_day');
     expect(full?.filterType).toBe('select');
-    expect(full?.options?.map((o) => o.value)).toEqual(['1', '0']);
+    // reservations#54: la query responde este flag como booleano JSON y el motor de listas compara
+    // el filtro como TEXTO (`CAST(sub.<col> AS TEXT) = CAST(:f_<col> AS TEXT)`), donde un booleano
+    // se escribe `'true'`/`'false'`. Este test pedía `['1', '0']`, que era el dominio correcto
+    // mientras la columna salía como INTEGER cruda; con la proyección de hoy no casaría ninguna
+    // fila y la tabla saldría vacía en vez de filtrada (hub#1182). Lo comprueba contra un Postgres
+    // real tests/flag_round_trip.pg.test.py, capa 3.
+    expect(full?.options?.map((o) => o.value)).toEqual(['true', 'false']);
   });
 });
 

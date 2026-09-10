@@ -34,7 +34,7 @@ interface BlockedDate {
   id: string;
   date: string;
   reason: string;
-  is_full_day: number;
+  is_full_day: boolean;
 }
 
 /** Una franja del día con su ocupación — lo que `reservations.slots.count_for` devuelve
@@ -161,9 +161,13 @@ export class ErpReservationsAvailability extends LitElement {
       sortable: true,
       filterable: true,
       filterType: 'select',
+      // reservations#54: the query answers this flag as a JSON boolean, and the list engine
+      // compares a filter as TEXT (`CAST(sub.<col> AS TEXT) = CAST(:f_<col> AS TEXT)`), where a
+      // boolean renders `'true'`/`'false'`. Offering `'1'`/`'0'` here would match nothing and the
+      // table would look empty instead of filtered (hub#1182).
       options: [
-        { value: '1', label: t('ui.yes') },
-        { value: '0', label: t('ui.no') },
+        { value: 'true', label: t('ui.yes') },
+        { value: 'false', label: t('ui.no') },
       ],
       format: (r) => (r.is_full_day ? t('ui.yes') : t('ui.no')),
     },
