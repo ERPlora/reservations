@@ -234,9 +234,12 @@ function openTag(source: string, start: number): string {
  * is not a loud failure: it is a control nobody checks.
  */
 function withoutComments(source: string): string {
+  // Blanked, not dropped: a comment that takes its newlines with it shifts every line number under
+  // it, and `<tag> line N` is the only thing a failure prints.
+  const blank = (match: string): string => match.replace(/[^\n]/g, '');
   return source
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, '')
+    .replace(/<!--[\s\S]*?-->/g, blank)
+    .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, blank)
     .split('\n')
     .map((line) => (/^\s*\/\//.test(line) ? '' : line))
     .join('\n');
@@ -368,6 +371,24 @@ const TEST_ATTR = /(?<![\w-])(data-test[\w-]*)\s*=\s*("[^"]*"|'[^']*')?/g;
  * `getByTestId` never resolves. A single-quoted value is read by nobody here.
  */
 const TESTID_SPELLING = /(?<![\w-])(v-bind:data-testid|:data-testid|data-testid)\s*=\s*("|'|\$\{|[^\s>])/g;
+
+/**
+ * Every hook of a source written in a spelling no rule above reads.
+ *
+ * The two legal ones are `data-testid="…"` and `data-testid=${…}` — the second is not decoration:
+ * it is the ONLY way to write the hook of a row, which carries its identity at the end
+ * (`reservations-row-${id}`) and can therefore never be a literal. Rejecting it here would turn the
+ * one spelling the convention demands for a list into a red guard, on a hook written exactly right.
+ */
+const misspellings = (source: string): string[] => {
+  const offenders: string[] = [];
+  TESTID_SPELLING.lastIndex = 0;
+  for (let m = TESTID_SPELLING.exec(source); m; m = TESTID_SPELLING.exec(source)) {
+    const legal = m[1] === 'data-testid' && (m[2] === '"' || m[2] === '${');
+    if (!legal) offenders.push(`${m[1]}=${m[2]}`);
+  }
+  return offenders;
+};
 
 function tsFiles(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -537,12 +558,7 @@ describe('data-testid — the module UI convention (reservations#61)', () => {
   it('a hook is spelled data-testid="…" or data-testid=${…}, and nothing else', () => {
     const offenders: string[] = [];
     for (const { name, source } of ALL_SOURCES) {
-      TESTID_SPELLING.lastIndex = 0;
-      for (let m = TESTID_SPELLING.exec(source); m; m = TESTID_SPELLING.exec(source)) {
-        if (m[1] !== 'data-testid' || (m[2] !== '"' && m[2] !== '$')) {
-          offenders.push(`${name}: ${m[1]}=${m[2]}`);
-        }
-      }
+      for (const bad of misspellings(source)) offenders.push(`${name}: ${bad}`);
     }
     expect(
       offenders,
@@ -661,6 +677,37 @@ describe('the guard reads a Lit open tag, not a JavaScript one (reservations#61)
       unnamedTables(source),
       'a namespace Lit paints with a colon in front of it is no namespace at all',
     ).toEqual(['<ok-data-table> line 1']);
+  });
+
+  it('lets a COMPUTED hook through: it is the only way to write the hook of a row', () => {
+    // `data-testid=${…}` is not an alternative spelling somebody happens to prefer: a row carries
+    // its identity at the end (`reservations-row-${id}`, never its index), so its hook CANNOT be a
+    // literal. Reading it as a misspelling turns the guard red on the one shape the convention
+    // demands for a list — and the author's only way out is to stop naming the rows.
+    const source = 'html`<ion-button data-testid=${`reservations-row-${row.id}`}></ion-button>`';
+    expect(misspellings(source), 'the rules above read this shape: it is legal').toEqual([]);
+  });
+
+  it('still denies the spellings no rule reads', () => {
+    // The fix above must not turn into «anything after the `=` goes»: a single-quoted value and the
+    // Vue bindings are hooks this file never sees, and that is what the rule exists to stop.
+    expect(misspellings(`html\`<ion-input data-testid='reservations-date'></ion-input>\``)).toEqual([
+      "data-testid='",
+    ]);
+    expect(misspellings(`html\`<ion-input :data-testid="reservations-date"></ion-input>\``)).toEqual([
+      ':data-testid="',
+    ]);
+  });
+
+  it('reports the line the control is really on, comments included', () => {
+    // The only thing the coverage rule prints is `<tag> line N`. A reader that drops the lines of a
+    // block comment shifts every N under it, so the author is sent to a line that holds something
+    // else — and in these components, where a comment explains almost every table, the shift is
+    // dozens of lines. A guard nobody can follow to the control is a guard people learn to ignore.
+    const source = ['html`<div>', '  <!-- why this button', '       is here -->', '  <ion-button @click=${() => this.go()}></ion-button>', '</div>`'].join('\n');
+    expect(unhooked(source), 'the button is on line 4 of the file, not on line 2').toEqual([
+      '<ion-button> line 4',
+    ]);
   });
 
   it('does not take the data-testid of a control for the testid of a table', () => {
