@@ -4064,16 +4064,16 @@ var ErpReservationsAvailability = class extends i3 {
   render() {
     const t5 = (k2) => erplora().t(CATALOG, k2);
     return b2`<div>
-        ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
-        ${this.occError ? b2`<p class="err">${this.occError}</p>` : A}
-        ${this.slotsCtrl?.error ? b2`<p class="err">${this.slotsCtrl.error}</p>` : A}
-        ${this.blockedCtrl?.error ? b2`<p class="err">${this.blockedCtrl.error}</p>` : A}
+        ${this.formError ? b2`<p class="err" data-testid="reservations-availability-form-error">${this.formError}</p>` : A}
+        ${this.occError ? b2`<p class="err" data-testid="reservations-availability-occupancy-error">${this.occError}</p>` : A}
+        ${this.slotsCtrl?.error ? b2`<p class="err" data-testid="reservations-availability-slots-error">${this.slotsCtrl.error}</p>` : A}
+        ${this.blockedCtrl?.error ? b2`<p class="err" data-testid="reservations-availability-blocked-error">${this.blockedCtrl.error}</p>` : A}
         <h3>${t5("ui.sectionOccupancy")}</h3>
-        <ok-data-table id="occupancy" .columns=${this.occColumns} .rows=${this.occRows} .rowKeyField=${"timeslot_id"} .pageSize=${50} .emptyMessage=${this.occLoading ? t5("ui.loading") : t5("ui.emptyOccupancy")}>
+        <ok-data-table id="occupancy" testid="reservations-availability-occupancy-table" .columns=${this.occColumns} .rows=${this.occRows} .rowKeyField=${"timeslot_id"} .pageSize=${50} .emptyMessage=${this.occLoading ? t5("ui.loading") : t5("ui.emptyOccupancy")}>
           <!-- The date being looked at lives in THIS table's toolbar (no loose controls outside
                the tables) — touch-sized: the floor manager picks it with a thumb. -->
           <div slot="toolbar" class="occ-date">
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.occDate} @ionInput=${(e5) => {
+            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-availability-occupancy-date" .value=${this.occDate} @ionInput=${(e5) => {
       const v3 = e5.target.value;
       if (v3) {
         this.occDate = v3;
@@ -4083,22 +4083,22 @@ var ErpReservationsAvailability = class extends i3 {
           </div>
         </ok-data-table>
         <h3>${t5("ui.sectionTimeSlots")}</h3>
-        <ok-data-table id="slots" .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => `${DAY_KEYS[Number(row.day_of_week)] ? t5(DAY_KEYS[Number(row.day_of_week)]) : "\u2014"} \xB7 ${String(row.start_time ?? "")}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.slotsCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table id="slots" testid="reservations-availability-slots-table" .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => `${DAY_KEYS[Number(row.day_of_week)] ? t5(DAY_KEYS[Number(row.day_of_week)]) : "\u2014"} \xB7 ${String(row.start_time ?? "")}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.slotsCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Se proyecta SIEMPRE (aunque el panel esté cerrado): si no, el «+» abriría un panel vacío. -->
-          <form slot="create" class="form" @submit=${(e5) => this.createSlot(e5)}>
-            <ion-select fill="outline" label-placement="floating" label=${t5("ui.colDay")} .value=${this.slotDay} @ionChange=${(e5) => this.slotDay = e5.target.value}>${DAY_KEYS.map((key, i7) => b2`<ion-select-option .value=${String(i7)}>${t5(key)}</ion-select-option>`)}</ion-select>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colStart")} type="time" .value=${this.slotStart} @ionInput=${(e5) => this.slotStart = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colEnd")} type="time" .value=${this.slotEnd} @ionInput=${(e5) => this.slotEnd = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phMax")} type="number" min="1" .value=${this.slotMax} @ionInput=${(e5) => this.slotMax = e5.target.value}></ion-input>
-            <ion-button type="submit" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t5("ui.btnAddSlot")}</ion-button>
+          <form slot="create" class="form" data-testid="reservations-availability-slot-form" @submit=${(e5) => this.createSlot(e5)}>
+            <ion-select fill="outline" label-placement="floating" label=${t5("ui.colDay")} data-testid="reservations-availability-slot-day" .value=${this.slotDay} @ionChange=${(e5) => this.slotDay = e5.target.value}>${DAY_KEYS.map((key, i7) => b2`<ion-select-option .value=${String(i7)}>${t5(key)}</ion-select-option>`)}</ion-select>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colStart")} type="time" data-testid="reservations-availability-slot-start" .value=${this.slotStart} @ionInput=${(e5) => this.slotStart = e5.target.value}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colEnd")} type="time" data-testid="reservations-availability-slot-end" .value=${this.slotEnd} @ionInput=${(e5) => this.slotEnd = e5.target.value}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phMax")} type="number" min="1" data-testid="reservations-availability-slot-max" .value=${this.slotMax} @ionInput=${(e5) => this.slotMax = e5.target.value}></ion-input>
+            <ion-button type="submit" data-testid="reservations-availability-slot-submit" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t5("ui.btnAddSlot")}</ion-button>
           </form>
         </ok-data-table>
         <h3>${t5("ui.sectionBlockedDates")}</h3>
-        <ok-data-table id="blocked" .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.date ?? row.reason ?? "\u2014")} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t5("ui.loading") : t5("ui.emptyBlockedDates")} @rowAction=${(e5) => this.onBlockedAction(e5)} @pageChange=${(e5) => this.blockedCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.blockedCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.blockedCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.blockedCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.blockedCtrl.setFilter(e5.detail.col, e5.detail.value)}>
-          <form slot="create" class="form" @submit=${(e5) => this.createBlocked(e5)}>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.blockDate} @ionInput=${(e5) => this.blockDate = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phReason")} .value=${this.blockReason} @ionInput=${(e5) => this.blockReason = e5.target.value}></ion-input>
-            <ion-button type="submit" ?disabled=${this.saving || !this.blockDate}>${t5("ui.btnBlockDate")}</ion-button>
+        <ok-data-table id="blocked" testid="reservations-availability-blocked-table" .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.date ?? row.reason ?? "\u2014")} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t5("ui.loading") : t5("ui.emptyBlockedDates")} @rowAction=${(e5) => this.onBlockedAction(e5)} @pageChange=${(e5) => this.blockedCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.blockedCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.blockedCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.blockedCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.blockedCtrl.setFilter(e5.detail.col, e5.detail.value)}>
+          <form slot="create" class="form" data-testid="reservations-availability-blocked-form" @submit=${(e5) => this.createBlocked(e5)}>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-availability-blocked-date" .value=${this.blockDate} @ionInput=${(e5) => this.blockDate = e5.target.value}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phReason")} data-testid="reservations-availability-blocked-reason" .value=${this.blockReason} @ionInput=${(e5) => this.blockReason = e5.target.value}></ion-input>
+            <ion-button type="submit" data-testid="reservations-availability-blocked-submit" ?disabled=${this.saving || !this.blockDate}>${t5("ui.btnBlockDate")}</ion-button>
           </form>
         </ok-data-table>
       </div>`;
@@ -4508,23 +4508,24 @@ var ErpReservationsList = class extends i3 {
     const showLoading = loading && bare;
     const hideTable = bare;
     const createButton = () => b2`
-      <ion-button slot="action" size="small" data-action="create" @click=${() => this.openCreate()}
+      <ion-button slot="action" size="small" data-action="create" data-testid="reservations-create" @click=${() => this.openCreate()}
         >${t5("ui.emptyCta")}</ion-button
       >
     `;
     return b2`<div class="page">
-        ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
-        ${error ? b2`<div class="state" data-state="error">
+        ${this.formError ? b2`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : A}
+        ${error ? b2`<div class="state" data-state="error" data-testid="reservations-load-error">
               <p class="err">${error}</p>
-              <ion-button size="small" data-action="retry" @click=${() => void this.ctrl.load()}>${t5("ui.btnRetry")}</ion-button>
+              <ion-button size="small" data-action="retry" data-testid="reservations-retry" @click=${() => void this.ctrl.load()}>${t5("ui.btnRetry")}</ion-button>
             </div>` : A}
-        ${showLoading ? b2`<div class="state" data-state="loading">
+        ${showLoading ? b2`<div class="state" data-state="loading" data-testid="reservations-loading">
               <ion-spinner></ion-spinner>
               <p>${t5("ui.loading")}</p>
             </div>` : A}
         ${firstRun ? b2`<ok-empty-state
               class="state"
               data-empty="first-run"
+              data-testid="reservations-empty"
               icon="calendar-outline"
               .heading=${t5("ui.emptyTitle")}
               .message=${t5("ui.emptyBody")}
@@ -4532,21 +4533,21 @@ var ErpReservationsList = class extends i3 {
               <p class="hint">${t5("ui.emptyHint")}</p>
               ${createButton()}
             </ok-empty-state>` : A}
-        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .search=${this.ctrl?.state.search ?? ""} .filterValues=${this.filterMirror} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table testid="reservations-table" ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .search=${this.ctrl?.state.search ?? ""} .filterValues=${this.filterMirror} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
-          <form slot="create" class="form" @submit=${(e5) => this.createReservation(e5)}>
-            <ion-input label-placement="floating" label=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
-            <ion-input label-placement="floating" label=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
-            <ion-input label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
-            <ion-input label-placement="floating" label=${t5("ui.colTime")} type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
-            <ion-input label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
-            <ion-button type="submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
+          <form slot="create" class="form" data-testid="reservations-form" @submit=${(e5) => this.createReservation(e5)}>
+            <ion-input label-placement="floating" label=${t5("ui.phGuestName")} data-testid="reservations-guest-name" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.phGuestPhone")} data-testid="reservations-guest-phone" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.colTime")} type="time" data-testid="reservations-time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
+            <ion-input label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" data-testid="reservations-party-size" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
           </form>
         </ok-data-table>
-        ${noResults ? b2`<div class="noresults" data-empty="no-results">
+        ${noResults ? b2`<div class="noresults" data-empty="no-results" data-testid="reservations-no-results">
               <p>${t5("ui.noResultsBody")}</p>
-              <ion-button size="small" fill="clear" data-action="clear-filters" @click=${() => this.clearQuery()}>${t5("ui.btnClearFilters")}</ion-button>
+              <ion-button size="small" fill="clear" data-action="clear-filters" data-testid="reservations-clear-filters" @click=${() => this.clearQuery()}>${t5("ui.btnClearFilters")}</ion-button>
             </div>` : A}
       </div>`;
   }
@@ -4740,18 +4741,18 @@ var ErpReservationsWaitlist = class extends i3 {
   render() {
     const t5 = (k2) => erplora3().t(CATALOG3, k2);
     return b2`<div class="page">
-        ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
-        ${this.ctrl?.error ? b2`<p class="err">${this.ctrl.error}</p>` : A}
-        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyWaitlist")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        ${this.formError ? b2`<p class="err" data-testid="reservations-waitlist-form-error">${this.formError}</p>` : A}
+        ${this.ctrl?.error ? b2`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : A}
+        <ok-data-table testid="reservations-waitlist-table" .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyWaitlist")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta en la lista de espera: se proyecta SIEMPRE (aunque el panel esté cerrado); si se
                renderizara solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
-          <form slot="create" class="form" @submit=${(e5) => this.createEntry(e5)}>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestName")} .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestPhone")} .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colTime")} type="time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
-            <ion-button type="submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAdd")}</ion-button>
+          <form slot="create" class="form" data-testid="reservations-waitlist-form" @submit=${(e5) => this.createEntry(e5)}>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestName")} data-testid="reservations-waitlist-guest-name" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestPhone")} data-testid="reservations-waitlist-guest-phone" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-waitlist-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colTime")} type="time" data-testid="reservations-waitlist-time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" data-testid="reservations-waitlist-party-size" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+            <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAdd")}</ion-button>
           </form>
         </ok-data-table>
       </div>`;

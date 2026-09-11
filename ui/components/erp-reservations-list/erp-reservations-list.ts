@@ -370,21 +370,21 @@ export class ErpReservationsList extends LitElement {
     // así que la acción primaria la pone el propio bloque vacío. Con filas, el alta la pinta la
     // tabla (`addable`).
     const createButton = () => html`
-      <ion-button slot="action" size="small" data-action="create" @click=${() => this.openCreate()}
+      <ion-button slot="action" size="small" data-action="create" data-testid="reservations-create" @click=${() => this.openCreate()}
         >${t('ui.emptyCta')}</ion-button
       >
     `;
 
     return html`<div class="page">
-        ${this.formError ? html`<p class="err">${this.formError}</p>` : nothing}
+        ${this.formError ? html`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : nothing}
         ${error
-          ? html`<div class="state" data-state="error">
+          ? html`<div class="state" data-state="error" data-testid="reservations-load-error">
               <p class="err">${error}</p>
-              <ion-button size="small" data-action="retry" @click=${() => void this.ctrl.load()}>${t('ui.btnRetry')}</ion-button>
+              <ion-button size="small" data-action="retry" data-testid="reservations-retry" @click=${() => void this.ctrl.load()}>${t('ui.btnRetry')}</ion-button>
             </div>`
           : nothing}
         ${showLoading
-          ? html`<div class="state" data-state="loading">
+          ? html`<div class="state" data-state="loading" data-testid="reservations-loading">
               <ion-spinner></ion-spinner>
               <p>${t('ui.loading')}</p>
             </div>`
@@ -393,6 +393,7 @@ export class ErpReservationsList extends LitElement {
           ? html`<ok-empty-state
               class="state"
               data-empty="first-run"
+              data-testid="reservations-empty"
               icon="calendar-outline"
               .heading=${t('ui.emptyTitle')}
               .message=${t('ui.emptyBody')}
@@ -401,22 +402,22 @@ export class ErpReservationsList extends LitElement {
               ${createButton()}
             </ok-empty-state>`
           : nothing}
-        <ok-data-table ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .search=${this.ctrl?.state.search ?? ''} .filterValues=${this.filterMirror} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+        <ok-data-table testid="reservations-table" ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .search=${this.ctrl?.state.search ?? ''} .filterValues=${this.filterMirror} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
-          <form slot="create" class="form" @submit=${(e: Event) => this.createReservation(e)}>
-            <ion-input label-placement="floating" label=${t('ui.phGuestName')} .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
-            <ion-input label-placement="floating" label=${t('ui.phGuestPhone')} .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
-            <ion-input label-placement="floating" label=${t('ui.colDate')} type="date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
-            <ion-input label-placement="floating" label=${t('ui.colTime')} type="time" .value=${this.newTime} @ionInput=${(e: any) => (this.newTime = e.target.value)}></ion-input>
-            <ion-input label-placement="floating" label=${t('ui.phPartySize')} type="number" min="1" .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
-            <ion-button type="submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
+          <form slot="create" class="form" data-testid="reservations-form" @submit=${(e: Event) => this.createReservation(e)}>
+            <ion-input label-placement="floating" label=${t('ui.phGuestName')} data-testid="reservations-guest-name" .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.phGuestPhone')} data-testid="reservations-guest-phone" .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.colTime')} type="time" data-testid="reservations-time" .value=${this.newTime} @ionInput=${(e: any) => (this.newTime = e.target.value)}></ion-input>
+            <ion-input label-placement="floating" label=${t('ui.phPartySize')} type="number" min="1" data-testid="reservations-party-size" .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
+            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
           </form>
         </ok-data-table>
         ${noResults
-          ? html`<div class="noresults" data-empty="no-results">
+          ? html`<div class="noresults" data-empty="no-results" data-testid="reservations-no-results">
               <p>${t('ui.noResultsBody')}</p>
-              <ion-button size="small" fill="clear" data-action="clear-filters" @click=${() => this.clearQuery()}>${t('ui.btnClearFilters')}</ion-button>
+              <ion-button size="small" fill="clear" data-action="clear-filters" data-testid="reservations-clear-filters" @click=${() => this.clearQuery()}>${t('ui.btnClearFilters')}</ion-button>
             </div>`
           : nothing}
       </div>`;
