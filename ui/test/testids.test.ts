@@ -291,8 +291,16 @@ function staticHead(raw: string): string {
 /** Carries a hook, literal or computed. */
 const hasHook = (open: string): boolean => /(?<![:\w-])data-testid\s*=/.test(open);
 
-/** The namespace an `<ok-data-table>` hands to its chrome, written literally. */
-const TABLE_TESTID = /(?<![\w-])testid\s*=\s*"([^"]*)"/;
+/**
+ * The namespace an `<ok-data-table>` hands to its chrome, written literally.
+ *
+ * The `:` in the lookbehind is not decoration: without it, `:testid="…"` reads as a namespace and
+ * the table rule goes green over a table that hands out NOTHING — Lit renders an attribute whose
+ * name starts with a colon, `ok-data-table` never sees `testid`, and its whole chrome (add, search,
+ * rows, pager) stays unnamed. Measured here as a surviving mutant before it was closed; the same
+ * colon guards the two readers of `data-testid` above, for the same reason.
+ */
+const TABLE_TESTID = /(?<![:\w-])testid\s*=\s*"([^"]*)"/;
 
 type Element = { tag: string; line: number; open: string };
 
@@ -641,6 +649,18 @@ describe('the guard reads a Lit open tag, not a JavaScript one (reservations#61)
   it('sees the testid of a table written after an interpolated property', () => {
     const source = `html\`<ok-data-table .rows=\${this.rows} testid="reservations-table" .columns=\${this.cols}></ok-data-table>\``;
     expect(unnamedTables(source), 'the namespace is there, after the first `${…}`').toEqual([]);
+  });
+
+  it('does not take a `:testid` for the namespace of a table', () => {
+    // Lit renders it as an attribute literally called `:testid`, which `ok-data-table` never reads:
+    // the table hands out not one hook. Read as a namespace, the rule that demands one goes green
+    // over the emptiest surface the module can paint — this exact mutant survived until the
+    // lookbehind stopped taking a colon for the start of the attribute.
+    const source = `html\`<ok-data-table :testid="reservations-table" .rows=\${this.rows}></ok-data-table>\``;
+    expect(
+      unnamedTables(source),
+      'a namespace Lit paints with a colon in front of it is no namespace at all',
+    ).toEqual(['<ok-data-table> line 1']);
   });
 
   it('does not take the data-testid of a control for the testid of a table', () => {
