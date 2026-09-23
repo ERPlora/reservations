@@ -5,6 +5,7 @@ import '@erplora/outfitkit/ok-data-table';
 import type { DataTableColumn } from '@erplora/outfitkit';
 import { createListController } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
+import { ionTone } from '../../lib/ion-tone';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -219,7 +220,7 @@ export class ErpReservationsAvailability extends LitElement {
         align: 'right',
         render: (r) =>
           this.occIsFull(r)
-            ? html`<ion-badge color="danger">${t('ui.full')}</ion-badge>`
+            ? html`<ion-badge style=${ionTone('solid', 'danger')}>${t('ui.full')}</ion-badge>`
             : html`<strong>${String(r.available ?? 0)}</strong>`,
       },
     ];

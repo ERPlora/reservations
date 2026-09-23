@@ -2046,6 +2046,16 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     .rrow .rv { font-weight: 500; text-align: right; color: var(--color); }
     /* Barra de acciones (Ionic no trae "card actions"): pie alineado a la derecha, fondo transparente. */
     .ractions { display: flex; justify-content: flex-end; gap: 0.25rem; padding: 0 0.5rem 0.5rem; }
+    /* ERPlora/appointments#154 - a card's action row must NEVER clip.
+       The assumption was that they always fit across the card. With the eight actions an
+       appointment carries they do not: on a 411dp phone the card leaves 363px and the buttons ask
+       for 380px (8 x 44px of tap floor + 7 gaps of 4px). Without wrapping, justify-content:
+       flex-end takes that difference off the START side, so the FIRST button - Cobrar - hung off
+       the left edge of the card, clipped, with no scrollbar and nothing to say it was there.
+       The wrap is scoped to the card on purpose: the LIST view's row is measured by its
+       scrollWidth to pin the column track (#121), and a row that wraps changes width with the
+       track it is measured against, which is the loop that measure avoids. */
+    .ractions .actions { flex-wrap: wrap; }
 
     /* ── Estado vacío ────────────────────────────────────────────────────────────────────── */
     .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 3.5rem 1rem; text-align: center; color: var(--color-muted); }
@@ -2854,9 +2864,17 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       </ion-popover>
     `;
   }
-  // Botones de acción de una fila (compartido por vista tabla y tarjetas).
-  // `collapsible` = la vista lista, la única que puede quedarse sin ancho (#122). Las tarjetas
-  // tienen su propia fila de acciones a lo ancho de la tarjeta y ahí siempre caben.
+  // Row action buttons, shared by the table and the card views.
+  //
+  // `collapsible` = the LIST view, the only one that folds its buttons into a "⋮" menu when the
+  // columns leave it no width (#122). The CARD view does not fold; it WRAPS instead, see
+  // `.ractions .actions` in the stylesheet.
+  //
+  // This comment used to claim that a card's actions "always fit across the card". They do not,
+  // and nobody had measured it (#132 / ERPlora/appointments#154): with the eight actions an
+  // appointment carries, the row asks for 380px and the card gives 379px at 411dp, 237px at 768px
+  // and 272px at 1440px — so the first button hung off the card at ALL THREE widths, not just on
+  // a phone. If you add a view that lays these buttons out, MEASURE it.
   actionButtons(row, collapsible = false) {
     if (!this.actions.length) return A;
     if (collapsible && this.rowActionsCollapsed) {
@@ -3570,6 +3588,22 @@ function createListController(client, queryName, onChange = () => {
   return new ListController(client, queryName, onChange, opts);
 }
 
+// ui/lib/ion-tone.ts
+var PALETTE = {
+  danger: { base: "#c5000f", contrast: "#fff", shade: "#ad000d", tint: "#cb1a27" }
+};
+function ionTone(_kind, tone) {
+  const p4 = PALETTE[tone];
+  const token = (suffix, fallback) => `var(--ion-color-${tone}${suffix}, ${fallback})`;
+  return [
+    `--background: ${token("", p4.base)}`,
+    `--background-activated: ${token("-shade", p4.shade)}`,
+    `--background-focused: ${token("-shade", p4.shade)}`,
+    `--background-hover: ${token("-tint", p4.tint)}`,
+    `--color: ${token("-contrast", p4.contrast)}`
+  ].join("; ");
+}
+
 // locales/es.json
 var es_default = {
   name: "Reservas",
@@ -3936,7 +3970,7 @@ var ErpReservationsAvailability = class extends i3 {
         key: "available",
         header: t5("ui.colAvailable"),
         align: "right",
-        render: (r6) => this.occIsFull(r6) ? b2`<ion-badge color="danger">${t5("ui.full")}</ion-badge>` : b2`<strong>${String(r6.available ?? 0)}</strong>`
+        render: (r6) => this.occIsFull(r6) ? b2`<ion-badge style=${ionTone("solid", "danger")}>${t5("ui.full")}</ion-badge>` : b2`<strong>${String(r6.available ?? 0)}</strong>`
       }
     ];
   }

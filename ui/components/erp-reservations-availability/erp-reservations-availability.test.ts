@@ -17,6 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { ionTone } from '../../lib/ion-tone';
 
 const comandos: { name: string; payload: Record<string, unknown> }[] = [];
 const consultas: { name: string; params?: Record<string, unknown> }[] = [];
@@ -205,6 +206,16 @@ describe('ocupación: ¿cuánto queda esta noche? (reservations#38)', () => {
     // La atenuación: las celdas de la fila llena se envuelven con opacidad reducida.
     const celdas = tabla(el, 'occupancy').shadowRoot?.querySelectorAll('span[style*="opacity"]') ?? [];
     expect(celdas.length, 'la fila llena debe quedar atenuada').toBeGreaterThan(0);
+  });
+
+  // pm#392: `color="danger"` paints nothing here — the cell lives in ok-data-table's shadow root,
+  // out of reach of Ionic's global `.ion-color-*` rule — so the badge came out white on white.
+  it('the «Full» badge carries the solid danger tone inline, not color=', async () => {
+    const el = await montar();
+    const badge = tabla(el, 'occupancy').shadowRoot?.querySelector('ion-badge');
+    expect(badge, 'the sold-out slot shows its «Full» badge').toBeTruthy();
+    expect(badge!.hasAttribute('color')).toBe(false);
+    expect(badge!.getAttribute('style') ?? '').toContain(ionTone('solid', 'danger'));
   });
 
   it('cambiar la fecha vuelve a preguntar por la nueva fecha', async () => {
