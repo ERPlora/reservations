@@ -38,6 +38,9 @@ describe('every domain refusal the handler can emit is translated, en and es', (
     expect(fromManifest, 'no expect_rows error found in module.json — the scan rotted').toContain(
       'reservations.update_rejected',
     );
+    expect(emitted, 'the manifest codes must reach the per-code check, not only the scan').toContain(
+      'reservations.update_rejected',
+    );
     expect(emitted).toContain('reservations.no_capacity');
     expect(emitted).toContain('reservations.phone_required');
   });
