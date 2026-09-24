@@ -134,6 +134,11 @@ describe('2 · the header answers the three questions of the shift', () => {
     expect(($(el, '[data-testid="reservations-day-input"]') as unknown as { value: string }).value).toBe(TODAY);
   });
 
+  it('names the day in sentence case: «Viernes, 25 de septiembre», never «25 De Septiembre»', async () => {
+    const el = await mount();
+    expect($(el, '.dayname')?.textContent?.trim()).toBe('Viernes, 25 de septiembre');
+  });
+
   it('shows the covers committed and the bookings they come in, from the day summary', async () => {
     const el = await mount();
     expect(lastQuery('reservations.day.summary')).toEqual({ date: TODAY });

@@ -4403,12 +4403,13 @@ function fmtTime(time) {
 }
 function fmtLongDate(iso) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-  return (/* @__PURE__ */ new Date(`${iso}T00:00:00Z`)).toLocaleDateString(erplora2().locale || "es", {
+  const text = (/* @__PURE__ */ new Date(`${iso}T00:00:00Z`)).toLocaleDateString(erplora2().locale || "es", {
     timeZone: "UTC",
     weekday: "long",
     day: "numeric",
     month: "long"
   });
+  return text.charAt(0).toLocaleUpperCase() + text.slice(1);
 }
 function rowsOf(result) {
   if (Array.isArray(result)) return result;
@@ -4503,7 +4504,7 @@ var ErpReservationsList = class extends i3 {
     .daynav { display:flex; align-items:center; gap:.15rem; min-width:0; }
     .daynav ion-input { min-width:6.5rem; max-width:11rem; }
     .daynav ion-button.step { flex:0 0 auto; height:44px; width:44px; --padding-start:.25rem; --padding-end:.25rem; margin:0; }
-    .dayname { margin:0; font-weight:600; text-transform:capitalize; }
+    .dayname { margin:0; font-weight:600; }
     .figures { display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; align-items:baseline; }
     .figure { display:flex; flex-direction:column; min-width:4.5rem; }
     .figure strong { font-size:1.35rem; line-height:1.2; font-variant-numeric:tabular-nums; }
