@@ -1,7 +1,7 @@
 {
   "file": "dist/reservations.esm.js",
   "sources_sha256": "ce72a77984d861840c5f10b9678b9331c07770ebd2c5d1dfbfa2261a5f87e924",
-  "locales_sha256": "2bcc3c1fa17199573c4e0b32df6be9bb64ae5a735255ea32075ded6e1c62fed8",
-  "bundle_sha256": "a5188e5df9b420cb9696140e82de3dfd419e0a4a98b032620e8d12d793a0d89a",
-  "built_at": "2026-09-23T23:37:43.974Z"
+  "locales_sha256": "fa2859c0a0d657eb6b9fb0e043260de8bf33a9698e6931447748c1fc7f50f592",
+  "bundle_sha256": "ad2808c675d229cea4559b3f07bf9d7d6abcda36d44d75b717b78262151bb955",
+  "built_at": "2026-09-24T15:17:09.510Z"
 }

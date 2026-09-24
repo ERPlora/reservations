@@ -105,6 +105,7 @@
     "reservations.reads_unavailable": "No se pudieron leer los ajustes de reservas; no se ha reservado nada.",
     "reservations.cannot_update_settings": "No se han podido cambiar los ajustes de reservas: este restaurante no tiene ajustes en uso ahora mismo.",
     "reservations.customer_mismatch": "Esa reserva es de otro comensal, así que no se puede gestionar en su nombre.",
-    "reservations.staff_only_field": "La mesa y las notas internas del restaurante las pone el restaurante; no se pueden cambiar desde tu reserva."
+    "reservations.staff_only_field": "La mesa y las notas internas del restaurante las pone el restaurante; no se pueden cambiar desde tu reserva.",
+    "reservations.update_rejected": "No se ha podido guardar el cambio: la franja está completa, el día está bloqueado, el número de comensales está fuera de los límites o la nueva hora queda fuera del plazo de reserva."
   }
 }
