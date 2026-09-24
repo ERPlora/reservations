@@ -104,6 +104,7 @@
     "reservations.reads_unavailable": "The reservation settings could not be read; nothing was booked.",
     "reservations.cannot_update_settings": "The reservation settings could not be changed: this restaurant has no settings in use right now.",
     "reservations.customer_mismatch": "That reservation belongs to a different guest, so it cannot be managed on their behalf.",
-    "reservations.staff_only_field": "The table and the restaurant's internal notes are set by the restaurant; they cannot be changed from your booking."
+    "reservations.staff_only_field": "The table and the restaurant's internal notes are set by the restaurant; they cannot be changed from your booking.",
+    "reservations.update_rejected": "That change could not be saved: the time slot is full, the day is blocked, the party size is out of range or the new time is outside the booking window."
   }
 }
