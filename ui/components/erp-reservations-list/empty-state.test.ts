@@ -121,7 +121,9 @@ describe('1 · el vacío de PRIMERA VEZ enseña y ofrece la acción (Odoo `help`
       | (HTMLElement & { heading?: string; message?: string })
       | null;
     expect(vacio, 'sin bloque de vacío: la pantalla es una tabla gris sin salida').toBeTruthy();
-    expect(vacio!.heading, 'el vacío no tiene cabecera').toBe('ui.emptyTitle');
+    // reservations#45: the book is anchored to a service day, so the empty block speaks of THAT
+    // day («no reservations this day»), not of the whole book («no reservations yet»).
+    expect(vacio!.heading, 'el vacío no tiene cabecera').toBe('ui.emptyDayTitle');
     expect(vacio!.message, 'el vacío no explica qué es esto').toBe('ui.emptyBody');
     expect(texto(vacio!.querySelector('.hint')), 'el vacío no dice dónde se configuran los turnos').toBe(
       'ui.emptyHint',
@@ -279,7 +281,7 @@ describe('5 · i18n y controles de formulario', () => {
     };
 
   const NUEVAS = [
-    'emptyTitle',
+    'emptyDayTitle',
     'emptyBody',
     'emptyHint',
     'emptyCta',
@@ -335,7 +337,7 @@ describe('6 · review #44: the blocks do not stack and the table stays while it 
       'the first-run empty-state is still painted above the table while the create panel is open',
     ).toBeNull();
     expect(t.hasAttribute('hidden'), 'the table is hidden while its create panel is open').toBe(false);
-    expect(t.emptyMessage, 'the table says «no results match your search» without any search').toBe('ui.emptyTitle');
+    expect(t.emptyMessage, 'the table says «no results match your search» without any search').toBe('ui.emptyDayTitle');
   });
 
   it('closing the create panel without saving brings the first-run empty-state back', async () => {

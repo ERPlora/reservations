@@ -103,8 +103,10 @@ describe('el alta vive DENTRO de la tabla (paridad con /employees e inventory)',
 
   it('no queda NINGÚN control de alta suelto fuera de la tabla', async () => {
     const el = await montar();
+    // reservations#45: the day bar (previous · date · next · today) is NAVIGATION, not an alta —
+    // it decides which day the book shows, so it lives outside the table on purpose.
     const sueltos = [...el.shadowRoot.querySelectorAll('form, ion-input, ion-select, ion-button')].filter(
-      (n) => !n.closest('ok-data-table'),
+      (n) => !n.closest('ok-data-table') && !n.closest('.daybar'),
     );
     expect(sueltos.map((n) => n.tagName.toLowerCase()), 'hay controles de alta fuera de la tabla').toEqual([]);
   });
