@@ -4,6 +4,8 @@
   "consumes": {
     "queries": [
       "reservations.blocked_dates.list",
+      "reservations.blocked_dates.on_date",
+      "reservations.day.summary",
       "reservations.reservations.list",
       "reservations.slots.count_for",
       "reservations.timeslots.list",
