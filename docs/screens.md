@@ -5,8 +5,27 @@ The module contributes three tabs to the hub navigation — **Reservations**, **
 
 ## Reservations
 
-Every booking with its status (`reservations.reservations.list`, 50 rows per page). Requires
+The book opens on **today's service** — today on the business clock (the hub's timezone, not the
+device's) — ordered by time, 50 rows per page (`reservations.reservations.list`). Requires
 `reservations.view_reservation`.
+
+A bar above the list answers the three questions of the shift for the day on screen:
+
+- **Covers**: the guests committed that day (sum of party sizes), and the **bookings** they come
+  in (`reservations.day.summary`). Cancelled and no-show bookings do not count; seated and
+  completed ones do.
+- **Next slot**: on today, the first time slot that has not ended yet (a slot in progress still
+  counts), with the tables left or **Full**; on any other day, its first slot. It reads **No more
+  service today** after the last slot, **No service this day** when the weekday has no active slot
+  and **Closed this day** when the date is blocked whole (`reservations.slots.count_for`,
+  `reservations.blocked_dates.on_date`).
+- **Day stepper**: previous day · date · next day, and **Today** when the book is on another day.
+  The list and the figures follow the day, and refresh live when a booking is created, edited,
+  moved through its states or deleted.
+
+**Searching** a guest name or phone looks through the **whole book**, not only the day on screen:
+the guest who booked next Friday is found from today. Clearing the search (or **Clear filters**)
+puts the book back on the day it was showing.
 
 Open one for its full detail: the guest, the party, the date and time, the table, the notes and the
 timestamps of each transition.

@@ -210,6 +210,13 @@
         "description": "Counts live reservations per time slot for a date (reserved vs max, seats available) — the read side of the overbooking gate; optional time narrows to one slot"
       }
     },
+    "reservations.day.summary": {
+      "permission": "reservations.view_reservation",
+      "sql": "queries/day_summary.sql",
+      "ai": {
+        "description": "Figures of one service day: live reservations and covers (sum of party sizes) for a date"
+      }
+    },
     "reservations.blocked_dates.on_date": {
       "permission": "reservations.view_blockeddate",
       "sql": "queries/blocked_dates_on_date.sql",
