@@ -3724,14 +3724,25 @@ var es_default = {
     errDeleteSlot: "No se pudo borrar la franja",
     errDeleteBlocked: "No se pudo borrar la fecha",
     errOccupancy: "No se pudo cargar la ocupaci\xF3n",
-    emptyTitle: "A\xFAn no hay reservas",
     emptyBody: "Las reservas que tomes por tel\xE9fono, por internet o en la puerta aparecen aqu\xED, con la mesa guardada para el cliente hasta que llegue.",
     emptyHint: "Configura los turnos y cu\xE1nto tiempo se guarda la mesa en la pesta\xF1a Disponibilidad.",
     emptyCta: "Nueva reserva",
     noResultsTitle: "Ninguna reserva coincide con la b\xFAsqueda",
     noResultsBody: "Prueba con otro nombre, tel\xE9fono o fecha, o limpia los filtros para ver todo el libro de reservas.",
     btnClearFilters: "Limpiar filtros",
-    btnRetry: "Reintentar"
+    btnRetry: "Reintentar",
+    covers: "cubiertos",
+    bookings: "reservas",
+    nextSlot: "pr\xF3xima franja",
+    slotLeft: "libres",
+    noMoreServiceToday: "No queda servicio hoy",
+    noServiceDay: "Sin servicio este d\xEDa",
+    closedDay: "Cerrado este d\xEDa",
+    prevDay: "D\xEDa anterior",
+    nextDay: "D\xEDa siguiente",
+    today: "Hoy",
+    errDaySummary: "No se han podido cargar las cifras del d\xEDa",
+    emptyDayTitle: "No hay reservas este d\xEDa"
   },
   errors: {
     "reservations.phone_required": "Este negocio exige un tel\xE9fono en toda reserva.",
@@ -3836,14 +3847,25 @@ var en_default = {
     errDeleteSlot: "Could not delete the slot",
     errDeleteBlocked: "Could not delete the date",
     errOccupancy: "Could not load the occupancy",
-    emptyTitle: "No reservations yet",
     emptyBody: "Bookings you take by phone, online or at the door show up here, with the table held for the guest until they arrive.",
     emptyHint: "Set your service times and how long a table is held in the Availability tab.",
     emptyCta: "New reservation",
     noResultsTitle: "No reservations match your search",
     noResultsBody: "Try another name, phone or date, or clear the filters to see the whole book.",
     btnClearFilters: "Clear filters",
-    btnRetry: "Retry"
+    btnRetry: "Retry",
+    covers: "covers",
+    bookings: "bookings",
+    nextSlot: "next slot",
+    slotLeft: "left",
+    noMoreServiceToday: "No more service today",
+    noServiceDay: "No service this day",
+    closedDay: "Closed this day",
+    prevDay: "Previous day",
+    nextDay: "Next day",
+    today: "Today",
+    errDaySummary: "Could not load the figures of the day",
+    emptyDayTitle: "No reservations this day"
   },
   errors: {
     "reservations.phone_required": "This business requires a phone number for every reservation.",
@@ -3879,8 +3901,8 @@ function erplora() {
 }
 function todayLocal() {
   const d3 = /* @__PURE__ */ new Date();
-  const pad = (n6) => String(n6).padStart(2, "0");
-  return `${d3.getFullYear()}-${pad(d3.getMonth() + 1)}-${pad(d3.getDate())}`;
+  const pad2 = (n6) => String(n6).padStart(2, "0");
+  return `${d3.getFullYear()}-${pad2(d3.getMonth() + 1)}-${pad2(d3.getDate())}`;
 }
 function hhmm(time) {
   return /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : time;
@@ -4313,6 +4335,50 @@ __decorateClass3([
 ], OkEmptyState.prototype, "message");
 define("ok-empty-state", OkEmptyState);
 
+// ui/lib/business-time.ts
+var DAY_MS = 864e5;
+var pad = (n6) => String(n6).padStart(2, "0");
+var formatters = /* @__PURE__ */ new Map();
+function wallParts(now, timezone) {
+  let f3 = formatters.get(timezone);
+  if (!f3) {
+    f3 = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+    formatters.set(timezone, f3);
+  }
+  const got = {};
+  for (const p4 of f3.formatToParts(now)) {
+    if (p4.type !== "literal") got[p4.type] = Number(p4.value);
+  }
+  return got;
+}
+function businessTimezone() {
+  const tz = globalThis.erplora?.timezone;
+  return typeof tz === "string" && tz.trim() ? tz.trim() : "UTC";
+}
+function todayISO(timezone = businessTimezone(), now = /* @__PURE__ */ new Date()) {
+  const p4 = wallParts(now, timezone);
+  return `${p4.year}-${pad(p4.month)}-${pad(p4.day)}`;
+}
+function nowWallTime(timezone = businessTimezone(), now = /* @__PURE__ */ new Date()) {
+  const p4 = wallParts(now, timezone);
+  return `${pad(p4.hour)}:${pad(p4.minute)}:${pad(p4.second)}`;
+}
+function addDaysISO(day, delta) {
+  const m4 = /^(\d{4})-(\d{2})-(\d{2})$/.exec((day ?? "").trim());
+  if (!m4) return day;
+  const d3 = new Date(Date.UTC(Number(m4[1]), Number(m4[2]) - 1, Number(m4[3])) + delta * DAY_MS);
+  return `${d3.getUTCFullYear()}-${pad(d3.getUTCMonth() + 1)}-${pad(d3.getUTCDate())}`;
+}
+
 // ui/components/erp-reservations-list/erp-reservations-list.ts
 var CATALOG2 = { es: es_default, en: en_default };
 var STATUS_KEYS = {
@@ -4334,6 +4400,28 @@ function fmtTime(time) {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+function fmtLongDate(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  return (/* @__PURE__ */ new Date(`${iso}T00:00:00Z`)).toLocaleDateString(erplora2().locale || "es", {
+    timeZone: "UTC",
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  });
+}
+function rowsOf(result) {
+  if (Array.isArray(result)) return result;
+  const rows = result?.rows;
+  return Array.isArray(rows) ? rows : [];
+}
+function nextSlotOf(slots, closed, isToday, now) {
+  if (closed) return { state: "closed" };
+  if (slots.length === 0) return { state: "no-service" };
+  const ordered = [...slots].sort((a3, b3) => a3.start_time.localeCompare(b3.start_time));
+  const slot = isToday ? ordered.find((s5) => s5.end_time > now) : ordered[0];
+  if (!slot) return { state: "over" };
+  return { state: Number(slot.available) > 0 ? "open" : "full", slot };
 }
 function erplora2() {
   const c5 = globalThis.erplora;
@@ -4361,6 +4449,13 @@ var ErpReservationsList = class extends i3 {
   constructor() {
     super(...arguments);
     this.saving = false;
+    this.day = todayISO();
+    this.summary = null;
+    this.summaryError = "";
+    this.daySlots = [];
+    this.dayClosed = false;
+    /** Drops a summary answer that arrives after the day already moved on. */
+    this.summarySeq = 0;
     this.creating = false;
     this.formError = "";
     this.tick = 0;
@@ -4402,6 +4497,24 @@ var ErpReservationsList = class extends i3 {
        consulta, así que la acción de limpiar va en una barra fina debajo. */
     .noresults { flex:0 0 auto; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.75rem; padding:.75rem 1rem; text-align:center; }
     .noresults p { margin:0; color:var(--ion-color-medium, #92949c); }
+    /* reservations#45 — the day bar: which day, and the three figures of its service. It sits
+       OUTSIDE the table so it stays on screen when the day is empty and the table steps aside. */
+    .daybar { flex:0 0 auto; display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1.25rem; padding:.5rem .75rem; border-bottom:1px solid var(--ion-color-step-150, #e0e0e0); }
+    .daynav { display:flex; align-items:center; gap:.15rem; min-width:0; }
+    .daynav ion-input { min-width:6.5rem; max-width:11rem; }
+    .daynav ion-button.step { flex:0 0 auto; height:44px; width:44px; --padding-start:.25rem; --padding-end:.25rem; margin:0; }
+    .dayname { margin:0; font-weight:600; text-transform:capitalize; }
+    .figures { display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; align-items:baseline; }
+    .figure { display:flex; flex-direction:column; min-width:4.5rem; }
+    .figure strong { font-size:1.35rem; line-height:1.2; font-variant-numeric:tabular-nums; }
+    .figure span { font-size:.8rem; color:var(--ion-color-medium, #92949c); }
+    .figure .full { color:var(--ion-color-danger, #eb445a); font-weight:600; }
+    .figures ion-skeleton-text { width:9rem; height:1.35rem; }
+    @media (max-width: 575px) {
+      .daybar { padding:.4rem .5rem; }
+      .daynav ion-button.step { width:40px; }
+      .figures { gap:.4rem 1rem; }
+    }
   `;
   }
   // Getter (no campo): se re-evalúa en cada render → los textos cambian con el idioma activo
@@ -4409,7 +4522,9 @@ var ErpReservationsList = class extends i3 {
   get columns() {
     const t5 = (k2) => erplora2().t(CATALOG2, k2);
     return [
-      { key: "date", header: t5("ui.colDate"), sortable: true, filterable: true, filterType: "daterange", format: (r6) => fmtDate(r6.date) },
+      // No filter box on the date: the day bar owns it (reservations#45). A second control for the
+      // same thing would fight the first one over which day is on screen.
+      { key: "date", header: t5("ui.colDate"), sortable: true, format: (r6) => fmtDate(r6.date) },
       { key: "time", header: t5("ui.colTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime(r6.time) },
       { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
       { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
@@ -4455,16 +4570,21 @@ var ErpReservationsList = class extends i3 {
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
     this.ctrl = createListController(erplora2(), "reservations.reservations.list", () => this.requestUpdate(), {
       pageSize: 50,
-      sort: "id",
-      dir: "asc"
+      sort: "time",
+      dir: "asc",
+      filters: { date: { from: this.day, to: this.day } }
     });
-    await this.ctrl.load();
+    await Promise.all([this.ctrl.load(), this.loadSummary()]);
+    const reload = () => {
+      void this.ctrl.load();
+      void this.loadSummary();
+    };
     try {
       const offs = [
-        erplora2().on("reservations.reservation.created", () => this.ctrl.load()),
-        erplora2().on("reservations.reservation.updated", () => this.ctrl.load()),
-        erplora2().on("reservations.reservation.status_changed", () => this.ctrl.load()),
-        erplora2().on("reservations.reservation.deleted", () => this.ctrl.load())
+        erplora2().on("reservations.reservation.created", reload),
+        erplora2().on("reservations.reservation.updated", reload),
+        erplora2().on("reservations.reservation.status_changed", reload),
+        erplora2().on("reservations.reservation.deleted", reload)
       ];
       this.unsub = () => offs.forEach((o7) => o7());
     } catch {
@@ -4479,13 +4599,59 @@ var ErpReservationsList = class extends i3 {
   dataTable() {
     return this.renderRoot.querySelector("ok-data-table");
   }
-  /** ¿El vacío lo ha provocado el usuario al buscar/filtrar, o es que no hay ninguna reserva?
-   *  Son dos pantallas distintas: a un restaurante con 300 reservas que filtra mal no se le
-   *  puede decir «todavía no tienes reservas». */
+  /** Did the person cause the emptiness by searching/filtering, or is the day simply empty?
+   *  Two different screens: a restaurant with 300 bookings that filters badly must not read
+   *  «no reservations». The day anchor is NOT a query the person typed: it is the view itself. */
   get hasQuery() {
     const s5 = this.ctrl?.state;
     if (!s5) return false;
-    return s5.search.trim() !== "" || Object.keys(s5.filters).length > 0;
+    return s5.search.trim() !== "" || Object.keys(s5.filters).some((col) => col !== "date");
+  }
+  /** Pins the list to `day` — unless a search is on: a name is looked up in the WHOLE book, the
+   *  guest who booked next Friday has to be found from today (reservations#45). */
+  anchorDay() {
+    const s5 = this.ctrl.state;
+    if (s5.search.trim()) delete s5.filters.date;
+    else s5.filters.date = { from: this.day, to: this.day };
+    s5.page = 0;
+  }
+  /** Moves the book (list AND figures) to another service day. */
+  setDay(day) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day ?? "") || day === this.day) return;
+    this.day = day;
+    this.anchorDay();
+    void this.ctrl.load();
+    void this.loadSummary();
+  }
+  onSearch(search) {
+    this.ctrl.state.search = search;
+    this.anchorDay();
+    void this.ctrl.load();
+  }
+  /** The figures of the day: covers + bookings (`reservations.day.summary`), the room per slot
+   *  (`reservations.slots.count_for`, the gate's own count) and whether the day is blocked whole. */
+  async loadSummary() {
+    const day = this.day;
+    const seq = ++this.summarySeq;
+    this.summaryError = "";
+    try {
+      const [summary, slots, blocked] = await Promise.all([
+        erplora2().query("reservations.day.summary", { date: day }),
+        erplora2().query("reservations.slots.count_for", { date: day }),
+        erplora2().query("reservations.blocked_dates.on_date", { date: day })
+      ]);
+      if (seq !== this.summarySeq) return;
+      const row = rowsOf(summary)[0] ?? {};
+      this.summary = { reservations: Number(row.reservations ?? 0), covers: Number(row.covers ?? 0) };
+      this.daySlots = rowsOf(slots);
+      this.dayClosed = rowsOf(blocked).some(
+        (b3) => b3.is_full_day === true || Number(b3.is_full_day) === 1
+      );
+    } catch (e5) {
+      if (seq !== this.summarySeq) return;
+      this.summary = null;
+      this.summaryError = e5 instanceof Error && e5.message ? e5.message : erplora2().t(CATALOG2, "ui.errDaySummary");
+    }
   }
   /** Acción primaria: la misma alta desde el estado vacío y desde la barra. */
   openCreate() {
@@ -4505,7 +4671,7 @@ var ErpReservationsList = class extends i3 {
     const s5 = this.ctrl.state;
     s5.search = "";
     for (const col of Object.keys(s5.filters)) delete s5.filters[col];
-    s5.page = 0;
+    this.anchorDay();
     this.filterMirror = {};
     void this.ctrl.load();
   }
@@ -4557,6 +4723,53 @@ var ErpReservationsList = class extends i3 {
       this.formError = domainErrorText(e5, "ui.errSetStatus");
     }
   }
+  /** reservations#45 — the three questions of the shift: which day, how many covers, next slot.
+   *  The day steps like this hub's agenda (appointments#93): previous · date · next, plus «Today»
+   *  when the book is away from it. */
+  renderDayBar() {
+    const t5 = (k2) => erplora2().t(CATALOG2, k2);
+    const today = todayISO();
+    const isToday = this.day === today;
+    const next = nextSlotOf(this.daySlots, this.dayClosed, isToday, nowWallTime());
+    const nextText = () => {
+      if (next.state === "open" || next.state === "full") {
+        const range = `${fmtTime(next.slot.start_time)}\u2013${fmtTime(next.slot.end_time)}`;
+        return b2`<strong>${range}</strong>
+          ${next.state === "full" ? b2`<span class="full">${t5("ui.full")}</span>` : b2`<span>${next.slot.available} ${t5("ui.slotLeft")}</span>`}`;
+      }
+      const key = { over: "ui.noMoreServiceToday", "no-service": "ui.noServiceDay", closed: "ui.closedDay" }[next.state];
+      return b2`<strong>—</strong><span>${t5(key)}</span>`;
+    };
+    const figures = this.summaryError ? b2`<p class="err" data-testid="reservations-summary-error">${this.summaryError}</p>` : !this.summary ? b2`<ion-skeleton-text animated data-testid="reservations-summary-loading"></ion-skeleton-text>` : b2`<div class="figure" data-testid="reservations-covers" data-value=${String(this.summary.covers)}>
+              <strong>${this.summary.covers}</strong><span>${t5("ui.covers")}</span>
+            </div>
+            <div class="figure" data-testid="reservations-bookings" data-value=${String(this.summary.reservations)}>
+              <strong>${this.summary.reservations}</strong><span>${t5("ui.bookings")}</span>
+            </div>
+            <div
+              class="figure"
+              data-testid="reservations-next-slot"
+              data-state=${next.state}
+              data-start=${next.state === "open" || next.state === "full" ? next.slot.start_time : A}
+              data-available=${next.state === "open" || next.state === "full" ? String(next.slot.available) : A}
+            >
+              ${nextText()}<span>${t5("ui.nextSlot")}</span>
+            </div>`;
+    return b2`<div class="daybar" data-testid="reservations-day" data-day=${this.day}>
+      <div class="daynav">
+        <ion-button class="step" fill="clear" data-testid="reservations-prev-day" aria-label=${t5("ui.prevDay")} @click=${() => this.setDay(addDaysISO(this.day, -1))}>
+          <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+        </ion-button>
+        <ion-input type="date" data-testid="reservations-day-input" aria-label=${t5("ui.colDate")} .value=${this.day} @ionInput=${(e5) => this.setDay(e5.target.value)}></ion-input>
+        <ion-button class="step" fill="clear" data-testid="reservations-next-day" aria-label=${t5("ui.nextDay")} @click=${() => this.setDay(addDaysISO(this.day, 1))}>
+          <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+        </ion-button>
+        ${isToday ? A : b2`<ion-button size="small" fill="clear" data-testid="reservations-today" @click=${() => this.setDay(today)}>${t5("ui.today")}</ion-button>`}
+      </div>
+      <p class="dayname">${fmtLongDate(this.day)}</p>
+      <div class="figures">${figures}</div>
+    </div>`;
+  }
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
   //
   // reservations#41 — los cuatro estados de la pantalla se pintan, ninguno se deja en una tabla
@@ -4581,6 +4794,7 @@ var ErpReservationsList = class extends i3 {
       >
     `;
     return b2`<div class="page">
+        ${this.renderDayBar()}
         ${this.formError ? b2`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : A}
         ${error ? b2`<div class="state" data-state="error" data-testid="reservations-load-error">
               <p class="err">${error}</p>
@@ -4595,13 +4809,13 @@ var ErpReservationsList = class extends i3 {
               data-empty="first-run"
               data-testid="reservations-empty"
               icon="calendar-outline"
-              .heading=${t5("ui.emptyTitle")}
+              .heading=${t5("ui.emptyDayTitle")}
               .message=${t5("ui.emptyBody")}
             >
               <p class="hint">${t5("ui.emptyHint")}</p>
               ${createButton()}
             </ok-empty-state>` : A}
-        <ok-data-table testid="reservations-table" ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .search=${this.ctrl?.state.search ?? ""} .filterValues=${this.filterMirror} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table testid="reservations-table" ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .search=${this.ctrl?.state.search ?? ""} .filterValues=${this.filterMirror} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyDayTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.onSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-form" @submit=${(e5) => this.createReservation(e5)}>
@@ -4623,6 +4837,21 @@ var ErpReservationsList = class extends i3 {
 __decorateClass([
   r5()
 ], ErpReservationsList.prototype, "saving", 2);
+__decorateClass([
+  r5()
+], ErpReservationsList.prototype, "day", 2);
+__decorateClass([
+  r5()
+], ErpReservationsList.prototype, "summary", 2);
+__decorateClass([
+  r5()
+], ErpReservationsList.prototype, "summaryError", 2);
+__decorateClass([
+  r5()
+], ErpReservationsList.prototype, "daySlots", 2);
+__decorateClass([
+  r5()
+], ErpReservationsList.prototype, "dayClosed", 2);
 __decorateClass([
   r5()
 ], ErpReservationsList.prototype, "creating", 2);
