@@ -114,7 +114,8 @@
           "duration_minutes",
           "table_id",
           "status",
-          "notes"
+          "notes",
+          "starts_at"
         ],
         "default_sort": "id",
         "default_dir": "asc",

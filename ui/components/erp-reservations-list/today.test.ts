@@ -247,6 +247,31 @@ describe('4 · a search looks through the whole book', () => {
     expect(dateFilter()).toEqual({ from: TODAY, to: TODAY });
   });
 
+  // reservations#67: across days, ordering by the hour mixes them («Carmen · 28/9 · 13:15» above
+  // «Marta · 25/9 · 20:30»). The matches go in calendar order: day first, then the hour.
+  it('the matches of a search come in calendar order; clearing it goes back to the hour', async () => {
+    const el = await mount();
+    const table = $(el, 'ok-data-table')!;
+    table.dispatchEvent(new CustomEvent('searchChange', { detail: 'garcía' }));
+    await settle(el);
+    expect(lastList().sort, 'the matches of several days are still ordered by the hour only').toBe('starts_at');
+    expect(lastList().dir).toBe('asc');
+    table.dispatchEvent(new CustomEvent('searchChange', { detail: '' }));
+    await settle(el);
+    expect(lastList().sort).toBe('time');
+  });
+
+  it('a column the person sorted by on purpose survives the search', async () => {
+    const el = await mount();
+    const table = $(el, 'ok-data-table')!;
+    table.dispatchEvent(new CustomEvent('sortChange', { detail: { sort: 'guest_name', dir: 'desc' } }));
+    await settle(el);
+    table.dispatchEvent(new CustomEvent('searchChange', { detail: 'garcía' }));
+    await settle(el);
+    expect(lastList().sort).toBe('guest_name');
+    expect(lastList().dir).toBe('desc');
+  });
+
   it('«Clear filters» keeps the book on the day it was showing', async () => {
     const el = await mount();
     await click(el, '[data-testid="reservations-next-day"]');
