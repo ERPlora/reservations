@@ -24,7 +24,8 @@ A bar above the list answers the three questions of the shift for the day on scr
   moved through its states or deleted.
 
 **Searching** a guest name or phone looks through the **whole book**, not only the day on screen:
-the guest who booked next Friday is found from today. Clearing the search (or **Clear filters**)
+the guest who booked next Friday is found from today. The matches come in calendar order — the
+earliest day first and, inside a day, by time. Clearing the search (or **Clear filters**)
 puts the book back on the day it was showing.
 
 Open one for its full detail: the guest, the party, the date and time, the table, the notes and the
