@@ -635,6 +635,20 @@
       "reservations.waitlist.updated"
     ]
   },
+  "errors": {
+    "reservations.cannot_update_settings": {},
+    "reservations.customer_mismatch": {},
+    "reservations.date_blocked": {},
+    "reservations.email_required": {},
+    "reservations.illegal_transition": {},
+    "reservations.no_capacity": {},
+    "reservations.no_service_day": {},
+    "reservations.party_size_exceeded": {},
+    "reservations.phone_required": {},
+    "reservations.reads_unavailable": {},
+    "reservations.staff_only_field": {},
+    "reservations.update_rejected": {}
+  },
   "scheduled_tasks": [
     {
       "name": "release_unconfirmed",

@@ -32,9 +32,8 @@ WHAT IS CHECKED, five layers:
   1. THE CONTRACT (no container). The command exists, takes exactly one boolean under
      `additionalProperties: false`, is gated by the same permission as `settings.upsert`, runs in
      a transaction, emits the settings event the module declares, and its `expect_rows` code is
-     translated in `en` + `es` (this module ships no `errors` catalog — `update_rejected` is
-     raised without one — so the locales ARE the contract; #51 is what an untranslated code looks
-     like from the dining room). Plus the static half of the guard: the SQL may assign the flag,
+     declared in the module's `errors` catalog and translated in `en` + `es` (#56; #51 is what
+     an untranslated code looks like from the dining room). Plus the static half of the guard: the SQL may assign the flag,
      the audit columns and the singleton's identity, nothing else.
 
   2. THE ROW IS NOT CLOBBERED (real Postgres). A restaurant whose thirteen settings all differ
