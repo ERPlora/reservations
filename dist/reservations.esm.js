@@ -4609,11 +4609,19 @@ var ErpReservationsList = class extends i3 {
     return s5.search.trim() !== "" || Object.keys(s5.filters).some((col) => col !== "date");
   }
   /** Pins the list to `day` — unless a search is on: a name is looked up in the WHOLE book, the
-   *  guest who booked next Friday has to be found from today (reservations#45). */
+   *  guest who booked next Friday has to be found from today (reservations#45).
+   *  Across days the hour alone mixes them, so the matches go in calendar order (`starts_at`,
+   *  date + time); back on one day, the hour is the service order again (reservations#67). A
+   *  column the person sorted by on purpose is left alone. */
   anchorDay() {
     const s5 = this.ctrl.state;
-    if (s5.search.trim()) delete s5.filters.date;
-    else s5.filters.date = { from: this.day, to: this.day };
+    if (s5.search.trim()) {
+      delete s5.filters.date;
+      if (s5.sort === "time") s5.sort = "starts_at";
+    } else {
+      s5.filters.date = { from: this.day, to: this.day };
+      if (s5.sort === "starts_at") s5.sort = "time";
+    }
     s5.page = 0;
   }
   /** Moves the book (list AND figures) to another service day. */

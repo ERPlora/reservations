@@ -352,11 +352,19 @@ export class ErpReservationsList extends LitElement {
   }
 
   /** Pins the list to `day` — unless a search is on: a name is looked up in the WHOLE book, the
-   *  guest who booked next Friday has to be found from today (reservations#45). */
+   *  guest who booked next Friday has to be found from today (reservations#45).
+   *  Across days the hour alone mixes them, so the matches go in calendar order (`starts_at`,
+   *  date + time); back on one day, the hour is the service order again (reservations#67). A
+   *  column the person sorted by on purpose is left alone. */
   private anchorDay(): void {
     const s = this.ctrl.state;
-    if (s.search.trim()) delete s.filters.date;
-    else s.filters.date = { from: this.day, to: this.day };
+    if (s.search.trim()) {
+      delete s.filters.date;
+      if (s.sort === 'time') s.sort = 'starts_at';
+    } else {
+      s.filters.date = { from: this.day, to: this.day };
+      if (s.sort === 'starts_at') s.sort = 'time';
+    }
     s.page = 0;
   }
 
