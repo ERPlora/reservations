@@ -615,10 +615,22 @@
       "ai": {
         "description": "Releases pending reservations whose time has passed the no-show grace window (they were never confirmed): frees their slot capacity. Runs on a schedule; safe to run by hand"
       }
+    },
+    "reservations._on_customer_merged": {
+      "permission": "reservations.change_reservation",
+      "transaction": true,
+      "sql": [
+        "commands/customer_merge_reservations.sql",
+        "commands/customer_merge_waitlist.sql"
+      ]
     }
   },
   "events": {
-    "listen": {},
+    "listen": {
+      "customer.merged": {
+        "command": "reservations._on_customer_merged"
+      }
+    },
     "emits": [
       "reservations.blocked_date.created",
       "reservations.blocked_date.deleted",
