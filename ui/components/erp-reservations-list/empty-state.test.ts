@@ -15,8 +15,9 @@
 //     reservas que filtra mal no puede leer «todavía no tienes reservas».
 //  3. La barra lleva la acción primaria ROTULADA, no el «+» anónimo de `addable`.
 //  4. Cargando y error tienen su propio bloque visible (nada de pantalla muda).
-//  5. Toda cadena nueva existe en `en` Y en `es` (ADR-0055) y ningún control de formulario
-//     lleva `fill="outline"` (no-op en modo ios — ADR-0143).
+//  5. Every new string exists in `en` AND `es` (ADR-0055) and every form control declares
+//     `fill="outline" mode="md"` — without it the shell's ios mode paints no box (ADR-0143,
+//     reservations#71).
 //
 // Los tests afirman sobre CLAVES i18n, nunca sobre la prosa: el doble de `t` devuelve la clave.
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -304,19 +305,23 @@ describe('5 · i18n y controles de formulario', () => {
     expect(faltan, 'cadenas sin traducción al español').toEqual([]);
   });
 
-  it('ningún control de formulario lleva `fill="outline"` (no-op en modo ios, ADR-0143)', () => {
+  // reservations#71: the old rule here («no `fill="outline"`, it is a no-op in ios») was derogated —
+  // a control with NO fill is what renders boxless in ios. The convention (hub#760, pm#152) is
+  // `fill="outline" mode="md"` on every control, including the ones not on screen by default.
+  it('every form control declares `fill="outline" mode="md"` (its box in ios mode, ADR-0143)', () => {
     const src = readFileSync(
       join(moduleRoot(), 'ui/components/erp-reservations-list/erp-reservations-list.ts'),
       'utf8',
     );
-    const ofensores = src
+    const controles = src
       .split('\n')
       .map((linea, i) => ({ linea: linea.trim(), n: i + 1 }))
-      .filter(
-        ({ linea }) =>
-          /<ion-(input|select|textarea)\b/.test(linea) && /fill=["']?outline/.test(linea),
-      );
-    expect(ofensores.map((o) => o.n), 'controles de formulario con fill="outline"').toEqual([]);
+      .filter(({ linea }) => /<ion-(input|select|textarea)\b/.test(linea));
+    expect(controles.length).toBeGreaterThanOrEqual(6);
+    const ofensores = controles.filter(
+      ({ linea }) => !/\bfill="outline"/.test(linea) || !/\bmode="md"/.test(linea),
+    );
+    expect(ofensores.map((o) => o.n), 'form controls without fill="outline" mode="md"').toEqual([]);
   });
 });
 
