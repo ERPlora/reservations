@@ -4769,7 +4769,7 @@ var ErpReservationsList = class extends i3 {
         <ion-button class="step" fill="clear" data-testid="reservations-prev-day" aria-label=${t5("ui.prevDay")} @click=${() => this.setDay(addDaysISO(this.day, -1))}>
           <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
         </ion-button>
-        <ion-input type="date" data-testid="reservations-day-input" aria-label=${t5("ui.colDate")} .value=${this.day} @ionInput=${(e5) => this.setDay(e5.target.value)}></ion-input>
+        <ion-input fill="outline" mode="md" type="date" data-testid="reservations-day-input" aria-label=${t5("ui.colDate")} .value=${this.day} @ionInput=${(e5) => this.setDay(e5.target.value)}></ion-input>
         <ion-button class="step" fill="clear" data-testid="reservations-next-day" aria-label=${t5("ui.nextDay")} @click=${() => this.setDay(addDaysISO(this.day, 1))}>
           <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
         </ion-button>
@@ -4828,11 +4828,11 @@ var ErpReservationsList = class extends i3 {
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-form" @submit=${(e5) => this.createReservation(e5)}>
-            <ion-input label-placement="floating" label=${t5("ui.phGuestName")} data-testid="reservations-guest-name" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
-            <ion-input label-placement="floating" label=${t5("ui.phGuestPhone")} data-testid="reservations-guest-phone" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
-            <ion-input label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
-            <ion-input label-placement="floating" label=${t5("ui.colTime")} type="time" data-testid="reservations-time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
-            <ion-input label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" data-testid="reservations-party-size" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phGuestName")} data-testid="reservations-guest-name" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phGuestPhone")} data-testid="reservations-guest-phone" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colTime")} type="time" data-testid="reservations-time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" data-testid="reservations-party-size" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
             <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
           </form>
         </ok-data-table>
