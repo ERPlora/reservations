@@ -113,6 +113,8 @@ interface Screen {
   formError: string;
   pageError: string;
   fill: (el: Wc) => void;
+  /** Correct one field of the form, the way typing into it does (one `@ionInput` = one render). */
+  edit: (el: Wc) => void;
   save: (el: Wc) => Promise<void>;
   rowAct: (el: Wc) => Promise<void>;
 }
@@ -126,6 +128,7 @@ const SCREENS: Screen[] = [
     formError: 'reservations-form-error',
     pageError: 'reservations-page-error',
     fill: (el) => { el.newName = 'Ana'; el.newDate = '2026-12-01'; el.newTime = '21:00'; el.newParty = '2'; },
+    edit: (el) => { el.newName = 'Ana B'; },
     save: (el) => el.createReservation(submitEvent()),
     rowAct: (el) => el.onRowAction(rowAction('cancel', BOOKING)),
   },
@@ -137,6 +140,7 @@ const SCREENS: Screen[] = [
     formError: 'reservations-waitlist-form-error',
     pageError: 'reservations-waitlist-page-error',
     fill: (el) => { el.newName = 'Luis'; el.newPhone = '600'; el.newDate = '2026-12-01'; el.newTime = '21:00'; el.newParty = '2'; },
+    edit: (el) => { el.newName = 'Luis B'; },
     save: (el) => el.createEntry(submitEvent()),
     rowAct: (el) => el.onRowAction(rowAction('remove', ENTRY)),
   },
@@ -148,6 +152,7 @@ const SCREENS: Screen[] = [
     formError: 'reservations-availability-slot-form-error',
     pageError: 'reservations-availability-page-error',
     fill: (el) => { el.slotDay = '1'; el.slotStart = '13:00'; el.slotEnd = '16:00'; el.slotMax = '10'; },
+    edit: (el) => { el.slotMax = '12'; },
     save: (el) => el.createSlot(submitEvent()),
     rowAct: (el) => el.onSlotAction(rowAction('remove', SLOT)),
   },
@@ -159,6 +164,7 @@ const SCREENS: Screen[] = [
     formError: 'reservations-availability-blocked-form-error',
     pageError: 'reservations-availability-page-error',
     fill: (el) => { el.blockDate = '2026-12-24'; el.blockReason = 'Closed'; },
+    edit: (el) => { el.blockReason = 'Holiday'; },
     save: (el) => el.createBlocked(submitEvent()),
     rowAct: (el) => el.onBlockedAction(rowAction('remove', BLOCKED)),
   },
@@ -184,6 +190,21 @@ describe.each(SCREENS)('pm#513 · $surface: save refusal in the form, row refusa
     expect(banner?.textContent?.trim()).toBe('rejected');
     expect(onPage(el, s.pageError), 'the page under the sheet shows nothing').toBeNull();
     expect(onPage(el, s.formError), 'the old page banner is gone').toBeNull();
+  });
+
+  it('correcting a field after a refusal does not scroll the sheet back to the banner', async () => {
+    // The banner is scrolled into view ONCE, when the refusal arrives. Every keystroke re-renders the
+    // form: scrolling on every render would yank the sheet away from the field being corrected.
+    const el = await mount(s.tag, s.path);
+    s.fill(el);
+    refusal = new DomainError('bench.rejected', 'rejected');
+    await s.save(el);
+    await settle(el);
+    revealed = [];
+    s.edit(el);
+    await settle(el);
+    expect(inForm(el, s.form, s.formError), 'the refusal is still there').not.toBeNull();
+    expect(revealed, 'but the sheet stays where the person is typing').toEqual([]);
   });
 
   it('a new attempt clears the previous refusal of the form', async () => {
@@ -269,6 +290,37 @@ describe('pm#513 · availability: each form keeps its own refusal', () => {
     await settle(el);
     expect(inForm(el, 'reservations-availability-blocked-form', 'reservations-availability-blocked-form-error')).not.toBeNull();
     expect(el.shadowRoot.querySelector('[data-testid="reservations-availability-slot-form-error"]')).toBeNull();
+  });
+});
+
+describe('pm#513 · availability: saving one form leaves the other form\'s refusal alone', () => {
+  const tag = 'erp-reservations-availability';
+  const path = '../components/erp-reservations-availability/erp-reservations-availability';
+  const SLOT_ERR = ['reservations-availability-slot-form', 'reservations-availability-slot-form-error'] as const;
+  const BLOCKED_ERR = ['reservations-availability-blocked-form', 'reservations-availability-blocked-form-error'] as const;
+
+  it('a time slot saved after a refused blocked date keeps the blocked-date refusal', async () => {
+    const el = await mount(tag, path);
+    SCREENS[3].fill(el);
+    refusal = new DomainError('bench.rejected', 'rejected');
+    await el.createBlocked(submitEvent());
+    refusal = null;
+    SCREENS[2].fill(el);
+    await el.createSlot(submitEvent());
+    await settle(el);
+    expect(inForm(el, ...BLOCKED_ERR)?.textContent?.trim(), 'its fields still hold what was refused').toBe('rejected');
+  });
+
+  it('a blocked date saved after a refused time slot keeps the time-slot refusal', async () => {
+    const el = await mount(tag, path);
+    SCREENS[2].fill(el);
+    refusal = new DomainError('bench.rejected', 'rejected');
+    await el.createSlot(submitEvent());
+    refusal = null;
+    SCREENS[3].fill(el);
+    await el.createBlocked(submitEvent());
+    await settle(el);
+    expect(inForm(el, ...SLOT_ERR)?.textContent?.trim(), 'its fields still hold what was refused').toBe('rejected');
   });
 });
 
