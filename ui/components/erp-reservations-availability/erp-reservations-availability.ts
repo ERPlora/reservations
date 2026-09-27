@@ -1,4 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
+import type { PropertyValues } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-data-table';
@@ -97,7 +98,15 @@ export class ErpReservationsAvailability extends LitElement {
 
   @state() saving = false;
 
-  @state() formError = '';
+  /** What each create panel's form was refused — one per table, since each form lives in its own
+   *  table's panel. Painted INSIDE that form (pm#513). */
+  @state() slotFormError = '';
+
+  @state() blockedFormError = '';
+
+  /** What went wrong in a ROW action (remove a slot or a blocked date): no panel is open then, so it
+   *  is painted on the page (pm#513). */
+  @state() pageError = '';
 
   @state() tick = 0;
 
@@ -299,7 +308,8 @@ export class ErpReservationsAvailability extends LitElement {
     ev.preventDefault();
     if (!this.slotStart || !this.slotEnd) return;
     this.saving = true;
-    this.formError = '';
+    this.slotFormError = '';
+    this.pageError = ''; // a save is the next thing the person did: an older row refusal is stale
     try {
       await erplora().command('reservations.timeslots.create', {
         day_of_week: Number(this.slotDay),
@@ -313,7 +323,7 @@ export class ErpReservationsAvailability extends LitElement {
       this.dataTable('slots')?.close(); // si no, el panel se queda abierto tapando la franja creada
       await this.slotsCtrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateSlot');
+      this.slotFormError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateSlot');
     } finally {
       this.saving = false;
     }
@@ -323,7 +333,8 @@ export class ErpReservationsAvailability extends LitElement {
     ev.preventDefault();
     if (!this.blockDate) return;
     this.saving = true;
-    this.formError = '';
+    this.blockedFormError = '';
+    this.pageError = ''; // a save is the next thing the person did: an older row refusal is stale
     try {
       await erplora().command('reservations.blocked_dates.create', {
         date: this.blockDate,
@@ -335,7 +346,7 @@ export class ErpReservationsAvailability extends LitElement {
       this.dataTable('blocked')?.close(); // si no, el panel se queda abierto tapando la fecha creada
       await this.blockedCtrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errBlockDate');
+      this.blockedFormError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errBlockDate');
     } finally {
       this.saving = false;
     }
@@ -343,22 +354,45 @@ export class ErpReservationsAvailability extends LitElement {
 
   private async onSlotAction(ev: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) {
     if (ev.detail.actionId !== 'remove') return;
+    this.pageError = '';
     try {
       await erplora().command('reservations.timeslots.delete', { time_slot_id: ev.detail.row.id as string });
       await this.slotsCtrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteSlot');
+      this.pageError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteSlot');
     }
   }
 
   private async onBlockedAction(ev: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) {
     if (ev.detail.actionId !== 'remove') return;
+    this.pageError = '';
     try {
       await erplora().command('reservations.blocked_dates.delete', { blocked_date_id: ev.detail.row.id as string });
       await this.blockedCtrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteBlocked');
+      this.pageError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteBlocked');
     }
+  }
+
+  /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
+   *  phone that can leave it off the sheet. Bring it into view once it has painted itself: scrolled
+   *  before, the banner still measures 0 px and ends up under the tab bar. */
+  updated(changed: PropertyValues<this>): void {
+    super.updated(changed);
+    if (changed.has('slotFormError') && this.slotFormError) void this.revealFormError('slot');
+    if (changed.has('blockedFormError') && this.blockedFormError) void this.revealFormError('blocked');
+  }
+
+  private async revealFormError(form: 'slot' | 'blocked'): Promise<void> {
+    const banner = this.renderRoot.querySelector(
+      form === 'slot'
+        ? '[data-testid="reservations-availability-slot-form-error"]'
+        : '[data-testid="reservations-availability-blocked-form-error"]',
+    ) as
+      | (HTMLElement & { updateComplete?: Promise<unknown> })
+      | null;
+    await banner?.updateComplete;
+    banner?.scrollIntoView?.({ block: 'center' });
   }
 
   // Dos CRUD apilados: cada `<form slot="create">` da de alta UNA FILA de la tabla que lo contiene.
@@ -366,7 +400,7 @@ export class ErpReservationsAvailability extends LitElement {
   render() {
     const t = (k: string): string => erplora().t(CATALOG, k);
     return html`<div>
-        ${this.formError ? html`<p class="err" data-testid="reservations-availability-form-error">${this.formError}</p>` : nothing}
+        ${this.pageError ? html`<p class="err" data-testid="reservations-availability-page-error">${this.pageError}</p>` : nothing}
         ${this.occError ? html`<p class="err" data-testid="reservations-availability-occupancy-error">${this.occError}</p>` : nothing}
         ${this.slotsCtrl?.error ? html`<p class="err" data-testid="reservations-availability-slots-error">${this.slotsCtrl.error}</p>` : nothing}
         ${this.blockedCtrl?.error ? html`<p class="err" data-testid="reservations-availability-blocked-error">${this.blockedCtrl.error}</p>` : nothing}
@@ -386,6 +420,9 @@ export class ErpReservationsAvailability extends LitElement {
             <ion-input fill="outline" label-placement="floating" label=${t('ui.colStart')} type="time" data-testid="reservations-availability-slot-start" .value=${this.slotStart} @ionInput=${(e: any) => (this.slotStart = e.target.value)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.colEnd')} type="time" data-testid="reservations-availability-slot-end" .value=${this.slotEnd} @ionInput=${(e: any) => (this.slotEnd = e.target.value)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.phMax')} type="number" min="1" data-testid="reservations-availability-slot-max" .value=${this.slotMax} @ionInput=${(e: any) => (this.slotMax = e.target.value)}></ion-input>
+            <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
+                 sheet and a banner on the page underneath it is never seen. -->
+            ${this.slotFormError ? html`<p class="err" data-testid="reservations-availability-slot-form-error">${this.slotFormError}</p>` : nothing}
             <ion-button type="submit" data-testid="reservations-availability-slot-submit" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t('ui.btnAddSlot')}</ion-button>
           </form>
         </ok-data-table>
@@ -394,6 +431,7 @@ export class ErpReservationsAvailability extends LitElement {
           <form slot="create" class="form" data-testid="reservations-availability-blocked-form" @submit=${(e: Event) => this.createBlocked(e)}>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-availability-blocked-date" .value=${this.blockDate} @ionInput=${(e: any) => (this.blockDate = e.target.value)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.phReason')} data-testid="reservations-availability-blocked-reason" .value=${this.blockReason} @ionInput=${(e: any) => (this.blockReason = e.target.value)}></ion-input>
+            ${this.blockedFormError ? html`<p class="err" data-testid="reservations-availability-blocked-form-error">${this.blockedFormError}</p>` : nothing}
             <ion-button type="submit" data-testid="reservations-availability-blocked-submit" ?disabled=${this.saving || !this.blockDate}>${t('ui.btnBlockDate')}</ion-button>
           </form>
         </ok-data-table>

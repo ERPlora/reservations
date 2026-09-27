@@ -1,4 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
+import type { PropertyValues } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-data-table';
@@ -217,7 +218,12 @@ export class ErpReservationsList extends LitElement {
    *  vacío SIN perder el formulario, que vive en el panel lateral de la propia tabla. */
   @state() creating = false;
 
+  /** What the create panel's form was refused. Painted INSIDE the form (pm#513). */
   @state() formError = '';
+
+  /** What went wrong in a ROW action (confirm, seat, complete, cancel): no panel is open then, so
+   *  it is painted on the page (pm#513). */
+  @state() pageError = '';
 
   @state() tick = 0;
 
@@ -446,6 +452,7 @@ export class ErpReservationsList extends LitElement {
     if (!this.newName.trim() || !this.newDate || !this.newTime) return;
     this.saving = true;
     this.formError = '';
+    this.pageError = ''; // a save is the next thing the person did: an older row refusal is stale
     try {
       await erplora().command('reservations.reservations.create', {
         guest_name: this.newName.trim(),
@@ -479,7 +486,7 @@ export class ErpReservationsList extends LitElement {
     };
     const status = statusMap[actionId];
     if (!status) return;
-    this.formError = '';
+    this.pageError = '';
     try {
       await erplora().command('reservations.reservations.set_status', {
         reservation_id: row.id as string,
@@ -487,7 +494,7 @@ export class ErpReservationsList extends LitElement {
       });
       await this.ctrl.load();
     } catch (e) {
-      this.formError = domainErrorText(e, 'ui.errSetStatus');
+      this.pageError = domainErrorText(e, 'ui.errSetStatus');
     }
   }
 
@@ -547,6 +554,22 @@ export class ErpReservationsList extends LitElement {
     </div>`;
   }
 
+  /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
+   *  phone that can leave it off the sheet. Bring it into view once it has painted itself: scrolled
+   *  before, the banner still measures 0 px and ends up under the tab bar. */
+  updated(changed: PropertyValues<this>): void {
+    super.updated(changed);
+    if (changed.has('formError') && this.formError) void this.revealFormError();
+  }
+
+  private async revealFormError(): Promise<void> {
+    const banner = this.renderRoot.querySelector('[data-testid="reservations-form-error"]') as
+      | (HTMLElement & { updateComplete?: Promise<unknown> })
+      | null;
+    await banner?.updateComplete;
+    banner?.scrollIntoView?.({ block: 'center' });
+  }
+
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
   //
   // reservations#41 — los cuatro estados de la pantalla se pintan, ninguno se deja en una tabla
@@ -583,7 +606,7 @@ export class ErpReservationsList extends LitElement {
 
     return html`<div class="page">
         ${this.renderDayBar()}
-        ${this.formError ? html`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : nothing}
+        ${this.pageError ? html`<p class="err" data-testid="reservations-page-error">${this.pageError}</p>` : nothing}
         ${error
           ? html`<div class="state" data-state="error" data-testid="reservations-load-error">
               <p class="err">${error}</p>
@@ -618,6 +641,9 @@ export class ErpReservationsList extends LitElement {
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colTime')} type="time" data-testid="reservations-time" .value=${this.newTime} @ionInput=${(e: any) => (this.newTime = e.target.value)}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.phPartySize')} type="number" min="1" data-testid="reservations-party-size" .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
+            <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
+                 sheet and a banner on the page underneath it is never seen. -->
+            ${this.formError ? html`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : nothing}
             <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
           </form>
         </ok-data-table>
