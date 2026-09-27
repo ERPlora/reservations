@@ -555,19 +555,15 @@ export class ErpReservationsList extends LitElement {
   }
 
   /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
-   *  phone that can leave it off the sheet. Bring it into view once it has painted itself: scrolled
-   *  before, the banner still measures 0 px and ends up under the tab bar. */
+   *  phone that can leave it off the sheet. `updated` runs once it has painted itself: scrolled
+   *  before, the banner would still measure 0 px and end up under the tab bar. */
   updated(changed: PropertyValues<this>): void {
     super.updated(changed);
-    if (changed.has('formError') && this.formError) void this.revealFormError();
+    if (changed.has('formError') && this.formError) this.revealFormError();
   }
 
-  private async revealFormError(): Promise<void> {
-    const banner = this.renderRoot.querySelector('[data-testid="reservations-form-error"]') as
-      | (HTMLElement & { updateComplete?: Promise<unknown> })
-      | null;
-    await banner?.updateComplete;
-    banner?.scrollIntoView?.({ block: 'center' });
+  private revealFormError(): void {
+    this.renderRoot.querySelector<HTMLElement>('[data-testid="reservations-form-error"]')?.scrollIntoView?.({ block: 'center' });
   }
 
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.

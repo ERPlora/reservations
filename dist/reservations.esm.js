@@ -4156,19 +4156,17 @@ var ErpReservationsAvailability = class extends i3 {
     }
   }
   /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
-   *  phone that can leave it off the sheet. Bring it into view once it has painted itself: scrolled
-   *  before, the banner still measures 0 px and ends up under the tab bar. */
+   *  phone that can leave it off the sheet. `updated` runs once it has painted itself: scrolled
+   *  before, the banner would still measure 0 px and end up under the tab bar. */
   updated(changed) {
     super.updated(changed);
-    if (changed.has("slotFormError") && this.slotFormError) void this.revealFormError("slot");
-    if (changed.has("blockedFormError") && this.blockedFormError) void this.revealFormError("blocked");
+    if (changed.has("slotFormError") && this.slotFormError) this.revealFormError("slot");
+    if (changed.has("blockedFormError") && this.blockedFormError) this.revealFormError("blocked");
   }
-  async revealFormError(form) {
-    const banner = this.renderRoot.querySelector(
+  revealFormError(form) {
+    this.renderRoot.querySelector(
       form === "slot" ? '[data-testid="reservations-availability-slot-form-error"]' : '[data-testid="reservations-availability-blocked-form-error"]'
-    );
-    await banner?.updateComplete;
-    banner?.scrollIntoView?.({ block: "center" });
+    )?.scrollIntoView?.({ block: "center" });
   }
   // Dos CRUD apilados: cada `<form slot="create">` da de alta UNA FILA de la tabla que lo contiene.
   // El título de la vista lo pinta el topbar del shell; los <h3> se quedan porque rotulan cada tabla.
@@ -4813,16 +4811,14 @@ var ErpReservationsList = class extends i3 {
     </div>`;
   }
   /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
-   *  phone that can leave it off the sheet. Bring it into view once it has painted itself: scrolled
-   *  before, the banner still measures 0 px and ends up under the tab bar. */
+   *  phone that can leave it off the sheet. `updated` runs once it has painted itself: scrolled
+   *  before, the banner would still measure 0 px and end up under the tab bar. */
   updated(changed) {
     super.updated(changed);
-    if (changed.has("formError") && this.formError) void this.revealFormError();
+    if (changed.has("formError") && this.formError) this.revealFormError();
   }
-  async revealFormError() {
-    const banner = this.renderRoot.querySelector('[data-testid="reservations-form-error"]');
-    await banner?.updateComplete;
-    banner?.scrollIntoView?.({ block: "center" });
+  revealFormError() {
+    this.renderRoot.querySelector('[data-testid="reservations-form-error"]')?.scrollIntoView?.({ block: "center" });
   }
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
   //
@@ -5097,16 +5093,14 @@ var ErpReservationsWaitlist = class extends i3 {
     }
   }
   /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
-   *  phone that can leave it off the sheet. Bring it into view once it has painted itself: scrolled
-   *  before, the banner still measures 0 px and ends up under the tab bar. */
+   *  phone that can leave it off the sheet. `updated` runs once it has painted itself: scrolled
+   *  before, the banner would still measure 0 px and end up under the tab bar. */
   updated(changed) {
     super.updated(changed);
-    if (changed.has("formError") && this.formError) void this.revealFormError();
+    if (changed.has("formError") && this.formError) this.revealFormError();
   }
-  async revealFormError() {
-    const banner = this.renderRoot.querySelector('[data-testid="reservations-waitlist-form-error"]');
-    await banner?.updateComplete;
-    banner?.scrollIntoView?.({ block: "center" });
+  revealFormError() {
+    this.renderRoot.querySelector('[data-testid="reservations-waitlist-form-error"]')?.scrollIntoView?.({ block: "center" });
   }
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
   render() {
