@@ -3911,7 +3911,9 @@ var ErpReservationsAvailability = class extends i3 {
   constructor() {
     super(...arguments);
     this.saving = false;
-    this.formError = "";
+    this.slotFormError = "";
+    this.blockedFormError = "";
+    this.pageError = "";
     this.tick = 0;
     this.slotDay = "0";
     this.slotStart = "";
@@ -4091,7 +4093,8 @@ var ErpReservationsAvailability = class extends i3 {
     ev.preventDefault();
     if (!this.slotStart || !this.slotEnd) return;
     this.saving = true;
-    this.formError = "";
+    this.slotFormError = "";
+    this.pageError = "";
     try {
       await erplora().command("reservations.timeslots.create", {
         day_of_week: Number(this.slotDay),
@@ -4105,7 +4108,7 @@ var ErpReservationsAvailability = class extends i3 {
       this.dataTable("slots")?.close();
       await this.slotsCtrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errCreateSlot");
+      this.slotFormError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errCreateSlot");
     } finally {
       this.saving = false;
     }
@@ -4114,7 +4117,8 @@ var ErpReservationsAvailability = class extends i3 {
     ev.preventDefault();
     if (!this.blockDate) return;
     this.saving = true;
-    this.formError = "";
+    this.blockedFormError = "";
+    this.pageError = "";
     try {
       await erplora().command("reservations.blocked_dates.create", {
         date: this.blockDate,
@@ -4126,35 +4130,50 @@ var ErpReservationsAvailability = class extends i3 {
       this.dataTable("blocked")?.close();
       await this.blockedCtrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errBlockDate");
+      this.blockedFormError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errBlockDate");
     } finally {
       this.saving = false;
     }
   }
   async onSlotAction(ev) {
     if (ev.detail.actionId !== "remove") return;
+    this.pageError = "";
     try {
       await erplora().command("reservations.timeslots.delete", { time_slot_id: ev.detail.row.id });
       await this.slotsCtrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteSlot");
+      this.pageError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteSlot");
     }
   }
   async onBlockedAction(ev) {
     if (ev.detail.actionId !== "remove") return;
+    this.pageError = "";
     try {
       await erplora().command("reservations.blocked_dates.delete", { blocked_date_id: ev.detail.row.id });
       await this.blockedCtrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteBlocked");
+      this.pageError = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteBlocked");
     }
+  }
+  /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
+   *  phone that can leave it off the sheet. `updated` runs once it has painted itself: scrolled
+   *  before, the banner would still measure 0 px and end up under the tab bar. */
+  updated(changed) {
+    super.updated(changed);
+    if (changed.has("slotFormError") && this.slotFormError) this.revealFormError("slot");
+    if (changed.has("blockedFormError") && this.blockedFormError) this.revealFormError("blocked");
+  }
+  revealFormError(form) {
+    this.renderRoot.querySelector(
+      form === "slot" ? '[data-testid="reservations-availability-slot-form-error"]' : '[data-testid="reservations-availability-blocked-form-error"]'
+    )?.scrollIntoView?.({ block: "center" });
   }
   // Dos CRUD apilados: cada `<form slot="create">` da de alta UNA FILA de la tabla que lo contiene.
   // El título de la vista lo pinta el topbar del shell; los <h3> se quedan porque rotulan cada tabla.
   render() {
     const t5 = (k2) => erplora().t(CATALOG, k2);
     return b2`<div>
-        ${this.formError ? b2`<p class="err" data-testid="reservations-availability-form-error">${this.formError}</p>` : A}
+        ${this.pageError ? b2`<p class="err" data-testid="reservations-availability-page-error">${this.pageError}</p>` : A}
         ${this.occError ? b2`<p class="err" data-testid="reservations-availability-occupancy-error">${this.occError}</p>` : A}
         ${this.slotsCtrl?.error ? b2`<p class="err" data-testid="reservations-availability-slots-error">${this.slotsCtrl.error}</p>` : A}
         ${this.blockedCtrl?.error ? b2`<p class="err" data-testid="reservations-availability-blocked-error">${this.blockedCtrl.error}</p>` : A}
@@ -4180,6 +4199,9 @@ var ErpReservationsAvailability = class extends i3 {
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.colStart")} type="time" data-testid="reservations-availability-slot-start" .value=${this.slotStart} @ionInput=${(e5) => this.slotStart = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.colEnd")} type="time" data-testid="reservations-availability-slot-end" .value=${this.slotEnd} @ionInput=${(e5) => this.slotEnd = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phMax")} type="number" min="1" data-testid="reservations-availability-slot-max" .value=${this.slotMax} @ionInput=${(e5) => this.slotMax = e5.target.value}></ion-input>
+            <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
+                 sheet and a banner on the page underneath it is never seen. -->
+            ${this.slotFormError ? b2`<p class="err" data-testid="reservations-availability-slot-form-error">${this.slotFormError}</p>` : A}
             <ion-button type="submit" data-testid="reservations-availability-slot-submit" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t5("ui.btnAddSlot")}</ion-button>
           </form>
         </ok-data-table>
@@ -4188,6 +4210,7 @@ var ErpReservationsAvailability = class extends i3 {
           <form slot="create" class="form" data-testid="reservations-availability-blocked-form" @submit=${(e5) => this.createBlocked(e5)}>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-availability-blocked-date" .value=${this.blockDate} @ionInput=${(e5) => this.blockDate = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phReason")} data-testid="reservations-availability-blocked-reason" .value=${this.blockReason} @ionInput=${(e5) => this.blockReason = e5.target.value}></ion-input>
+            ${this.blockedFormError ? b2`<p class="err" data-testid="reservations-availability-blocked-form-error">${this.blockedFormError}</p>` : A}
             <ion-button type="submit" data-testid="reservations-availability-blocked-submit" ?disabled=${this.saving || !this.blockDate}>${t5("ui.btnBlockDate")}</ion-button>
           </form>
         </ok-data-table>
@@ -4199,7 +4222,13 @@ __decorateClass([
 ], ErpReservationsAvailability.prototype, "saving", 2);
 __decorateClass([
   r5()
-], ErpReservationsAvailability.prototype, "formError", 2);
+], ErpReservationsAvailability.prototype, "slotFormError", 2);
+__decorateClass([
+  r5()
+], ErpReservationsAvailability.prototype, "blockedFormError", 2);
+__decorateClass([
+  r5()
+], ErpReservationsAvailability.prototype, "pageError", 2);
 __decorateClass([
   r5()
 ], ErpReservationsAvailability.prototype, "tick", 2);
@@ -4459,6 +4488,7 @@ var ErpReservationsList = class extends i3 {
     this.summarySeq = 0;
     this.creating = false;
     this.formError = "";
+    this.pageError = "";
     this.tick = 0;
     this.newName = "";
     this.newPhone = "";
@@ -4689,6 +4719,7 @@ var ErpReservationsList = class extends i3 {
     if (!this.newName.trim() || !this.newDate || !this.newTime) return;
     this.saving = true;
     this.formError = "";
+    this.pageError = "";
     try {
       await erplora2().command("reservations.reservations.create", {
         guest_name: this.newName.trim(),
@@ -4721,7 +4752,7 @@ var ErpReservationsList = class extends i3 {
     };
     const status = statusMap[actionId];
     if (!status) return;
-    this.formError = "";
+    this.pageError = "";
     try {
       await erplora2().command("reservations.reservations.set_status", {
         reservation_id: row.id,
@@ -4729,7 +4760,7 @@ var ErpReservationsList = class extends i3 {
       });
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = domainErrorText(e5, "ui.errSetStatus");
+      this.pageError = domainErrorText(e5, "ui.errSetStatus");
     }
   }
   /** reservations#45 — the three questions of the shift: which day, how many covers, next slot.
@@ -4779,6 +4810,16 @@ var ErpReservationsList = class extends i3 {
       <div class="figures">${figures}</div>
     </div>`;
   }
+  /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
+   *  phone that can leave it off the sheet. `updated` runs once it has painted itself: scrolled
+   *  before, the banner would still measure 0 px and end up under the tab bar. */
+  updated(changed) {
+    super.updated(changed);
+    if (changed.has("formError") && this.formError) this.revealFormError();
+  }
+  revealFormError() {
+    this.renderRoot.querySelector('[data-testid="reservations-form-error"]')?.scrollIntoView?.({ block: "center" });
+  }
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
   //
   // reservations#41 — los cuatro estados de la pantalla se pintan, ninguno se deja en una tabla
@@ -4804,7 +4845,7 @@ var ErpReservationsList = class extends i3 {
     `;
     return b2`<div class="page">
         ${this.renderDayBar()}
-        ${this.formError ? b2`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : A}
+        ${this.pageError ? b2`<p class="err" data-testid="reservations-page-error">${this.pageError}</p>` : A}
         ${error ? b2`<div class="state" data-state="error" data-testid="reservations-load-error">
               <p class="err">${error}</p>
               <ion-button size="small" data-action="retry" data-testid="reservations-retry" @click=${() => void this.ctrl.load()}>${t5("ui.btnRetry")}</ion-button>
@@ -4833,6 +4874,9 @@ var ErpReservationsList = class extends i3 {
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colTime")} type="time" data-testid="reservations-time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" data-testid="reservations-party-size" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+            <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
+                 sheet and a banner on the page underneath it is never seen. -->
+            ${this.formError ? b2`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : A}
             <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
           </form>
         </ok-data-table>
@@ -4867,6 +4911,9 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpReservationsList.prototype, "formError", 2);
+__decorateClass([
+  r5()
+], ErpReservationsList.prototype, "pageError", 2);
 __decorateClass([
   r5()
 ], ErpReservationsList.prototype, "tick", 2);
@@ -4914,6 +4961,7 @@ var ErpReservationsWaitlist = class extends i3 {
     super(...arguments);
     this.saving = false;
     this.formError = "";
+    this.pageError = "";
     this.tick = 0;
     this.newName = "";
     this.newPhone = "";
@@ -5006,6 +5054,7 @@ var ErpReservationsWaitlist = class extends i3 {
     if (!this.newName.trim() || !this.newPhone.trim() || !this.newDate || !this.newTime) return;
     this.saving = true;
     this.formError = "";
+    this.pageError = "";
     try {
       await erplora3().command("reservations.waitlist.create", {
         guest_name: this.newName.trim(),
@@ -5029,7 +5078,7 @@ var ErpReservationsWaitlist = class extends i3 {
   }
   async onRowAction(ev) {
     const { actionId, row } = ev.detail;
-    this.formError = "";
+    this.pageError = "";
     try {
       if (actionId === "remove") {
         await erplora3().command("reservations.waitlist.delete", { entry_id: row.id });
@@ -5040,14 +5089,24 @@ var ErpReservationsWaitlist = class extends i3 {
       }
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errUpdateWaitlist");
+      this.pageError = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errUpdateWaitlist");
     }
+  }
+  /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
+   *  phone that can leave it off the sheet. `updated` runs once it has painted itself: scrolled
+   *  before, the banner would still measure 0 px and end up under the tab bar. */
+  updated(changed) {
+    super.updated(changed);
+    if (changed.has("formError") && this.formError) this.revealFormError();
+  }
+  revealFormError() {
+    this.renderRoot.querySelector('[data-testid="reservations-waitlist-form-error"]')?.scrollIntoView?.({ block: "center" });
   }
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
   render() {
     const t5 = (k2) => erplora3().t(CATALOG3, k2);
     return b2`<div class="page">
-        ${this.formError ? b2`<p class="err" data-testid="reservations-waitlist-form-error">${this.formError}</p>` : A}
+        ${this.pageError ? b2`<p class="err" data-testid="reservations-waitlist-page-error">${this.pageError}</p>` : A}
         ${this.ctrl?.error ? b2`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : A}
         <ok-data-table testid="reservations-waitlist-table" .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyWaitlist")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta en la lista de espera: se proyecta SIEMPRE (aunque el panel esté cerrado); si se
@@ -5058,6 +5117,9 @@ var ErpReservationsWaitlist = class extends i3 {
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-waitlist-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.colTime")} type="time" data-testid="reservations-waitlist-time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" data-testid="reservations-waitlist-party-size" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
+            <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
+                 sheet and a banner on the page underneath it is never seen. -->
+            ${this.formError ? b2`<p class="err" data-testid="reservations-waitlist-form-error">${this.formError}</p>` : A}
             <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAdd")}</ion-button>
           </form>
         </ok-data-table>
@@ -5070,6 +5132,9 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpReservationsWaitlist.prototype, "formError", 2);
+__decorateClass([
+  r5()
+], ErpReservationsWaitlist.prototype, "pageError", 2);
 __decorateClass([
   r5()
 ], ErpReservationsWaitlist.prototype, "tick", 2);

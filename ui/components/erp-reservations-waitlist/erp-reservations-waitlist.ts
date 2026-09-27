@@ -1,4 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
+import type { PropertyValues } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-data-table';
@@ -73,7 +74,12 @@ export class ErpReservationsWaitlist extends LitElement {
 
   @state() saving = false;
 
+  /** What the create panel's form was refused. Painted INSIDE the form (pm#513). */
   @state() formError = '';
+
+  /** What went wrong in a ROW action (contact, convert, remove): no panel is open then, so it is
+   *  painted on the page (pm#513). */
+  @state() pageError = '';
 
   @state() tick = 0;
 
@@ -173,6 +179,7 @@ export class ErpReservationsWaitlist extends LitElement {
     if (!this.newName.trim() || !this.newPhone.trim() || !this.newDate || !this.newTime) return;
     this.saving = true;
     this.formError = '';
+    this.pageError = ''; // a save is the next thing the person did: an older row refusal is stale
     try {
       await erplora().command('reservations.waitlist.create', {
         guest_name: this.newName.trim(),
@@ -197,7 +204,7 @@ export class ErpReservationsWaitlist extends LitElement {
 
   private async onRowAction(ev: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) {
     const { actionId, row } = ev.detail;
-    this.formError = '';
+    this.pageError = '';
     try {
       if (actionId === 'remove') {
         await erplora().command('reservations.waitlist.delete', { entry_id: row.id as string });
@@ -208,15 +215,27 @@ export class ErpReservationsWaitlist extends LitElement {
       }
       await this.ctrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errUpdateWaitlist');
+      this.pageError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errUpdateWaitlist');
     }
+  }
+
+  /** pm#513: the refusal appears ABOVE the button that was pressed, at the foot of the form — on a
+   *  phone that can leave it off the sheet. `updated` runs once it has painted itself: scrolled
+   *  before, the banner would still measure 0 px and end up under the tab bar. */
+  updated(changed: PropertyValues<this>): void {
+    super.updated(changed);
+    if (changed.has('formError') && this.formError) this.revealFormError();
+  }
+
+  private revealFormError(): void {
+    this.renderRoot.querySelector<HTMLElement>('[data-testid="reservations-waitlist-form-error"]')?.scrollIntoView?.({ block: 'center' });
   }
 
   // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
   render() {
     const t = (k: string): string => erplora().t(CATALOG, k);
     return html`<div class="page">
-        ${this.formError ? html`<p class="err" data-testid="reservations-waitlist-form-error">${this.formError}</p>` : nothing}
+        ${this.pageError ? html`<p class="err" data-testid="reservations-waitlist-page-error">${this.pageError}</p>` : nothing}
         ${this.ctrl?.error ? html`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : nothing}
         <ok-data-table testid="reservations-waitlist-table" .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyWaitlist')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Alta en la lista de espera: se proyecta SIEMPRE (aunque el panel esté cerrado); si se
@@ -227,6 +246,9 @@ export class ErpReservationsWaitlist extends LitElement {
             <ion-input fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-waitlist-date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.colTime')} type="time" data-testid="reservations-waitlist-time" .value=${this.newTime} @ionInput=${(e: any) => (this.newTime = e.target.value)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.phPartySize')} type="number" min="1" data-testid="reservations-waitlist-party-size" .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
+            <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
+                 sheet and a banner on the page underneath it is never seen. -->
+            ${this.formError ? html`<p class="err" data-testid="reservations-waitlist-form-error">${this.formError}</p>` : nothing}
             <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime}>${this.saving ? t('ui.btnSaving') : t('ui.btnAdd')}</ion-button>
           </form>
         </ok-data-table>
