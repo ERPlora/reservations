@@ -5170,7 +5170,7 @@ var ErpReservationsList = class extends i3 {
       const key = { over: "ui.noMoreServiceToday", "no-service": "ui.noServiceDay", closed: "ui.closedDay" }[next.state];
       return b2`<strong>—</strong><span>${t5(key)}</span>`;
     };
-    const figures = this.summaryError ? b2`<p class="err" data-testid="reservations-summary-error">${this.summaryError}</p>` : !this.summary ? b2`<ion-skeleton-text animated data-testid="reservations-summary-loading"></ion-skeleton-text>` : b2`<div class="figure" data-testid="reservations-covers" data-value=${String(this.summary.covers)}>
+    const figures = this.summaryError ? this.ctrl?.error ? A : b2`<p class="err" data-testid="reservations-summary-error">${this.summaryError}</p>` : !this.summary ? b2`<ion-skeleton-text animated data-testid="reservations-summary-loading"></ion-skeleton-text>` : b2`<div class="figure" data-testid="reservations-covers" data-value=${String(this.summary.covers)}>
               <strong>${this.summary.covers}</strong><span>${t5("ui.covers")}</span>
             </div>
             <div class="figure" data-testid="reservations-bookings" data-value=${String(this.summary.reservations)}>
