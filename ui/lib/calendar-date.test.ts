@@ -84,6 +84,12 @@ describe('parseCalendarDate — what is typed back to the stored ISO date', () =
     expect(parseCalendarDate('2026-04-03', 'en')).toBe('2026-04-03');
   });
 
+  it('a pasted ISO date that is not a real day is not a date either (it would reach the save)', () => {
+    for (const text of ['2026-02-31', '2026-13-01', '2026-00-10', '2027-02-29']) {
+      expect(parseCalendarDate(text, 'es'), text).toBeNull();
+    }
+  });
+
   it('a half-typed or impossible date is not a date yet', () => {
     for (const text of ['', '29', '29/09', '29/09/20', '29/09/202', '31/02/2026', '29/02/2026', '32/01/2026', '00/01/2026', '29/13/2026', 'mañana', '2909202']) {
       expect(parseCalendarDate(text, 'es'), text).toBeNull();
