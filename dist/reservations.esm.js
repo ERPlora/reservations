@@ -3509,6 +3509,11 @@ function toMicro(quantity) {
 }
 
 // @erplora/module-sdk/src/index.ts
+function dataTableShowsLoadError() {
+  const registry = globalThis.customElements;
+  const table = registry?.get("ok-data-table");
+  return !!table && "error" in table.prototype;
+}
 function isEmpty(v3) {
   return v3 === null || v3 === void 0 || v3 === "";
 }
@@ -3561,17 +3566,22 @@ var ListController = class {
   get pageCount() {
     return Math.max(1, Math.ceil(this.total / this.state.pageSize));
   }
-  /** (Re)carga la página actual desde el servidor. */
+  /**
+   * (Re)loads the current page from the server. On a phone, after «Load more» (hub#2365), the
+   * current page is everything shown so far: a refresh brings back pages 0..page in one request.
+   */
   async load() {
     const s5 = this.state;
     const mySeq = ++this.seq;
+    const paging = mobilePagingOf(this);
+    const window2 = nextListWindow(paging, s5);
     this.loading = true;
     this.error = "";
     this.onChange();
     try {
       const page = await this.client.queryPage(this.queryName, {
-        limit: s5.pageSize,
-        offset: s5.page * s5.pageSize,
+        limit: window2.limit,
+        offset: window2.offset,
         search: s5.search,
         sort: s5.sort,
         dir: s5.dir,
@@ -3579,13 +3589,19 @@ var ListController = class {
         params: s5.context
       });
       if (mySeq !== this.seq) return;
-      this.rows = page.rows ?? [];
+      const rows = page.rows ?? [];
+      this.rows = window2.append ? [...this.rows, ...rows] : rows;
       this.total = page.total ?? this.rows.length;
+      if (window2.growsTo !== void 0) {
+        s5.page = window2.growsTo;
+        keepAccumulating(paging, () => void this.load());
+      }
     } catch (e5) {
       if (mySeq !== this.seq) return;
       this.rows = [];
       this.total = 0;
-      this.error = e5 instanceof Error ? e5.message : "Error cargando datos";
+      const reason = e5 instanceof Error ? e5.message.trim() : "";
+      this.error = reason || listLoadFailedMessage(activeLocale());
     } finally {
       if (mySeq === this.seq) {
         this.loading = false;
@@ -3593,8 +3609,19 @@ var ListController = class {
       }
     }
   }
+  /**
+   * Goes to `page`. On a phone `<ok-data-table>` has no pager, only «Load more», which asks for
+   * `page + 1`: that one is ADDED under the rows already shown (hub#2365). Any other jump replaces.
+   */
   setPage(page) {
-    this.state.page = Math.max(0, page);
+    const next = Math.max(0, page);
+    const paging = mobilePagingOf(this);
+    if (next === this.state.page + 1 && phoneViewport()?.matches) {
+      paging.growNext = true;
+    } else {
+      stopAccumulating(paging);
+      this.state.page = next;
+    }
     void this.load();
   }
   setSort(sort, dir) {
@@ -3644,6 +3671,53 @@ var ListController = class {
     void this.load();
   }
 };
+var PHONE_MEDIA = "(max-width: 640px)";
+function phoneViewport() {
+  const matchMedia = globalThis.matchMedia;
+  return typeof matchMedia === "function" ? matchMedia(PHONE_MEDIA) : null;
+}
+var mobilePaging = /* @__PURE__ */ new WeakMap();
+function mobilePagingOf(ctrl) {
+  let paging = mobilePaging.get(ctrl);
+  if (!paging) {
+    paging = { accumulated: false, growNext: false };
+    mobilePaging.set(ctrl, paging);
+  }
+  return paging;
+}
+function nextListWindow(paging, s5) {
+  const size = s5.pageSize;
+  const grow = paging.growNext;
+  paging.growNext = false;
+  if (grow) {
+    const target = s5.page + 1;
+    if (paging.accumulated || s5.page === 0) {
+      return { offset: target * size, limit: size, append: true, growsTo: target };
+    }
+    return { offset: 0, limit: (target + 1) * size, append: false, growsTo: target };
+  }
+  if (s5.page === 0) stopAccumulating(paging);
+  if (paging.accumulated) return { offset: 0, limit: (s5.page + 1) * size, append: false };
+  return { offset: s5.page * size, limit: size, append: false };
+}
+function keepAccumulating(paging, reload) {
+  paging.accumulated = true;
+  if (paging.unwatch) return;
+  const viewport = phoneViewport();
+  if (!viewport?.addEventListener) return;
+  const onChange = (e5) => {
+    if (e5.matches) return;
+    stopAccumulating(paging);
+    reload();
+  };
+  viewport.addEventListener("change", onChange);
+  paging.unwatch = () => viewport.removeEventListener?.("change", onChange);
+}
+function stopAccumulating(paging) {
+  paging.accumulated = false;
+  paging.unwatch?.();
+  paging.unwatch = void 0;
+}
 function scaleFilterEdge(edge, scale) {
   const text = typeof edge === "string" ? edge.trim().replace(",", ".") : edge;
   if (text === "" || text === null || text === void 0) return "";
@@ -3658,6 +3732,11 @@ function scaleFilterValue(value, scale) {
   }
   return scaleFilterEdge(value, scale);
 }
+var LIST_LOAD_FAILED_EN = "The hub did not return the data.";
+var LIST_LOAD_FAILED_ES = "El hub no ha devuelto los datos.";
+function listLoadFailedMessage(locale) {
+  return locale.toLowerCase().startsWith("en") ? LIST_LOAD_FAILED_EN : LIST_LOAD_FAILED_ES;
+}
 function createListController(client, queryName, onChange = () => {
 }, opts = {}) {
   return new ListController(client, queryName, onChange, opts);
@@ -3671,6 +3750,13 @@ var ErploraError = class extends Error {
     this.name = "ErploraError";
   }
 };
+function activeLocale() {
+  try {
+    return localStorage.getItem("erplora.locale") || "es";
+  } catch {
+    return "es";
+  }
+}
 function majorToMinor(amount, decimals) {
   const n6 = Number(amount);
   return Number.isFinite(n6) ? Math.round(n6 * 10 ** decimals) : 0;
@@ -4499,11 +4585,11 @@ var ErpReservationsAvailability = class extends i3 {
     const t5 = (k2) => erplora().t(CATALOG, k2);
     return b2`<div>
         ${this.pageError ? b2`<p class="err" data-testid="reservations-availability-page-error">${this.pageError}</p>` : A}
-        ${this.occError ? b2`<p class="err" data-testid="reservations-availability-occupancy-error">${this.occError}</p>` : A}
-        ${this.slotsCtrl?.error ? b2`<p class="err" data-testid="reservations-availability-slots-error">${this.slotsCtrl.error}</p>` : A}
-        ${this.blockedCtrl?.error ? b2`<p class="err" data-testid="reservations-availability-blocked-error">${this.blockedCtrl.error}</p>` : A}
+        ${this.occError && !dataTableShowsLoadError() ? b2`<p class="err" data-testid="reservations-availability-occupancy-error">${this.occError}</p>` : A}
+        ${this.slotsCtrl?.error && !dataTableShowsLoadError() ? b2`<p class="err" data-testid="reservations-availability-slots-error">${this.slotsCtrl.error}</p>` : A}
+        ${this.blockedCtrl?.error && !dataTableShowsLoadError() ? b2`<p class="err" data-testid="reservations-availability-blocked-error">${this.blockedCtrl.error}</p>` : A}
         <h3>${t5("ui.sectionOccupancy")}</h3>
-        <ok-data-table id="occupancy" testid="reservations-availability-occupancy-table" .columns=${this.occColumns} .rows=${this.occRows} .rowKeyField=${"timeslot_id"} .pageSize=${50} .emptyMessage=${this.occLoading ? t5("ui.loading") : t5("ui.emptyOccupancy")}>
+        <ok-data-table id="occupancy" testid="reservations-availability-occupancy-table" .error=${this.occError} @retry=${() => this.loadOccupancy()} .columns=${this.occColumns} .rows=${this.occRows} .rowKeyField=${"timeslot_id"} .pageSize=${50} .emptyMessage=${this.occLoading ? t5("ui.loading") : t5("ui.emptyOccupancy")}>
           <!-- The date being looked at lives in THIS table's toolbar (no loose controls outside
                the tables) — touch-sized: the floor manager picks it with a thumb. -->
           <div slot="toolbar" class="occ-date">
@@ -4512,7 +4598,7 @@ var ErpReservationsAvailability = class extends i3 {
           </div>
         </ok-data-table>
         <h3>${t5("ui.sectionTimeSlots")}</h3>
-        <ok-data-table id="slots" testid="reservations-availability-slots-table" .labels=${{ add: t5("ui.btnAddSlot") }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => `${DAY_KEYS[Number(row.day_of_week)] ? t5(DAY_KEYS[Number(row.day_of_week)]) : "\u2014"} \xB7 ${fmtTime(String(row.start_time ?? ""))}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.slotsCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table id="slots" testid="reservations-availability-slots-table" .error=${this.slotsCtrl?.error ?? ""} @retry=${() => this.slotsCtrl?.load()} .labels=${{ add: t5("ui.btnAddSlot") }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => `${DAY_KEYS[Number(row.day_of_week)] ? t5(DAY_KEYS[Number(row.day_of_week)]) : "\u2014"} \xB7 ${fmtTime(String(row.start_time ?? ""))}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.slotsCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Se proyecta SIEMPRE (aunque el panel esté cerrado): si no, el «+» abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-availability-slot-form" @submit=${(e5) => this.createSlot(e5)}>
             <ion-select fill="outline" label-placement="floating" label=${t5("ui.colDay")} data-testid="reservations-availability-slot-day" .value=${this.slotDay} @ionChange=${(e5) => this.slotDay = e5.target.value}>${DAY_KEYS.map((key, i7) => b2`<ion-select-option .value=${String(i7)}>${t5(key)}</ion-select-option>`)}</ion-select>
@@ -4534,7 +4620,7 @@ var ErpReservationsAvailability = class extends i3 {
           </form>
         </ok-data-table>
         <h3>${t5("ui.sectionBlockedDates")}</h3>
-        <ok-data-table id="blocked" testid="reservations-availability-blocked-table" .labels=${{ add: t5("ui.btnAddBlockedDate") }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.date ?? row.reason ?? "\u2014")} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t5("ui.loading") : t5("ui.emptyBlockedDates")} @rowAction=${(e5) => this.onBlockedAction(e5)} @pageChange=${(e5) => this.blockedCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.blockedCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.blockedCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.blockedCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.blockedCtrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table id="blocked" testid="reservations-availability-blocked-table" .error=${this.blockedCtrl?.error ?? ""} @retry=${() => this.blockedCtrl?.load()} .labels=${{ add: t5("ui.btnAddBlockedDate") }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.date ?? row.reason ?? "\u2014")} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t5("ui.loading") : t5("ui.emptyBlockedDates")} @rowAction=${(e5) => this.onBlockedAction(e5)} @pageChange=${(e5) => this.blockedCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.blockedCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.blockedCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.blockedCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.blockedCtrl.setFilter(e5.detail.col, e5.detail.value)}>
           <form slot="create" class="form" data-testid="reservations-availability-blocked-form" @submit=${(e5) => this.createBlocked(e5)}>
             <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colDate")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.datePlaceholder")} data-testid="reservations-availability-blocked-date" .value=${this.dateDrafts.shown("blocked", this.blockDate, erplora().locale)} @ionInput=${(e5) => this.blockDate = this.dateDrafts.input("blocked", String(e5.target.value ?? ""), erplora().locale)} @ionChange=${() => this.dateDrafts.leave("blocked", erplora().locale)}></ion-input>
@@ -4957,6 +5043,10 @@ var ErpReservationsList = class extends i3 {
     this.anchorDay();
     void this.ctrl.load();
   }
+  /** Retry after a failed load: the page and the figures of the day, which failed with it. */
+  retryLoad() {
+    return Promise.all([this.ctrl.load(), this.loadSummary()]);
+  }
   /** The figures of the day: covers + bookings (`reservations.day.summary`), the room per slot
    *  (`reservations.slots.count_for`, the gate's own count) and whether the day is blocked whole. */
   async loadSummary() {
@@ -5139,6 +5229,7 @@ var ErpReservationsList = class extends i3 {
     const noResults = total === 0 && !error && this.hasQuery;
     const showLoading = loading && bare;
     const hideTable = bare;
+    const errorBlock = error && (hideTable || !dataTableShowsLoadError());
     const createButton = () => b2`
       <ion-button slot="action" size="small" data-action="create" data-testid="reservations-create" @click=${() => this.openCreate()}
         >${t5("ui.emptyCta")}</ion-button
@@ -5147,9 +5238,9 @@ var ErpReservationsList = class extends i3 {
     return b2`<div class="page">
         ${this.renderDayBar()}
         ${this.pageError ? b2`<p class="err" data-testid="reservations-page-error">${this.pageError}</p>` : A}
-        ${error ? b2`<div class="state" data-state="error" data-testid="reservations-load-error">
+        ${errorBlock ? b2`<div class="state" data-state="error" data-testid="reservations-load-error">
               <p class="err">${error}</p>
-              <ion-button size="small" data-action="retry" data-testid="reservations-retry" @click=${() => void this.ctrl.load()}>${t5("ui.btnRetry")}</ion-button>
+              <ion-button size="small" data-action="retry" data-testid="reservations-retry" @click=${() => void this.retryLoad()}>${t5("ui.btnRetry")}</ion-button>
             </div>` : A}
         ${showLoading ? b2`<div class="state" data-state="loading" data-testid="reservations-loading">
               <ion-spinner></ion-spinner>
@@ -5166,7 +5257,7 @@ var ErpReservationsList = class extends i3 {
               <p class="hint">${t5("ui.emptyHint")}</p>
               ${createButton()}
             </ok-empty-state>` : A}
-        <ok-data-table testid="reservations-table" ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .search=${this.ctrl?.state.search ?? ""} .filterValues=${this.filterMirror} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyDayTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.onSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table testid="reservations-table" ?hidden=${hideTable} .error=${error} @retry=${() => this.retryLoad()} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .search=${this.ctrl?.state.search ?? ""} .filterValues=${this.filterMirror} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyDayTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.onSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-form" @submit=${(e5) => this.createReservation(e5)}>
@@ -5423,8 +5514,8 @@ var ErpReservationsWaitlist = class extends i3 {
     const t5 = (k2) => erplora3().t(CATALOG3, k2);
     return b2`<div class="page">
         ${this.pageError ? b2`<p class="err" data-testid="reservations-waitlist-page-error">${this.pageError}</p>` : A}
-        ${this.ctrl?.error ? b2`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : A}
-        <ok-data-table testid="reservations-waitlist-table" .labels=${{ add: t5("ui.btnAddGuest") }} .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyWaitlist")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        ${this.ctrl?.error && !dataTableShowsLoadError() ? b2`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : A}
+        <ok-data-table testid="reservations-waitlist-table" .error=${this.ctrl?.error ?? ""} @retry=${() => this.ctrl?.load()} .labels=${{ add: t5("ui.btnAddGuest") }} .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyWaitlist")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta en la lista de espera: se proyecta SIEMPRE (aunque el panel esté cerrado); si se
                renderizara solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-waitlist-form" @submit=${(e5) => this.createEntry(e5)}>
