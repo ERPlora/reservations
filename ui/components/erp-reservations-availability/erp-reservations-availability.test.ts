@@ -286,4 +286,9 @@ describe('occupancy opens on the restaurant today, not the device one (reservati
     // 00:30 in Madrid on the 26th = 23:30 on the 25th in Canarias.
     expect(await occupancyDateAt('2026-09-25T22:30:00Z', 'Atlantic/Canary', 'Europe/Madrid')).toBe('2026-09-26');
   });
+
+  it('the zone is the one the hub publishes, whatever it is: a Canarias restaurant on a Madrid device', async () => {
+    // 23:30 in Canarias on the 25th = 00:30 on the 26th in Madrid.
+    expect(await occupancyDateAt('2026-09-25T22:30:00Z', 'Europe/Madrid', 'Atlantic/Canary')).toBe('2026-09-25');
+  });
 });
