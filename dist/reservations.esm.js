@@ -3692,6 +3692,50 @@ function ionTone(_kind, tone) {
   ].join("; ");
 }
 
+// ui/lib/business-time.ts
+var DAY_MS = 864e5;
+var pad = (n6) => String(n6).padStart(2, "0");
+var formatters = /* @__PURE__ */ new Map();
+function wallParts(now, timezone) {
+  let f3 = formatters.get(timezone);
+  if (!f3) {
+    f3 = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+    formatters.set(timezone, f3);
+  }
+  const got = {};
+  for (const p4 of f3.formatToParts(now)) {
+    if (p4.type !== "literal") got[p4.type] = Number(p4.value);
+  }
+  return got;
+}
+function businessTimezone() {
+  const tz = globalThis.erplora?.timezone;
+  return typeof tz === "string" && tz.trim() ? tz.trim() : "UTC";
+}
+function todayISO(timezone = businessTimezone(), now = /* @__PURE__ */ new Date()) {
+  const p4 = wallParts(now, timezone);
+  return `${p4.year}-${pad(p4.month)}-${pad(p4.day)}`;
+}
+function nowWallTime(timezone = businessTimezone(), now = /* @__PURE__ */ new Date()) {
+  const p4 = wallParts(now, timezone);
+  return `${pad(p4.hour)}:${pad(p4.minute)}:${pad(p4.second)}`;
+}
+function addDaysISO(day, delta) {
+  const m4 = /^(\d{4})-(\d{2})-(\d{2})$/.exec((day ?? "").trim());
+  if (!m4) return day;
+  const d3 = new Date(Date.UTC(Number(m4[1]), Number(m4[2]) - 1, Number(m4[3])) + delta * DAY_MS);
+  return `${d3.getUTCFullYear()}-${pad(d3.getUTCMonth() + 1)}-${pad(d3.getUTCDate())}`;
+}
+
 // locales/es.json
 var es_default = {
   name: "Reservas",
@@ -3961,11 +4005,6 @@ function erplora() {
   if (!c5) throw new Error("erplora SDK no inicializado por el shell");
   return c5;
 }
-function todayLocal() {
-  const d3 = /* @__PURE__ */ new Date();
-  const pad2 = (n6) => String(n6).padStart(2, "0");
-  return `${d3.getFullYear()}-${pad2(d3.getMonth() + 1)}-${pad2(d3.getDate())}`;
-}
 function hhmm(time) {
   return /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : time;
 }
@@ -3983,7 +4022,7 @@ var ErpReservationsAvailability = class extends i3 {
     this.slotMax = "10";
     this.blockDate = "";
     this.blockReason = "";
-    this.occDate = todayLocal();
+    this.occDate = todayISO();
     this.occRows = [];
     this.occLoading = false;
     this.occError = "";
@@ -4425,50 +4464,6 @@ __decorateClass3([
   n4()
 ], OkEmptyState.prototype, "message");
 define("ok-empty-state", OkEmptyState);
-
-// ui/lib/business-time.ts
-var DAY_MS = 864e5;
-var pad = (n6) => String(n6).padStart(2, "0");
-var formatters = /* @__PURE__ */ new Map();
-function wallParts(now, timezone) {
-  let f3 = formatters.get(timezone);
-  if (!f3) {
-    f3 = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      hourCycle: "h23",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    });
-    formatters.set(timezone, f3);
-  }
-  const got = {};
-  for (const p4 of f3.formatToParts(now)) {
-    if (p4.type !== "literal") got[p4.type] = Number(p4.value);
-  }
-  return got;
-}
-function businessTimezone() {
-  const tz = globalThis.erplora?.timezone;
-  return typeof tz === "string" && tz.trim() ? tz.trim() : "UTC";
-}
-function todayISO(timezone = businessTimezone(), now = /* @__PURE__ */ new Date()) {
-  const p4 = wallParts(now, timezone);
-  return `${p4.year}-${pad(p4.month)}-${pad(p4.day)}`;
-}
-function nowWallTime(timezone = businessTimezone(), now = /* @__PURE__ */ new Date()) {
-  const p4 = wallParts(now, timezone);
-  return `${pad(p4.hour)}:${pad(p4.minute)}:${pad(p4.second)}`;
-}
-function addDaysISO(day, delta) {
-  const m4 = /^(\d{4})-(\d{2})-(\d{2})$/.exec((day ?? "").trim());
-  if (!m4) return day;
-  const d3 = new Date(Date.UTC(Number(m4[1]), Number(m4[2]) - 1, Number(m4[3])) + delta * DAY_MS);
-  return `${d3.getUTCFullYear()}-${pad(d3.getUTCMonth() + 1)}-${pad(d3.getUTCDate())}`;
-}
 
 // ui/components/erp-reservations-list/erp-reservations-list.ts
 var CATALOG2 = { es: es_default, en: en_default };
