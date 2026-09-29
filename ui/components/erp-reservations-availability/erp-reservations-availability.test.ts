@@ -16,7 +16,7 @@
 // `filters.is_full_day = { op: eq }` en sus bloques `list` del module.json.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ionTone } from '../../lib/ion-tone';
 
 const comandos: { name: string; payload: Record<string, unknown> }[] = [];
@@ -29,11 +29,10 @@ const OCUPACION = [
   { timeslot_id: 's-dinner', start_time: '20:00:00', end_time: '23:30:00', max_reservations: 3, reserved: 1, available: 2 },
 ];
 
-/** La fecha local de HOY en YYYY-MM-DD — el default del selector de la ocupación. */
-function hoyLocal(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** Today in UTC as YYYY-MM-DD: a hub that publishes no zone degrades to UTC, like the runtime
+ * (`business-time.ts`), never to the device's zone (reservations#80). */
+function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 beforeEach(() => {
@@ -183,7 +182,7 @@ describe('ocupación: ¿cuánto queda esta noche? (reservations#38)', () => {
     expect(primera?.id, 'la ocupación va delante de la configuración: es la pregunta de cada noche').toBe('occupancy');
     const q = consultas.find((c) => c.name === 'reservations.slots.count_for');
     expect(q, 'nadie llamó a reservations.slots.count_for al montar').toBeTruthy();
-    expect(q!.params?.date, 'la fecha por defecto es HOY (local)').toBe(hoyLocal());
+    expect(q!.params?.date, 'la fecha por defecto es HOY (del negocio; sin zona, UTC)').toBe(todayUtc());
   });
 
   it('una fila por franja: rango legible, reservadas, máximo y disponibles', async () => {
@@ -251,5 +250,46 @@ describe('ocupación: ¿cuánto queda esta noche? (reservations#38)', () => {
     const input = el.shadowRoot.querySelector('ok-data-table#occupancy [slot="toolbar"] ion-input[data-testid="reservations-availability-occupancy-date"]');
     expect(input, 'el selector de fecha vive en la toolbar de la tabla de ocupación').toBeTruthy();
     expect((input as HTMLElement).closest('ok-data-table')?.id).toBe('occupancy');
+  });
+});
+
+// reservations#80: «tonight» is the RESTAURANT's tonight. The occupancy opened on the DEVICE's
+// today (`new Date().getDate()`), so a tablet left on another zone showed another day's room.
+// The authority is the core's `erplora.timezone` (hub#731/hub#1022), the same `todayISO()` the
+// book already opens on (reservations#45). The device zone is forced to differ from the business.
+describe('occupancy opens on the restaurant today, not the device one (reservations#80)', () => {
+  const previousTZ = process.env.TZ;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    process.env.TZ = previousTZ;
+  });
+
+  /** The day the occupancy asks about (ISO) and the one its date field shows (hub locale `es`,
+   *  day/month/year since reservations#78). */
+  async function occupancyDateAt(now: string, deviceZone: string, businessZone: string): Promise<{ asked: unknown; shown: unknown }> {
+    process.env.TZ = deviceZone;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(now));
+    (globalThis as { erplora: Record<string, unknown> }).erplora.timezone = businessZone;
+    const el = await montar();
+    const q = consultas.find((c) => c.name === 'reservations.slots.count_for');
+    const input = el.shadowRoot.querySelector('[data-testid="reservations-availability-occupancy-date"]') as unknown as { value: string } | null;
+    return { asked: q?.params?.date, shown: input?.value };
+  }
+
+  it('a device already on tomorrow (Auckland) still asks about today in Madrid', async () => {
+    // 18:10 in Madrid on the 25th = 05:10 on the 26th in Auckland.
+    expect(await occupancyDateAt('2026-09-25T16:10:00Z', 'Pacific/Auckland', 'Europe/Madrid')).toEqual({ asked: '2026-09-25', shown: '25/09/2026' });
+  });
+
+  it('a device still on yesterday (Canarias) past midnight in Madrid asks about the new day', async () => {
+    // 00:30 in Madrid on the 26th = 23:30 on the 25th in Canarias.
+    expect(await occupancyDateAt('2026-09-25T22:30:00Z', 'Atlantic/Canary', 'Europe/Madrid')).toEqual({ asked: '2026-09-26', shown: '26/09/2026' });
+  });
+
+  it('the zone is the one the hub publishes, whatever it is: a Canarias restaurant on a Madrid device', async () => {
+    // 23:30 in Canarias on the 25th = 00:30 on the 26th in Madrid.
+    expect(await occupancyDateAt('2026-09-25T22:30:00Z', 'Europe/Madrid', 'Atlantic/Canary')).toEqual({ asked: '2026-09-25', shown: '25/09/2026' });
   });
 });
