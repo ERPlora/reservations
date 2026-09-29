@@ -106,7 +106,9 @@
     "nextDay": "Día siguiente",
     "today": "Hoy",
     "errDaySummary": "No se han podido cargar las cifras del día",
-    "emptyDayTitle": "No hay reservas este día"
+    "emptyDayTitle": "No hay reservas este día",
+    "timePlaceholder": "hh:mm",
+    "valTimeUnreadable": "Hay una hora que no se entiende — escríbela como hh:mm (p. ej. 19:30)"
   },
   "errors": {
     "reservations.phone_required": "Este negocio exige un teléfono en toda reserva.",
