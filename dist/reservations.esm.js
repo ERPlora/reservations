@@ -3827,6 +3827,109 @@ var WallTimeDrafts = class {
   }
 };
 
+// ui/lib/calendar-date.ts
+function pad22(n6) {
+  return String(n6).padStart(2, "0");
+}
+function isLeapYear(year) {
+  return year % 4 === 0 && year % 100 !== 0 || year % 400 === 0;
+}
+function toIsoDate(year, month, day) {
+  if (month < 1 || month > 12 || day < 1) return null;
+  const days = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (day > days[month - 1]) return null;
+  return `${String(year).padStart(4, "0")}-${pad22(month)}-${pad22(day)}`;
+}
+function isDayFirst(locale) {
+  try {
+    const parts = new Intl.DateTimeFormat(locale || void 0, { year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(
+      new Date(Date.UTC(2026, 8, 26))
+    );
+    const month = parts.findIndex((p4) => p4.type === "month");
+    const day = parts.findIndex((p4) => p4.type === "day");
+    return month === -1 || day === -1 || day < month;
+  } catch {
+    return true;
+  }
+}
+var STORED2 = /^(\d{4})-(\d{2})-(\d{2})$/;
+function formatCalendarDate(iso, locale) {
+  const match = iso.match(STORED2);
+  if (!match) return "";
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  if (!toIsoDate(year, month, day)) return "";
+  try {
+    const parts = new Intl.DateTimeFormat(locale || void 0, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "UTC"
+    }).formatToParts(new Date(Date.UTC(year, month - 1, day)));
+    const ordered = parts.filter((p4) => p4.type === "day" || p4.type === "month" || p4.type === "year").map((p4) => p4.value);
+    if (ordered.length === 3) return ordered.join("/");
+  } catch {
+  }
+  return `${pad22(day)}/${pad22(month)}/${String(year).padStart(4, "0")}`;
+}
+var TYPED2 = /^(?:(\d{1,2})\s*[/.\-\s]\s*(\d{1,2})\s*[/.\-\s]\s*(\d{4})|(\d{2})(\d{2})(\d{4}))$/;
+function parseCalendarDate(text, locale) {
+  const trimmed = text.trim();
+  const iso = trimmed.match(STORED2);
+  if (iso) return toIsoDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  const match = trimmed.match(TYPED2);
+  if (!match) return null;
+  const first = Number(match[1] ?? match[4]);
+  const second = Number(match[2] ?? match[5]);
+  const year = Number(match[3] ?? match[6]);
+  return isDayFirst(locale) ? toIsoDate(year, second, first) : toIsoDate(year, first, second);
+}
+var CalendarDateDrafts = class {
+  constructor(repaint) {
+    this.repaint = repaint;
+    this.texts = {};
+  }
+  /** What a date field shows: the raw text while it is being typed (a half-typed «29/09» stays on
+   *  screen), the stored date in the hub's order otherwise. */
+  shown(key, stored, locale) {
+    return this.texts[key] ?? formatCalendarDate(stored, locale);
+  }
+  /** `ionInput`: keeps the text as the draft and returns the stored date that follows it exactly —
+   *  '' while it is not (yet) a date, so a half-typed date never saves the last valid one. */
+  input(key, text, locale) {
+    this.texts = { ...this.texts, [key]: text };
+    this.repaint();
+    return parseCalendarDate(text, locale) ?? "";
+  }
+  /** Blur/Enter (`ionChange`): forgets a readable (or emptied) draft so the field repaints the
+   *  stored date in the hub's order. An unreadable text stays, so the save can say why it refuses. */
+  leave(key, locale) {
+    const text = this.texts[key];
+    if (text === void 0 || text.trim() && !parseCalendarDate(text, locale)) return;
+    this.forget(key);
+  }
+  /** True when any of the given fields holds typed text that is not a date: its stored date is ''
+   *  and, without this, the form would read it as «not filled in» instead of «can't be read». */
+  unreadable(locale, ...keys) {
+    return keys.some((key) => {
+      const text = this.texts[key];
+      return text !== void 0 && text.trim() !== "" && parseCalendarDate(text, locale) === null;
+    });
+  }
+  /** Forgets one draft, whatever it holds — a field with no save (the day picker) goes back to the
+   *  day it is on, and a date set from elsewhere (the day arrows) is painted at once. */
+  forget(key) {
+    if (!(key in this.texts)) return;
+    const { [key]: _gone, ...rest } = this.texts;
+    this.texts = rest;
+    this.repaint();
+  }
+  /** Forgets every draft — after a save, so the next entry starts with empty fields. */
+  clear() {
+    this.texts = {};
+    this.repaint();
+  }
+};
+
 // locales/es.json
 var es_default = {
   name: "Reservas",
@@ -3938,6 +4041,8 @@ var es_default = {
     errDaySummary: "No se han podido cargar las cifras del d\xEDa",
     emptyDayTitle: "No hay reservas este d\xEDa",
     timePlaceholder: "hh:mm",
+    datePlaceholder: "dd/mm/aaaa",
+    valDateUnreadable: "Hay una fecha que no se entiende \u2014 escr\xEDbela como dd/mm/aaaa (p. ej. 29/09/2026)",
     valTimeUnreadable: "Hay una hora que no se entiende \u2014 escr\xEDbela como hh:mm (p. ej. 19:30)"
   },
   errors: {
@@ -4066,6 +4171,8 @@ var en_default = {
     errDaySummary: "Could not load the figures of the day",
     emptyDayTitle: "No reservations this day",
     timePlaceholder: "hh:mm",
+    datePlaceholder: "mm/dd/yyyy",
+    valDateUnreadable: "A date can't be read \u2014 write it as mm/dd/yyyy (e.g. 09/29/2026)",
     valTimeUnreadable: "A time can't be read \u2014 write it as hh:mm (e.g. 19:30)"
   },
   errors: {
@@ -4115,6 +4222,8 @@ var ErpReservationsAvailability = class extends i3 {
     this.slotStart = "";
     /** reservations#77 — the text typed into the start/end fields, kept apart from the stored hours. */
     this.timeDrafts = new WallTimeDrafts(() => this.requestUpdate());
+    /** reservations#78 — the typed text of the occupancy date and of a new blocked date. */
+    this.dateDrafts = new CalendarDateDrafts(() => this.requestUpdate());
     this.slotEnd = "";
     this.slotMax = "10";
     this.blockDate = "";
@@ -4230,6 +4339,14 @@ var ErpReservationsAvailability = class extends i3 {
       }
     ];
   }
+  /** reservations#78 — the occupancy follows the date field only once it reads a whole date: a
+   *  half-typed «29/09» keeps the day on screen instead of querying an empty one. */
+  onOccupancyDateInput(text) {
+    const date = this.dateDrafts.input("occupancy", text, erplora().locale);
+    if (!date || date === this.occDate) return;
+    this.occDate = date;
+    void this.loadOccupancy();
+  }
   /** The occupancy of the chosen date, straight from the gate's read side (#4). Plain counts —
    *  thousands separators are the hub's CLDR helper's business (hub#1090), not this module's. */
   async loadOccupancy() {
@@ -4318,6 +4435,10 @@ var ErpReservationsAvailability = class extends i3 {
   }
   async createBlocked(ev) {
     ev.preventDefault();
+    if (this.dateDrafts.unreadable(erplora().locale, "blocked")) {
+      this.blockedFormError = erplora().t(CATALOG, "ui.valDateUnreadable");
+      return;
+    }
     if (!this.blockDate) return;
     this.saving = true;
     this.blockedFormError = "";
@@ -4329,6 +4450,7 @@ var ErpReservationsAvailability = class extends i3 {
         is_full_day: true
       });
       this.blockDate = "";
+      this.dateDrafts.forget("blocked");
       this.blockReason = "";
       this.dataTable("blocked")?.close();
       await this.blockedCtrl.load();
@@ -4385,13 +4507,8 @@ var ErpReservationsAvailability = class extends i3 {
           <!-- The date being looked at lives in THIS table's toolbar (no loose controls outside
                the tables) — touch-sized: the floor manager picks it with a thumb. -->
           <div slot="toolbar" class="occ-date">
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-availability-occupancy-date" .value=${this.occDate} @ionInput=${(e5) => {
-      const v3 = e5.target.value;
-      if (v3) {
-        this.occDate = v3;
-        void this.loadOccupancy();
-      }
-    }}></ion-input>
+            <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.datePlaceholder")} data-testid="reservations-availability-occupancy-date" .value=${this.dateDrafts.shown("occupancy", this.occDate, erplora().locale)} @ionInput=${(e5) => this.onOccupancyDateInput(String(e5.target.value ?? ""))} @ionChange=${() => this.dateDrafts.forget("occupancy")}></ion-input>
           </div>
         </ok-data-table>
         <h3>${t5("ui.sectionTimeSlots")}</h3>
@@ -4419,10 +4536,11 @@ var ErpReservationsAvailability = class extends i3 {
         <h3>${t5("ui.sectionBlockedDates")}</h3>
         <ok-data-table id="blocked" testid="reservations-availability-blocked-table" .labels=${{ add: t5("ui.btnAddBlockedDate") }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.date ?? row.reason ?? "\u2014")} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t5("ui.loading") : t5("ui.emptyBlockedDates")} @rowAction=${(e5) => this.onBlockedAction(e5)} @pageChange=${(e5) => this.blockedCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.blockedCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.blockedCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.blockedCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.blockedCtrl.setFilter(e5.detail.col, e5.detail.value)}>
           <form slot="create" class="form" data-testid="reservations-availability-blocked-form" @submit=${(e5) => this.createBlocked(e5)}>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-availability-blocked-date" .value=${this.blockDate} @ionInput=${(e5) => this.blockDate = e5.target.value}></ion-input>
+            <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colDate")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.datePlaceholder")} data-testid="reservations-availability-blocked-date" .value=${this.dateDrafts.shown("blocked", this.blockDate, erplora().locale)} @ionInput=${(e5) => this.blockDate = this.dateDrafts.input("blocked", String(e5.target.value ?? ""), erplora().locale)} @ionChange=${() => this.dateDrafts.leave("blocked", erplora().locale)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phReason")} data-testid="reservations-availability-blocked-reason" .value=${this.blockReason} @ionInput=${(e5) => this.blockReason = e5.target.value}></ion-input>
             ${this.blockedFormError ? b2`<p class="err" data-testid="reservations-availability-blocked-form-error">${this.blockedFormError}</p>` : A}
-            <ion-button type="submit" data-testid="reservations-availability-blocked-submit" ?disabled=${this.saving || !this.blockDate}>${t5("ui.btnBlockDate")}</ion-button>
+            <ion-button type="submit" data-testid="reservations-availability-blocked-submit" ?disabled=${this.saving || !this.blockDate && !this.dateDrafts.unreadable(erplora().locale, "blocked")}>${t5("ui.btnBlockDate")}</ion-button>
           </form>
         </ok-data-table>
       </div>`;
@@ -4658,6 +4776,8 @@ var ErpReservationsList = class extends i3 {
     this.newTime = "";
     /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
     this.timeDrafts = new WallTimeDrafts(() => this.requestUpdate());
+    /** reservations#78 — the typed text of the date of a new reservation and of the day picker. */
+    this.dateDrafts = new CalendarDateDrafts(() => this.requestUpdate());
     this.newParty = "2";
     this.filterMirror = {};
     // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
@@ -4826,6 +4946,12 @@ var ErpReservationsList = class extends i3 {
     void this.ctrl.load();
     void this.loadSummary();
   }
+  /** reservations#78 — a day chosen by the arrows or «Today»: whatever was being typed in the day
+   *  picker goes, so the field paints the day the book moved to. */
+  goToDay(day) {
+    this.dateDrafts.forget("day");
+    this.setDay(day);
+  }
   onSearch(search) {
     this.ctrl.state.search = search;
     this.anchorDay();
@@ -4880,6 +5006,10 @@ var ErpReservationsList = class extends i3 {
   }
   async createReservation(ev) {
     ev.preventDefault();
+    if (this.dateDrafts.unreadable(erplora2().locale, "date")) {
+      this.formError = erplora2().t(CATALOG2, "ui.valDateUnreadable");
+      return;
+    }
     if (this.timeDrafts.unreadable("time")) {
       this.formError = erplora2().t(CATALOG2, "ui.valTimeUnreadable");
       return;
@@ -4901,6 +5031,7 @@ var ErpReservationsList = class extends i3 {
       this.newDate = "";
       this.newTime = "";
       this.timeDrafts.clear();
+      this.dateDrafts.forget("date");
       this.newParty = "2";
       this.dataTable()?.close();
       this.creating = false;
@@ -4966,14 +5097,15 @@ var ErpReservationsList = class extends i3 {
             </div>`;
     return b2`<div class="daybar" data-testid="reservations-day" data-day=${this.day}>
       <div class="daynav">
-        <ion-button class="step" fill="clear" data-testid="reservations-prev-day" aria-label=${t5("ui.prevDay")} @click=${() => this.setDay(addDaysISO(this.day, -1))}>
+        <ion-button class="step" fill="clear" data-testid="reservations-prev-day" aria-label=${t5("ui.prevDay")} @click=${() => this.goToDay(addDaysISO(this.day, -1))}>
           <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
         </ion-button>
-        <ion-input fill="outline" mode="md" type="date" data-testid="reservations-day-input" aria-label=${t5("ui.colDate")} .value=${this.day} @ionInput=${(e5) => this.setDay(e5.target.value)}></ion-input>
-        <ion-button class="step" fill="clear" data-testid="reservations-next-day" aria-label=${t5("ui.nextDay")} @click=${() => this.setDay(addDaysISO(this.day, 1))}>
+        <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+        <ion-input fill="outline" mode="md" type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.datePlaceholder")} data-testid="reservations-day-input" aria-label=${t5("ui.colDate")} .value=${this.dateDrafts.shown("day", this.day, erplora2().locale)} @ionInput=${(e5) => this.setDay(this.dateDrafts.input("day", String(e5.target.value ?? ""), erplora2().locale))} @ionChange=${() => this.dateDrafts.forget("day")}></ion-input>
+        <ion-button class="step" fill="clear" data-testid="reservations-next-day" aria-label=${t5("ui.nextDay")} @click=${() => this.goToDay(addDaysISO(this.day, 1))}>
           <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
         </ion-button>
-        ${isToday ? A : b2`<ion-button size="small" fill="clear" data-testid="reservations-today" @click=${() => this.setDay(today)}>${t5("ui.today")}</ion-button>`}
+        ${isToday ? A : b2`<ion-button size="small" fill="clear" data-testid="reservations-today" @click=${() => this.goToDay(today)}>${t5("ui.today")}</ion-button>`}
       </div>
       <p class="dayname">${fmtLongDate(this.day)}</p>
       <div class="figures">${figures}</div>
@@ -5040,7 +5172,8 @@ var ErpReservationsList = class extends i3 {
           <form slot="create" class="form" data-testid="reservations-form" @submit=${(e5) => this.createReservation(e5)}>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phGuestName")} data-testid="reservations-guest-name" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phGuestPhone")} data-testid="reservations-guest-phone" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
-            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
+            <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colDate")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.datePlaceholder")} data-testid="reservations-date" .value=${this.dateDrafts.shown("date", this.newDate, erplora2().locale)} @ionInput=${(e5) => this.newDate = this.dateDrafts.input("date", String(e5.target.value ?? ""), erplora2().locale)} @ionChange=${() => this.dateDrafts.leave("date", erplora2().locale)}></ion-input>
             <!-- reservations#77: a TEXT time field painted in the hub's clock, never type="time": the
                  browser paints a native time field with its own (operating system) clock. -->
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colTime")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.timePlaceholder")} data-testid="reservations-time" .value=${this.timeDrafts.shown("time", this.newTime, erplora2().locale)} @ionInput=${(e5) => this.newTime = this.timeDrafts.input("time", String(e5.target.value ?? ""))} @ionChange=${() => this.timeDrafts.leave("time")} @paste=${(e5) => {
@@ -5051,7 +5184,7 @@ var ErpReservationsList = class extends i3 {
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.formError ? b2`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : A}
-            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime && !this.timeDrafts.unreadable("time")}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
+            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate && !this.dateDrafts.unreadable(erplora2().locale, "date") || !this.newTime && !this.timeDrafts.unreadable("time")}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
           </form>
         </ok-data-table>
         ${noResults ? b2`<div class="noresults" data-empty="no-results" data-testid="reservations-no-results">
@@ -5138,6 +5271,8 @@ var ErpReservationsWaitlist = class extends i3 {
     this.newTime = "";
     /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
     this.timeDrafts = new WallTimeDrafts(() => this.requestUpdate());
+    /** reservations#78 — the typed text of the date of a new waitlist entry. */
+    this.dateDrafts = new CalendarDateDrafts(() => this.requestUpdate());
     this.newParty = "2";
     // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
     // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
@@ -5222,6 +5357,10 @@ var ErpReservationsWaitlist = class extends i3 {
   }
   async createEntry(ev) {
     ev.preventDefault();
+    if (this.dateDrafts.unreadable(erplora3().locale, "date")) {
+      this.formError = erplora3().t(CATALOG3, "ui.valDateUnreadable");
+      return;
+    }
     if (this.timeDrafts.unreadable("time")) {
       this.formError = erplora3().t(CATALOG3, "ui.valTimeUnreadable");
       return;
@@ -5243,6 +5382,7 @@ var ErpReservationsWaitlist = class extends i3 {
       this.newDate = "";
       this.newTime = "";
       this.timeDrafts.clear();
+      this.dateDrafts.clear();
       this.newParty = "2";
       this.dataTable()?.close();
       await this.ctrl.load();
@@ -5290,7 +5430,8 @@ var ErpReservationsWaitlist = class extends i3 {
           <form slot="create" class="form" data-testid="reservations-waitlist-form" @submit=${(e5) => this.createEntry(e5)}>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestName")} data-testid="reservations-waitlist-guest-name" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestPhone")} data-testid="reservations-waitlist-guest-phone" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-waitlist-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
+            <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colDate")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.datePlaceholder")} data-testid="reservations-waitlist-date" .value=${this.dateDrafts.shown("date", this.newDate, erplora3().locale)} @ionInput=${(e5) => this.newDate = this.dateDrafts.input("date", String(e5.target.value ?? ""), erplora3().locale)} @ionChange=${() => this.dateDrafts.leave("date", erplora3().locale)}></ion-input>
             <!-- reservations#77: a TEXT time field painted in the hub's clock, never type="time": the
                  browser paints a native time field with its own (operating system) clock. -->
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colTime")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.timePlaceholder")} data-testid="reservations-waitlist-time" .value=${this.timeDrafts.shown("time", this.newTime, erplora3().locale)} @ionInput=${(e5) => this.newTime = this.timeDrafts.input("time", String(e5.target.value ?? ""))} @ionChange=${() => this.timeDrafts.leave("time")} @paste=${(e5) => {
@@ -5301,7 +5442,7 @@ var ErpReservationsWaitlist = class extends i3 {
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.formError ? b2`<p class="err" data-testid="reservations-waitlist-form-error">${this.formError}</p>` : A}
-            <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime && !this.timeDrafts.unreadable("time")}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAddToWaitlist")}</ion-button>
+            <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate && !this.dateDrafts.unreadable(erplora3().locale, "date") || !this.newTime && !this.timeDrafts.unreadable("time")}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAddToWaitlist")}</ion-button>
           </form>
         </ok-data-table>
       </div>`;

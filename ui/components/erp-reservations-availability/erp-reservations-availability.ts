@@ -9,6 +9,7 @@ import type { ListController, ListClient, ListParams, ListPage } from '@erplora/
 import { ionTone } from '../../lib/ion-tone';
 import { todayISO } from '../../lib/business-time';
 import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
+import { CalendarDateDrafts } from '../../lib/calendar-date';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -111,6 +112,8 @@ export class ErpReservationsAvailability extends LitElement {
 
   /** reservations#77 — the text typed into the start/end fields, kept apart from the stored hours. */
   private timeDrafts = new WallTimeDrafts<'start' | 'end'>(() => this.requestUpdate());
+  /** reservations#78 — the typed text of the occupancy date and of a new blocked date. */
+  private dateDrafts = new CalendarDateDrafts<'occupancy' | 'blocked'>(() => this.requestUpdate());
 
   @state() slotEnd = '';
 
@@ -235,6 +238,15 @@ export class ErpReservationsAvailability extends LitElement {
     ];
   }
 
+  /** reservations#78 — the occupancy follows the date field only once it reads a whole date: a
+   *  half-typed «29/09» keeps the day on screen instead of querying an empty one. */
+  private onOccupancyDateInput(text: string): void {
+    const date = this.dateDrafts.input('occupancy', text, erplora().locale);
+    if (!date || date === this.occDate) return;
+    this.occDate = date;
+    void this.loadOccupancy();
+  }
+
   /** The occupancy of the chosen date, straight from the gate's read side (#4). Plain counts —
    *  thousands separators are the hub's CLDR helper's business (hub#1090), not this module's. */
   async loadOccupancy(): Promise<void> {
@@ -336,6 +348,10 @@ export class ErpReservationsAvailability extends LitElement {
 
   private async createBlocked(ev: Event) {
     ev.preventDefault();
+    if (this.dateDrafts.unreadable(erplora().locale, 'blocked')) {
+      this.blockedFormError = erplora().t(CATALOG, 'ui.valDateUnreadable');
+      return;
+    }
     if (!this.blockDate) return;
     this.saving = true;
     this.blockedFormError = '';
@@ -347,6 +363,7 @@ export class ErpReservationsAvailability extends LitElement {
         is_full_day: true,
       });
       this.blockDate = '';
+      this.dateDrafts.forget('blocked');
       this.blockReason = '';
       this.dataTable('blocked')?.close(); // si no, el panel se queda abierto tapando la fecha creada
       await this.blockedCtrl.load();
@@ -412,7 +429,8 @@ export class ErpReservationsAvailability extends LitElement {
           <!-- The date being looked at lives in THIS table's toolbar (no loose controls outside
                the tables) — touch-sized: the floor manager picks it with a thumb. -->
           <div slot="toolbar" class="occ-date">
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-availability-occupancy-date" .value=${this.occDate} @ionInput=${(e: CustomEvent) => { const v = (e.target as HTMLInputElement).value; if (v) { this.occDate = v; void this.loadOccupancy(); } }}></ion-input>
+            <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+            <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colDate')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.datePlaceholder')} data-testid="reservations-availability-occupancy-date" .value=${this.dateDrafts.shown('occupancy', this.occDate, erplora().locale)} @ionInput=${(e: CustomEvent) => this.onOccupancyDateInput(String((e.target as HTMLInputElement).value ?? ''))} @ionChange=${() => this.dateDrafts.forget('occupancy')}></ion-input>
           </div>
         </ok-data-table>
         <h3>${t('ui.sectionTimeSlots')}</h3>
@@ -434,10 +452,11 @@ export class ErpReservationsAvailability extends LitElement {
         <h3>${t('ui.sectionBlockedDates')}</h3>
         <ok-data-table id="blocked" testid="reservations-availability-blocked-table" .labels=${{ add: t('ui.btnAddBlockedDate') }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.date ?? row.reason ?? '—')} .columns=${this.blockColumns} .rows=${this.blockedCtrl?.rows ?? []} .total=${this.blockedCtrl?.total ?? 0} .page=${this.blockedCtrl?.state.page ?? 0} .pageSize=${this.blockedCtrl?.state.pageSize ?? 50} .sort=${this.blockedCtrl?.state.sort} .sortDir=${this.blockedCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.blockedCtrl?.loading ? t('ui.loading') : t('ui.emptyBlockedDates')} @rowAction=${(e: CustomEvent) => this.onBlockedAction(e)} @pageChange=${(e: CustomEvent<number>) => this.blockedCtrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.blockedCtrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.blockedCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.blockedCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.blockedCtrl.setFilter(e.detail.col, e.detail.value)}>
           <form slot="create" class="form" data-testid="reservations-availability-blocked-form" @submit=${(e: Event) => this.createBlocked(e)}>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-availability-blocked-date" .value=${this.blockDate} @ionInput=${(e: any) => (this.blockDate = e.target.value)}></ion-input>
+            <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colDate')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.datePlaceholder')} data-testid="reservations-availability-blocked-date" .value=${this.dateDrafts.shown('blocked', this.blockDate, erplora().locale)} @ionInput=${(e: any) => (this.blockDate = this.dateDrafts.input('blocked', String(e.target.value ?? ''), erplora().locale))} @ionChange=${() => this.dateDrafts.leave('blocked', erplora().locale)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.phReason')} data-testid="reservations-availability-blocked-reason" .value=${this.blockReason} @ionInput=${(e: any) => (this.blockReason = e.target.value)}></ion-input>
             ${this.blockedFormError ? html`<p class="err" data-testid="reservations-availability-blocked-form-error">${this.blockedFormError}</p>` : nothing}
-            <ion-button type="submit" data-testid="reservations-availability-blocked-submit" ?disabled=${this.saving || !this.blockDate}>${t('ui.btnBlockDate')}</ion-button>
+            <ion-button type="submit" data-testid="reservations-availability-blocked-submit" ?disabled=${this.saving || (!this.blockDate && !this.dateDrafts.unreadable(erplora().locale, 'blocked'))}>${t('ui.btnBlockDate')}</ion-button>
           </form>
         </ok-data-table>
       </div>`;

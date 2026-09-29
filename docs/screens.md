@@ -21,7 +21,9 @@ A bar above the list answers the three questions of the shift for the day on scr
   `reservations.blocked_dates.on_date`).
 - **Day stepper**: previous day · date · next day, and **Today** when the book is on another day.
   The list and the figures follow the day, and refresh live when a booking is created, edited,
-  moved through its states or deleted.
+  moved through its states or deleted. The date can be typed too, in the hub's order (see *Typing
+  a date* below): the book moves once the date is complete, and leaving the field with something
+  that is not a date puts back the day the book is on.
 
 **Searching** a guest name or phone looks through the **whole book**, not only the day on screen:
 the guest who booked next Friday is found from today. The matches come in calendar order — the
@@ -34,6 +36,13 @@ timestamps of each transition.
 ### Take a reservation
 
 1. Enter the **guest name**, the **date**, the **time** and the **party size**.
+
+   **Typing a date.** Every date of the module — this one, the day stepper, the waitlist date, the
+   occupancy date and a blocked date — is shown and typed in the order of the hub's language,
+   whatever the browser's: day first in Spanish (`29/09/2026`), month first in English
+   (`09/29/2026`). Digits only (`29092026`, handy on a phone keypad, which has no slash), dots,
+   dashes and an ISO date (`2026-09-29`) are read too; leaving the field repaints it. A date that is
+   not complete or does not exist stays on screen and the save refuses it, saying so.
 2. Optionally attach a customer record, a phone, an email, a table, a duration and notes.
 3. Save.
 
