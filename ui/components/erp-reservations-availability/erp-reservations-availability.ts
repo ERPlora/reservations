@@ -7,6 +7,7 @@ import type { DataTableColumn } from '@erplora/outfitkit';
 import { createListController } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 import { ionTone } from '../../lib/ion-tone';
+import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -75,9 +76,10 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** `HH:MM[:SS]` → `HH:MM` (the hour the dining room reads, without seconds). */
-function hhmm(time: string): string {
-  return /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : time;
+/** `HH:MM[:SS]` → the hour the dining room reads, in the hub's clock and without the seconds
+ *  (reservations#77: the same reading as the time fields of the form). */
+function fmtTime(time: string): string {
+  return formatWallTime(time, erplora().locale || 'es');
 }
 
 export class ErpReservationsAvailability extends LitElement {
@@ -113,6 +115,9 @@ export class ErpReservationsAvailability extends LitElement {
   @state() slotDay = '0';
 
   @state() slotStart = '';
+
+  /** reservations#77 — the text typed into the start/end fields, kept apart from the stored hours. */
+  private timeDrafts = new WallTimeDrafts<'start' | 'end'>(() => this.requestUpdate());
 
   @state() slotEnd = '';
 
@@ -154,8 +159,8 @@ export class ErpReservationsAvailability extends LitElement {
       options: DAY_KEYS.map((key, i) => ({ value: String(i), label: t(key) })),
       format: (r) => (DAY_KEYS[r.day_of_week as number] ? t(DAY_KEYS[r.day_of_week as number]) : '?'),
     },
-    { key: 'start_time', header: t('ui.colStart'), sortable: true, filterable: true, filterType: 'text' },
-    { key: 'end_time', header: t('ui.colEnd'), sortable: true, filterable: true, filterType: 'text' },
+    { key: 'start_time', header: t('ui.colStart'), sortable: true, filterable: true, filterType: 'text', format: (r) => fmtTime(String(r.start_time ?? '')) },
+    { key: 'end_time', header: t('ui.colEnd'), sortable: true, filterable: true, filterType: 'text', format: (r) => fmtTime(String(r.end_time ?? '')) },
     { key: 'max_reservations', header: t('ui.colMax'), align: 'right', sortable: true, filterable: true, filterType: 'range' },
     ];
   }
@@ -208,8 +213,8 @@ export class ErpReservationsAvailability extends LitElement {
       {
         key: 'slot',
         header: t('ui.colSlot'),
-        format: (r) => `${hhmm(String(r.start_time ?? ''))}–${hhmm(String(r.end_time ?? ''))}`,
-        render: (r) => this.occCell(r, `${hhmm(String(r.start_time ?? ''))}–${hhmm(String(r.end_time ?? ''))}`),
+        format: (r) => `${fmtTime(String(r.start_time ?? ''))}–${fmtTime(String(r.end_time ?? ''))}`,
+        render: (r) => this.occCell(r, `${fmtTime(String(r.start_time ?? ''))}–${fmtTime(String(r.end_time ?? ''))}`),
       },
       {
         key: 'reserved',
@@ -306,6 +311,10 @@ export class ErpReservationsAvailability extends LitElement {
 
   private async createSlot(ev: Event) {
     ev.preventDefault();
+    if (this.timeDrafts.unreadable('start', 'end')) {
+      this.slotFormError = erplora().t(CATALOG, 'ui.valTimeUnreadable');
+      return;
+    }
     if (!this.slotStart || !this.slotEnd) return;
     this.saving = true;
     this.slotFormError = '';
@@ -319,6 +328,7 @@ export class ErpReservationsAvailability extends LitElement {
       });
       this.slotStart = '';
       this.slotEnd = '';
+      this.timeDrafts.clear();
       this.slotMax = '10';
       this.dataTable('slots')?.close(); // si no, el panel se queda abierto tapando la franja creada
       await this.slotsCtrl.load();
@@ -411,17 +421,19 @@ export class ErpReservationsAvailability extends LitElement {
           </div>
         </ok-data-table>
         <h3>${t('ui.sectionTimeSlots')}</h3>
-        <ok-data-table id="slots" testid="reservations-availability-slots-table" .labels=${{ add: t('ui.btnAddSlot') }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => `${DAY_KEYS[Number(row.day_of_week)] ? t(DAY_KEYS[Number(row.day_of_week)]) : '—'} · ${String(row.start_time ?? '')}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t('ui.loading') : t('ui.emptyTimeSlots')} @rowAction=${(e: CustomEvent) => this.onSlotAction(e)} @pageChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.slotsCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.slotsCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.slotsCtrl.setFilter(e.detail.col, e.detail.value)}>
+        <ok-data-table id="slots" testid="reservations-availability-slots-table" .labels=${{ add: t('ui.btnAddSlot') }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => `${DAY_KEYS[Number(row.day_of_week)] ? t(DAY_KEYS[Number(row.day_of_week)]) : '—'} · ${fmtTime(String(row.start_time ?? ''))}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? 'asc'} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t('ui.loading') : t('ui.emptyTimeSlots')} @rowAction=${(e: CustomEvent) => this.onSlotAction(e)} @pageChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.slotsCtrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.slotsCtrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.slotsCtrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.slotsCtrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Se proyecta SIEMPRE (aunque el panel esté cerrado): si no, el «+» abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-availability-slot-form" @submit=${(e: Event) => this.createSlot(e)}>
             <ion-select fill="outline" label-placement="floating" label=${t('ui.colDay')} data-testid="reservations-availability-slot-day" .value=${this.slotDay} @ionChange=${(e: any) => (this.slotDay = e.target.value)}>${DAY_KEYS.map((key, i) => html`<ion-select-option .value=${String(i)}>${t(key)}</ion-select-option>`)}</ion-select>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.colStart')} type="time" data-testid="reservations-availability-slot-start" .value=${this.slotStart} @ionInput=${(e: any) => (this.slotStart = e.target.value)}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.colEnd')} type="time" data-testid="reservations-availability-slot-end" .value=${this.slotEnd} @ionInput=${(e: any) => (this.slotEnd = e.target.value)}></ion-input>
+            <!-- reservations#77: TEXT time fields painted in the hub's clock, never type="time": the
+                 browser paints a native time field with its own (operating system) clock. -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colStart')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.timePlaceholder')} data-testid="reservations-availability-slot-start" .value=${this.timeDrafts.shown('start', this.slotStart, erplora().locale)} @ionInput=${(e: any) => (this.slotStart = this.timeDrafts.input('start', String(e.target.value ?? '')))} @ionChange=${() => this.timeDrafts.leave('start')} @paste=${(e: Event) => { const time = this.timeDrafts.paste('start', e); if (time) this.slotStart = time; }}></ion-input>
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colEnd')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.timePlaceholder')} data-testid="reservations-availability-slot-end" .value=${this.timeDrafts.shown('end', this.slotEnd, erplora().locale)} @ionInput=${(e: any) => (this.slotEnd = this.timeDrafts.input('end', String(e.target.value ?? '')))} @ionChange=${() => this.timeDrafts.leave('end')} @paste=${(e: Event) => { const time = this.timeDrafts.paste('end', e); if (time) this.slotEnd = time; }}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.phMax')} type="number" min="1" data-testid="reservations-availability-slot-max" .value=${this.slotMax} @ionInput=${(e: any) => (this.slotMax = e.target.value)}></ion-input>
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.slotFormError ? html`<p class="err" data-testid="reservations-availability-slot-form-error">${this.slotFormError}</p>` : nothing}
-            <ion-button type="submit" data-testid="reservations-availability-slot-submit" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t('ui.btnCreateSlot')}</ion-button>
+            <ion-button type="submit" data-testid="reservations-availability-slot-submit" ?disabled=${this.saving || ((!this.slotStart || !this.slotEnd) && !this.timeDrafts.unreadable('start', 'end'))}>${t('ui.btnCreateSlot')}</ion-button>
           </form>
         </ok-data-table>
         <h3>${t('ui.sectionBlockedDates')}</h3>
