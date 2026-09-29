@@ -4,7 +4,7 @@ import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-data-table';
 import type { DataTableColumn } from '@erplora/outfitkit';
-import { createListController } from '@erplora/module-sdk';
+import { createListController, dataTableShowsLoadError } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
 import { CalendarDateDrafts } from '../../lib/calendar-date';
@@ -249,8 +249,8 @@ export class ErpReservationsWaitlist extends LitElement {
     const t = (k: string): string => erplora().t(CATALOG, k);
     return html`<div class="page">
         ${this.pageError ? html`<p class="err" data-testid="reservations-waitlist-page-error">${this.pageError}</p>` : nothing}
-        ${this.ctrl?.error ? html`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : nothing}
-        <ok-data-table testid="reservations-waitlist-table" .labels=${{ add: t('ui.btnAddGuest') }} .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyWaitlist')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+        ${this.ctrl?.error && !dataTableShowsLoadError() ? html`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : nothing}
+        <ok-data-table testid="reservations-waitlist-table" .error=${this.ctrl?.error ?? ''} @retry=${() => this.ctrl?.load()} .labels=${{ add: t('ui.btnAddGuest') }} .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyWaitlist')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Alta en la lista de espera: se proyecta SIEMPRE (aunque el panel esté cerrado); si se
                renderizara solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-waitlist-form" @submit=${(e: Event) => this.createEntry(e)}>

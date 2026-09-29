@@ -5,7 +5,7 @@ import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-data-table';
 import '@erplora/outfitkit/ok-empty-state';
 import type { DataTableColumn } from '@erplora/outfitkit';
-import { createListController } from '@erplora/module-sdk';
+import { createListController, dataTableShowsLoadError } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 import { addDaysISO, nowWallTime, todayISO } from '../../lib/business-time';
 import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
@@ -399,6 +399,11 @@ export class ErpReservationsList extends LitElement {
     void this.ctrl.load();
   }
 
+  /** Retry after a failed load: the page and the figures of the day, which failed with it. */
+  private retryLoad(): Promise<unknown> {
+    return Promise.all([this.ctrl.load(), this.loadSummary()]);
+  }
+
   /** The figures of the day: covers + bookings (`reservations.day.summary`), the room per slot
    *  (`reservations.slots.count_for`, the gate's own count) and whether the day is blocked whole. */
   private async loadSummary(): Promise<void> {
@@ -537,8 +542,12 @@ export class ErpReservationsList extends LitElement {
       const key = { over: 'ui.noMoreServiceToday', 'no-service': 'ui.noServiceDay', closed: 'ui.closedDay' }[next.state];
       return html`<strong>—</strong><span>${t(key)}</span>`;
     };
+    // pm#533: when the book failed too, its error (table or block) already says why and its Retry
+    // reads the figures again, so the figures do not repeat the reason.
     const figures = this.summaryError
-      ? html`<p class="err" data-testid="reservations-summary-error">${this.summaryError}</p>`
+      ? this.ctrl?.error
+        ? nothing
+        : html`<p class="err" data-testid="reservations-summary-error">${this.summaryError}</p>`
       : !this.summary
         ? html`<ion-skeleton-text animated data-testid="reservations-summary-loading"></ion-skeleton-text>`
         : html`<div class="figure" data-testid="reservations-covers" data-value=${String(this.summary.covers)}>
@@ -611,6 +620,9 @@ export class ErpReservationsList extends LitElement {
     const noResults = total === 0 && !error && this.hasQuery;
     const showLoading = loading && bare;
     const hideTable = bare;
+    // pm#533: a visible table paints a failed load itself (with Retry); the block is only for when
+    // the table stepped aside, or for a shell whose table cannot paint it.
+    const errorBlock = error && (hideTable || !dataTableShowsLoadError());
 
     // Solo para el vacío de primera vez: ahí la barra de la tabla no se ve (la tabla se aparta),
     // así que la acción primaria la pone el propio bloque vacío. Con filas, el alta la pinta la
@@ -624,10 +636,10 @@ export class ErpReservationsList extends LitElement {
     return html`<div class="page">
         ${this.renderDayBar()}
         ${this.pageError ? html`<p class="err" data-testid="reservations-page-error">${this.pageError}</p>` : nothing}
-        ${error
+        ${errorBlock
           ? html`<div class="state" data-state="error" data-testid="reservations-load-error">
               <p class="err">${error}</p>
-              <ion-button size="small" data-action="retry" data-testid="reservations-retry" @click=${() => void this.ctrl.load()}>${t('ui.btnRetry')}</ion-button>
+              <ion-button size="small" data-action="retry" data-testid="reservations-retry" @click=${() => void this.retryLoad()}>${t('ui.btnRetry')}</ion-button>
             </div>`
           : nothing}
         ${showLoading
@@ -649,7 +661,7 @@ export class ErpReservationsList extends LitElement {
               ${createButton()}
             </ok-empty-state>`
           : nothing}
-        <ok-data-table testid="reservations-table" ?hidden=${hideTable} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .search=${this.ctrl?.state.search ?? ''} .filterValues=${this.filterMirror} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyDayTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.onSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+        <ok-data-table testid="reservations-table" ?hidden=${hideTable} .error=${error} @retry=${() => this.retryLoad()} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .search=${this.ctrl?.state.search ?? ''} .filterValues=${this.filterMirror} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyDayTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.onSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-form" @submit=${(e: Event) => this.createReservation(e)}>
