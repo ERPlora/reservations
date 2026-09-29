@@ -542,8 +542,12 @@ export class ErpReservationsList extends LitElement {
       const key = { over: 'ui.noMoreServiceToday', 'no-service': 'ui.noServiceDay', closed: 'ui.closedDay' }[next.state];
       return html`<strong>—</strong><span>${t(key)}</span>`;
     };
+    // pm#533: when the book failed too, its error (table or block) already says why and its Retry
+    // reads the figures again, so the figures do not repeat the reason.
     const figures = this.summaryError
-      ? html`<p class="err" data-testid="reservations-summary-error">${this.summaryError}</p>`
+      ? this.ctrl?.error
+        ? nothing
+        : html`<p class="err" data-testid="reservations-summary-error">${this.summaryError}</p>`
       : !this.summary
         ? html`<ion-skeleton-text animated data-testid="reservations-summary-loading"></ion-skeleton-text>`
         : html`<div class="figure" data-testid="reservations-covers" data-value=${String(this.summary.covers)}>

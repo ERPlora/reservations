@@ -147,6 +147,30 @@ describe('erp-reservations-list — the book that could not load (pm#533)', () =
     expect(block!.querySelector('[data-testid="reservations-retry"]')).toBeTruthy();
   });
 
+  it('when the figures of the day fail with the book, the reason is said once, where its Retry is', async () => {
+    shellTableKnowsErrors(true);
+    const { el } = await mountFailed('erp-reservations-list', TABLE);
+    await vi.waitFor(() => {
+      if (!queryCalls.includes('reservations.day.summary')) throw new Error('the day figures were not asked for');
+    });
+    await settle(el);
+    expect(el.shadowRoot.querySelector(`[data-testid="${BLOCK}"]`)?.textContent).toContain('The hub is not responding.');
+    expect(el.shadowRoot.querySelector('[data-testid="reservations-summary-error"]'), 'the reason would be said twice').toBeNull();
+    expect(el.shadowRoot.querySelector('[data-testid="reservations-summary-loading"]'), 'the figures would look like they are still loading').toBeNull();
+  });
+
+  it('with a search on and the figures failed too, only the table carries the reason', async () => {
+    shellTableKnowsErrors(true);
+    const { el, table } = await mountFailed('erp-reservations-list', TABLE);
+    table.dispatchEvent(new CustomEvent('searchChange', { detail: 'ana' }));
+    await vi.waitFor(async () => {
+      await settle(el);
+      if (table.hidden) throw new Error('the table is still hidden with a search on');
+    });
+    expect(table.error).toBe('The hub is not responding.');
+    expect(el.shadowRoot.querySelector('[data-testid="reservations-summary-error"]'), 'the reason would be said twice').toBeNull();
+  });
+
   it('with a search on the table stays: it carries the reason and the block is not painted twice', async () => {
     shellTableKnowsErrors(true);
     const { el, table } = await mountFailed('erp-reservations-list', TABLE);
