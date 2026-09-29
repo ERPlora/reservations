@@ -8,6 +8,7 @@ import type { DataTableColumn } from '@erplora/outfitkit';
 import { createListController } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 import { addDaysISO, nowWallTime, todayISO } from '../../lib/business-time';
+import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -60,14 +61,10 @@ function fmtDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString(erplora().locale || 'es');
 }
 
-/** `HH:MM[:SS]` → the hour the dining room reads, without the seconds. */
+/** `HH:MM[:SS]` → the hour the dining room reads, in the hub's clock and without the seconds
+ *  (reservations#77: the same reading as the time field of the form). */
 function fmtTime(time: string): string {
-  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(time)) return time;
-  const wide = time.length === 5 ? `${time}:00` : time;
-  return new Date(`2000-01-01T${wide}`).toLocaleTimeString(erplora().locale || 'es', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatWallTime(time, erplora().locale || 'es');
 }
 
 /** `YYYY-MM-DD` → the long day the header reads («viernes, 25 de septiembre»). Parsed and printed
@@ -234,6 +231,9 @@ export class ErpReservationsList extends LitElement {
   @state() newDate = '';
 
   @state() newTime = '';
+
+  /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
+  private timeDrafts = new WallTimeDrafts<'time'>(() => this.requestUpdate());
 
   @state() newParty = '2';
 
@@ -449,6 +449,10 @@ export class ErpReservationsList extends LitElement {
 
   private async createReservation(ev: Event) {
     ev.preventDefault();
+    if (this.timeDrafts.unreadable('time')) {
+      this.formError = erplora().t(CATALOG, 'ui.valTimeUnreadable');
+      return;
+    }
     if (!this.newName.trim() || !this.newDate || !this.newTime) return;
     this.saving = true;
     this.formError = '';
@@ -465,6 +469,7 @@ export class ErpReservationsList extends LitElement {
       this.newPhone = '';
       this.newDate = '';
       this.newTime = '';
+      this.timeDrafts.clear();
       this.newParty = '2';
       this.dataTable()?.close(); // si no, el panel se queda abierto tapando la reserva recién creada
       this.creating = false;
@@ -635,12 +640,14 @@ export class ErpReservationsList extends LitElement {
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.phGuestName')} data-testid="reservations-guest-name" .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.phGuestPhone')} data-testid="reservations-guest-phone" .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
-            <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colTime')} type="time" data-testid="reservations-time" .value=${this.newTime} @ionInput=${(e: any) => (this.newTime = e.target.value)}></ion-input>
+            <!-- reservations#77: a TEXT time field painted in the hub's clock, never type="time": the
+                 browser paints a native time field with its own (operating system) clock. -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colTime')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.timePlaceholder')} data-testid="reservations-time" .value=${this.timeDrafts.shown('time', this.newTime, erplora().locale)} @ionInput=${(e: any) => (this.newTime = this.timeDrafts.input('time', String(e.target.value ?? '')))} @ionChange=${() => this.timeDrafts.leave('time')} @paste=${(e: Event) => { const time = this.timeDrafts.paste('time', e); if (time) this.newTime = time; }}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.phPartySize')} type="number" min="1" data-testid="reservations-party-size" .value=${this.newParty} @ionInput=${(e: any) => (this.newParty = e.target.value)}></ion-input>
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.formError ? html`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : nothing}
-            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
+            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || (!this.newTime && !this.timeDrafts.unreadable('time'))}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
           </form>
         </ok-data-table>
         ${noResults

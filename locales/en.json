@@ -105,7 +105,9 @@
     "nextDay": "Next day",
     "today": "Today",
     "errDaySummary": "Could not load the figures of the day",
-    "emptyDayTitle": "No reservations this day"
+    "emptyDayTitle": "No reservations this day",
+    "timePlaceholder": "hh:mm",
+    "valTimeUnreadable": "A time can't be read — write it as hh:mm (e.g. 19:30)"
   },
   "errors": {
     "reservations.phone_required": "This business requires a phone number for every reservation.",

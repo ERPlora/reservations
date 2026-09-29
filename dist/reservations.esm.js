@@ -3736,6 +3736,97 @@ function addDaysISO(day, delta) {
   return `${d3.getUTCFullYear()}-${pad(d3.getUTCMonth() + 1)}-${pad(d3.getUTCDate())}`;
 }
 
+// ui/lib/wall-time.ts
+function pad2(n6) {
+  return String(n6).padStart(2, "0");
+}
+var STORED = /^(\d{2}):(\d{2})(?::\d{2})?$/;
+function formatWallTime(time, locale) {
+  const match = time.match(STORED);
+  if (!match) return time;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return time;
+  try {
+    return new Intl.DateTimeFormat(locale || void 0, {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC"
+    }).format(new Date(Date.UTC(2026, 0, 1, hour, minute)));
+  } catch {
+  }
+  return `${pad2(hour)}:${pad2(minute)}`;
+}
+var TYPED = /^(?:(\d{1,2})(?:[:.](\d{2})(?::\d{2})?)?|(\d{1,2})(\d{2}))(?:\s*([ap])\.?\s?m\.?)?$/i;
+function parseWallTime(text) {
+  const match = text.trim().match(TYPED);
+  if (!match) return null;
+  const [, hourText, minuteText, packedHour, packedMinute, meridiem] = match;
+  let hour = Number(hourText ?? packedHour);
+  const minute = Number(minuteText ?? packedMinute ?? 0);
+  if (minute > 59) return null;
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return null;
+    const isPm = meridiem.toLowerCase() === "p";
+    hour = isPm ? hour === 12 ? 12 : hour + 12 : hour === 12 ? 0 : hour;
+  } else if (hour > 23) {
+    return null;
+  }
+  return `${pad2(hour)}:${pad2(minute)}`;
+}
+var WallTimeDrafts = class {
+  constructor(repaint) {
+    this.repaint = repaint;
+    this.texts = {};
+  }
+  /** What a time field shows: the raw text while it is being typed (a half-typed «19:» stays on
+   *  screen), the stored hour in the hub's clock otherwise. */
+  shown(key, stored, locale) {
+    return this.texts[key] ?? formatWallTime(stored, locale);
+  }
+  /** `ionInput`: keeps the text as the draft and returns the stored hour that follows it exactly —
+   *  '' while it is not (yet) a time, so a half-typed hour never saves the last valid one. */
+  input(key, text) {
+    this.texts = { ...this.texts, [key]: text };
+    this.repaint();
+    return parseWallTime(text) ?? "";
+  }
+  /** Blur/Enter (`ionChange`): forgets a readable draft so the field repaints the stored hour in
+   *  the hub's clock. An unreadable text stays, so the save can say why it refuses. */
+  leave(key) {
+    const text = this.texts[key];
+    if (text === void 0 || text.trim() && !parseWallTime(text)) return;
+    this.forget(key);
+  }
+  /** A time pasted in any spelling the parser reads is returned (to be stored) and repainted in the
+   *  hub clock at once. Anything else returns `null` and is left to the browser's own paste. */
+  paste(key, e5) {
+    const time = parseWallTime(e5.clipboardData?.getData("text") ?? "");
+    if (!time) return null;
+    e5.preventDefault();
+    this.forget(key);
+    return time;
+  }
+  /** True when any of the given fields holds typed text that is not a time: its stored hour is ''
+   *  and, without this, the form would read it as «not filled in» instead of «can't be read». */
+  unreadable(...keys) {
+    return keys.some((key) => {
+      const text = this.texts[key];
+      return text !== void 0 && text.trim() !== "" && parseWallTime(text) === null;
+    });
+  }
+  /** Forgets every draft — after a save, so the next entry starts with empty fields. */
+  clear() {
+    this.texts = {};
+    this.repaint();
+  }
+  forget(key) {
+    const { [key]: _gone, ...rest } = this.texts;
+    this.texts = rest;
+    this.repaint();
+  }
+};
+
 // locales/es.json
 var es_default = {
   name: "Reservas",
@@ -3845,7 +3936,9 @@ var es_default = {
     nextDay: "D\xEDa siguiente",
     today: "Hoy",
     errDaySummary: "No se han podido cargar las cifras del d\xEDa",
-    emptyDayTitle: "No hay reservas este d\xEDa"
+    emptyDayTitle: "No hay reservas este d\xEDa",
+    timePlaceholder: "hh:mm",
+    valTimeUnreadable: "Hay una hora que no se entiende \u2014 escr\xEDbela como hh:mm (p. ej. 19:30)"
   },
   errors: {
     "reservations.phone_required": "Este negocio exige un tel\xE9fono en toda reserva.",
@@ -3971,7 +4064,9 @@ var en_default = {
     nextDay: "Next day",
     today: "Today",
     errDaySummary: "Could not load the figures of the day",
-    emptyDayTitle: "No reservations this day"
+    emptyDayTitle: "No reservations this day",
+    timePlaceholder: "hh:mm",
+    valTimeUnreadable: "A time can't be read \u2014 write it as hh:mm (e.g. 19:30)"
   },
   errors: {
     "reservations.phone_required": "This business requires a phone number for every reservation.",
@@ -4005,8 +4100,8 @@ function erplora() {
   if (!c5) throw new Error("erplora SDK no inicializado por el shell");
   return c5;
 }
-function hhmm(time) {
-  return /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : time;
+function fmtTime(time) {
+  return formatWallTime(time, erplora().locale || "es");
 }
 var ErpReservationsAvailability = class extends i3 {
   constructor() {
@@ -4018,6 +4113,8 @@ var ErpReservationsAvailability = class extends i3 {
     this.tick = 0;
     this.slotDay = "0";
     this.slotStart = "";
+    /** reservations#77 — the text typed into the start/end fields, kept apart from the stored hours. */
+    this.timeDrafts = new WallTimeDrafts(() => this.requestUpdate());
     this.slotEnd = "";
     this.slotMax = "10";
     this.blockDate = "";
@@ -4061,8 +4158,8 @@ var ErpReservationsAvailability = class extends i3 {
         options: DAY_KEYS.map((key, i7) => ({ value: String(i7), label: t5(key) })),
         format: (r6) => DAY_KEYS[r6.day_of_week] ? t5(DAY_KEYS[r6.day_of_week]) : "?"
       },
-      { key: "start_time", header: t5("ui.colStart"), sortable: true, filterable: true, filterType: "text" },
-      { key: "end_time", header: t5("ui.colEnd"), sortable: true, filterable: true, filterType: "text" },
+      { key: "start_time", header: t5("ui.colStart"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime(String(r6.start_time ?? "")) },
+      { key: "end_time", header: t5("ui.colEnd"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime(String(r6.end_time ?? "")) },
       { key: "max_reservations", header: t5("ui.colMax"), align: "right", sortable: true, filterable: true, filterType: "range" }
     ];
   }
@@ -4110,8 +4207,8 @@ var ErpReservationsAvailability = class extends i3 {
       {
         key: "slot",
         header: t5("ui.colSlot"),
-        format: (r6) => `${hhmm(String(r6.start_time ?? ""))}\u2013${hhmm(String(r6.end_time ?? ""))}`,
-        render: (r6) => this.occCell(r6, `${hhmm(String(r6.start_time ?? ""))}\u2013${hhmm(String(r6.end_time ?? ""))}`)
+        format: (r6) => `${fmtTime(String(r6.start_time ?? ""))}\u2013${fmtTime(String(r6.end_time ?? ""))}`,
+        render: (r6) => this.occCell(r6, `${fmtTime(String(r6.start_time ?? ""))}\u2013${fmtTime(String(r6.end_time ?? ""))}`)
       },
       {
         key: "reserved",
@@ -4192,6 +4289,10 @@ var ErpReservationsAvailability = class extends i3 {
   }
   async createSlot(ev) {
     ev.preventDefault();
+    if (this.timeDrafts.unreadable("start", "end")) {
+      this.slotFormError = erplora().t(CATALOG, "ui.valTimeUnreadable");
+      return;
+    }
     if (!this.slotStart || !this.slotEnd) return;
     this.saving = true;
     this.slotFormError = "";
@@ -4205,6 +4306,7 @@ var ErpReservationsAvailability = class extends i3 {
       });
       this.slotStart = "";
       this.slotEnd = "";
+      this.timeDrafts.clear();
       this.slotMax = "10";
       this.dataTable("slots")?.close();
       await this.slotsCtrl.load();
@@ -4293,17 +4395,25 @@ var ErpReservationsAvailability = class extends i3 {
           </div>
         </ok-data-table>
         <h3>${t5("ui.sectionTimeSlots")}</h3>
-        <ok-data-table id="slots" testid="reservations-availability-slots-table" .labels=${{ add: t5("ui.btnAddSlot") }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => `${DAY_KEYS[Number(row.day_of_week)] ? t5(DAY_KEYS[Number(row.day_of_week)]) : "\u2014"} \xB7 ${String(row.start_time ?? "")}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.slotsCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table id="slots" testid="reservations-availability-slots-table" .labels=${{ add: t5("ui.btnAddSlot") }} .serverSide=${true} .addable=${true} .views=${true} .cardTitle=${(row) => `${DAY_KEYS[Number(row.day_of_week)] ? t5(DAY_KEYS[Number(row.day_of_week)]) : "\u2014"} \xB7 ${fmtTime(String(row.start_time ?? ""))}`} .columns=${this.slotColumns} .rows=${this.slotsCtrl?.rows ?? []} .total=${this.slotsCtrl?.total ?? 0} .page=${this.slotsCtrl?.state.page ?? 0} .pageSize=${this.slotsCtrl?.state.pageSize ?? 50} .sort=${this.slotsCtrl?.state.sort} .sortDir=${this.slotsCtrl?.state.dir ?? "asc"} .searchable=${true} .actions=${this.rowActions} .emptyMessage=${this.slotsCtrl?.loading ? t5("ui.loading") : t5("ui.emptyTimeSlots")} @rowAction=${(e5) => this.onSlotAction(e5)} @pageChange=${(e5) => this.slotsCtrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.slotsCtrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.slotsCtrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.slotsCtrl.setSearch(e5.detail)} @filterChange=${(e5) => this.slotsCtrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Se proyecta SIEMPRE (aunque el panel esté cerrado): si no, el «+» abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-availability-slot-form" @submit=${(e5) => this.createSlot(e5)}>
             <ion-select fill="outline" label-placement="floating" label=${t5("ui.colDay")} data-testid="reservations-availability-slot-day" .value=${this.slotDay} @ionChange=${(e5) => this.slotDay = e5.target.value}>${DAY_KEYS.map((key, i7) => b2`<ion-select-option .value=${String(i7)}>${t5(key)}</ion-select-option>`)}</ion-select>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colStart")} type="time" data-testid="reservations-availability-slot-start" .value=${this.slotStart} @ionInput=${(e5) => this.slotStart = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colEnd")} type="time" data-testid="reservations-availability-slot-end" .value=${this.slotEnd} @ionInput=${(e5) => this.slotEnd = e5.target.value}></ion-input>
+            <!-- reservations#77: TEXT time fields painted in the hub's clock, never type="time": the
+                 browser paints a native time field with its own (operating system) clock. -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colStart")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.timePlaceholder")} data-testid="reservations-availability-slot-start" .value=${this.timeDrafts.shown("start", this.slotStart, erplora().locale)} @ionInput=${(e5) => this.slotStart = this.timeDrafts.input("start", String(e5.target.value ?? ""))} @ionChange=${() => this.timeDrafts.leave("start")} @paste=${(e5) => {
+      const time = this.timeDrafts.paste("start", e5);
+      if (time) this.slotStart = time;
+    }}></ion-input>
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colEnd")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.timePlaceholder")} data-testid="reservations-availability-slot-end" .value=${this.timeDrafts.shown("end", this.slotEnd, erplora().locale)} @ionInput=${(e5) => this.slotEnd = this.timeDrafts.input("end", String(e5.target.value ?? ""))} @ionChange=${() => this.timeDrafts.leave("end")} @paste=${(e5) => {
+      const time = this.timeDrafts.paste("end", e5);
+      if (time) this.slotEnd = time;
+    }}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phMax")} type="number" min="1" data-testid="reservations-availability-slot-max" .value=${this.slotMax} @ionInput=${(e5) => this.slotMax = e5.target.value}></ion-input>
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.slotFormError ? b2`<p class="err" data-testid="reservations-availability-slot-form-error">${this.slotFormError}</p>` : A}
-            <ion-button type="submit" data-testid="reservations-availability-slot-submit" ?disabled=${this.saving || !this.slotStart || !this.slotEnd}>${t5("ui.btnCreateSlot")}</ion-button>
+            <ion-button type="submit" data-testid="reservations-availability-slot-submit" ?disabled=${this.saving || (!this.slotStart || !this.slotEnd) && !this.timeDrafts.unreadable("start", "end")}>${t5("ui.btnCreateSlot")}</ion-button>
           </form>
         </ok-data-table>
         <h3>${t5("ui.sectionBlockedDates")}</h3>
@@ -4479,13 +4589,8 @@ function fmtDate(iso) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   return (/* @__PURE__ */ new Date(`${iso}T00:00:00`)).toLocaleDateString(erplora2().locale || "es");
 }
-function fmtTime(time) {
-  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(time)) return time;
-  const wide = time.length === 5 ? `${time}:00` : time;
-  return (/* @__PURE__ */ new Date(`2000-01-01T${wide}`)).toLocaleTimeString(erplora2().locale || "es", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+function fmtTime2(time) {
+  return formatWallTime(time, erplora2().locale || "es");
 }
 function fmtLongDate(iso) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
@@ -4551,6 +4656,8 @@ var ErpReservationsList = class extends i3 {
     this.newPhone = "";
     this.newDate = "";
     this.newTime = "";
+    /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
+    this.timeDrafts = new WallTimeDrafts(() => this.requestUpdate());
     this.newParty = "2";
     this.filterMirror = {};
     // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
@@ -4613,7 +4720,7 @@ var ErpReservationsList = class extends i3 {
       // No filter box on the date: the day bar owns it (reservations#45). A second control for the
       // same thing would fight the first one over which day is on screen.
       { key: "date", header: t5("ui.colDate"), sortable: true, format: (r6) => fmtDate(r6.date) },
-      { key: "time", header: t5("ui.colTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime(r6.time) },
+      { key: "time", header: t5("ui.colTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime2(r6.time) },
       { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
       { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
       { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "range" },
@@ -4773,6 +4880,10 @@ var ErpReservationsList = class extends i3 {
   }
   async createReservation(ev) {
     ev.preventDefault();
+    if (this.timeDrafts.unreadable("time")) {
+      this.formError = erplora2().t(CATALOG2, "ui.valTimeUnreadable");
+      return;
+    }
     if (!this.newName.trim() || !this.newDate || !this.newTime) return;
     this.saving = true;
     this.formError = "";
@@ -4789,6 +4900,7 @@ var ErpReservationsList = class extends i3 {
       this.newPhone = "";
       this.newDate = "";
       this.newTime = "";
+      this.timeDrafts.clear();
       this.newParty = "2";
       this.dataTable()?.close();
       this.creating = false;
@@ -4830,7 +4942,7 @@ var ErpReservationsList = class extends i3 {
     const next = nextSlotOf(this.daySlots, this.dayClosed, isToday, nowWallTime());
     const nextText = () => {
       if (next.state === "open" || next.state === "full") {
-        const range = `${fmtTime(next.slot.start_time)}\u2013${fmtTime(next.slot.end_time)}`;
+        const range = `${fmtTime2(next.slot.start_time)}\u2013${fmtTime2(next.slot.end_time)}`;
         return b2`<strong>${range}</strong>
           ${next.state === "full" ? b2`<span class="full">${t5("ui.full")}</span>` : b2`<span>${next.slot.available} ${t5("ui.slotLeft")}</span>`}`;
       }
@@ -4929,12 +5041,17 @@ var ErpReservationsList = class extends i3 {
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phGuestName")} data-testid="reservations-guest-name" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phGuestPhone")} data-testid="reservations-guest-phone" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
-            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colTime")} type="time" data-testid="reservations-time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
+            <!-- reservations#77: a TEXT time field painted in the hub's clock, never type="time": the
+                 browser paints a native time field with its own (operating system) clock. -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colTime")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.timePlaceholder")} data-testid="reservations-time" .value=${this.timeDrafts.shown("time", this.newTime, erplora2().locale)} @ionInput=${(e5) => this.newTime = this.timeDrafts.input("time", String(e5.target.value ?? ""))} @ionChange=${() => this.timeDrafts.leave("time")} @paste=${(e5) => {
+      const time = this.timeDrafts.paste("time", e5);
+      if (time) this.newTime = time;
+    }}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" data-testid="reservations-party-size" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.formError ? b2`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : A}
-            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
+            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || !this.newTime && !this.timeDrafts.unreadable("time")}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnReserve")}</ion-button>
           </form>
         </ok-data-table>
         ${noResults ? b2`<div class="noresults" data-empty="no-results" data-testid="reservations-no-results">
@@ -5000,13 +5117,8 @@ function fmtDate2(iso) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   return (/* @__PURE__ */ new Date(`${iso}T00:00:00`)).toLocaleDateString(erplora3().locale || "es");
 }
-function fmtTime2(time) {
-  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(time)) return time;
-  const wide = time.length === 5 ? `${time}:00` : time;
-  return (/* @__PURE__ */ new Date(`2000-01-01T${wide}`)).toLocaleTimeString(erplora3().locale || "es", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+function fmtTime3(time) {
+  return formatWallTime(time, erplora3().locale || "es");
 }
 function erplora3() {
   const c5 = globalThis.erplora;
@@ -5024,6 +5136,8 @@ var ErpReservationsWaitlist = class extends i3 {
     this.newPhone = "";
     this.newDate = "";
     this.newTime = "";
+    /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
+    this.timeDrafts = new WallTimeDrafts(() => this.requestUpdate());
     this.newParty = "2";
     // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
     // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
@@ -5048,7 +5162,7 @@ var ErpReservationsWaitlist = class extends i3 {
     const t5 = (k2) => erplora3().t(CATALOG3, k2);
     return [
       { key: "date", header: t5("ui.colDate"), sortable: true, filterable: true, filterType: "daterange", format: (r6) => fmtDate2(r6.date) },
-      { key: "preferred_time", header: t5("ui.colPreferredTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime2(r6.preferred_time) },
+      { key: "preferred_time", header: t5("ui.colPreferredTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime3(r6.preferred_time) },
       { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
       { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
       { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "range" },
@@ -5108,6 +5222,10 @@ var ErpReservationsWaitlist = class extends i3 {
   }
   async createEntry(ev) {
     ev.preventDefault();
+    if (this.timeDrafts.unreadable("time")) {
+      this.formError = erplora3().t(CATALOG3, "ui.valTimeUnreadable");
+      return;
+    }
     if (!this.newName.trim() || !this.newPhone.trim() || !this.newDate || !this.newTime) return;
     this.saving = true;
     this.formError = "";
@@ -5124,6 +5242,7 @@ var ErpReservationsWaitlist = class extends i3 {
       this.newPhone = "";
       this.newDate = "";
       this.newTime = "";
+      this.timeDrafts.clear();
       this.newParty = "2";
       this.dataTable()?.close();
       await this.ctrl.load();
@@ -5172,12 +5291,17 @@ var ErpReservationsWaitlist = class extends i3 {
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestName")} data-testid="reservations-waitlist-guest-name" .value=${this.newName} @ionInput=${(e5) => this.newName = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phGuestPhone")} data-testid="reservations-waitlist-guest-phone" .value=${this.newPhone} @ionInput=${(e5) => this.newPhone = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.colDate")} type="date" data-testid="reservations-waitlist-date" .value=${this.newDate} @ionInput=${(e5) => this.newDate = e5.target.value}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t5("ui.colTime")} type="time" data-testid="reservations-waitlist-time" .value=${this.newTime} @ionInput=${(e5) => this.newTime = e5.target.value}></ion-input>
+            <!-- reservations#77: a TEXT time field painted in the hub's clock, never type="time": the
+                 browser paints a native time field with its own (operating system) clock. -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t5("ui.colTime")} type="text" inputmode="numeric" autocomplete="off" placeholder=${t5("ui.timePlaceholder")} data-testid="reservations-waitlist-time" .value=${this.timeDrafts.shown("time", this.newTime, erplora3().locale)} @ionInput=${(e5) => this.newTime = this.timeDrafts.input("time", String(e5.target.value ?? ""))} @ionChange=${() => this.timeDrafts.leave("time")} @paste=${(e5) => {
+      const time = this.timeDrafts.paste("time", e5);
+      if (time) this.newTime = time;
+    }}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.phPartySize")} type="number" min="1" data-testid="reservations-waitlist-party-size" .value=${this.newParty} @ionInput=${(e5) => this.newParty = e5.target.value}></ion-input>
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.formError ? b2`<p class="err" data-testid="reservations-waitlist-form-error">${this.formError}</p>` : A}
-            <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAddToWaitlist")}</ion-button>
+            <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || !this.newTime && !this.timeDrafts.unreadable("time")}>${this.saving ? t5("ui.btnSaving") : t5("ui.btnAddToWaitlist")}</ion-button>
           </form>
         </ok-data-table>
       </div>`;
