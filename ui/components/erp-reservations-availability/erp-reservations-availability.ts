@@ -7,6 +7,7 @@ import type { DataTableColumn } from '@erplora/outfitkit';
 import { createListController } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 import { ionTone } from '../../lib/ion-tone';
+import { todayISO } from '../../lib/business-time';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -67,14 +68,6 @@ function erplora(): ErploraClientLike {
   return c;
 }
 
-/** Today as `YYYY-MM-DD` in the TERMINAL's local time (the dining room asks about "tonight",
- * not about UTC): `toISOString()` would shift the day around midnight and timezones. */
-function todayLocal(): string {
-  const d = new Date();
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 /** `HH:MM[:SS]` → `HH:MM` (the hour the dining room reads, without seconds). */
 function hhmm(time: string): string {
   return /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : time;
@@ -126,7 +119,9 @@ export class ErpReservationsAvailability extends LitElement {
   // The date the floor manager is looking at (default: today, local). One row per active slot
   // of that day's weekday, counted exactly like the anti-overbooking gate counts.
 
-  @state() occDate = todayLocal();
+  /** «Tonight» is the RESTAURANT's tonight: today on the business clock, never the device's
+   *  (reservations#80), the same day the book opens on (reservations#45). */
+  @state() occDate = todayISO();
 
   @state() occRows: SlotOccupancy[] = [];
 
