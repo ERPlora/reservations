@@ -131,7 +131,8 @@ describe('2 · the header answers the three questions of the shift', () => {
   it('shows the day it is anchored to', async () => {
     const el = await mount();
     expect($(el, '[data-testid="reservations-day"]')?.getAttribute('data-day')).toBe(TODAY);
-    expect(($(el, '[data-testid="reservations-day-input"]') as unknown as { value: string }).value).toBe(TODAY);
+    // reservations#78: the picker paints the day in the hub's order (es: day first), not ISO.
+    expect(($(el, '[data-testid="reservations-day-input"]') as unknown as { value: string }).value).toBe('25/09/2026');
   });
 
   it('names the day in sentence case: «Viernes, 25 de septiembre», never «25 De Septiembre»', async () => {

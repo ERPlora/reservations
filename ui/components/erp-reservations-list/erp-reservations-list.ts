@@ -9,6 +9,7 @@ import { createListController } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 import { addDaysISO, nowWallTime, todayISO } from '../../lib/business-time';
 import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
+import { CalendarDateDrafts } from '../../lib/calendar-date';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -234,6 +235,8 @@ export class ErpReservationsList extends LitElement {
 
   /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
   private timeDrafts = new WallTimeDrafts<'time'>(() => this.requestUpdate());
+  /** reservations#78 — the typed text of the date of a new reservation and of the day picker. */
+  private dateDrafts = new CalendarDateDrafts<'date' | 'day'>(() => this.requestUpdate());
 
   @state() newParty = '2';
 
@@ -383,6 +386,13 @@ export class ErpReservationsList extends LitElement {
     void this.loadSummary();
   }
 
+  /** reservations#78 — a day chosen by the arrows or «Today»: whatever was being typed in the day
+   *  picker goes, so the field paints the day the book moved to. */
+  private goToDay(day: string): void {
+    this.dateDrafts.forget('day');
+    this.setDay(day);
+  }
+
   private onSearch(search: string): void {
     this.ctrl.state.search = search;
     this.anchorDay();
@@ -449,6 +459,10 @@ export class ErpReservationsList extends LitElement {
 
   private async createReservation(ev: Event) {
     ev.preventDefault();
+    if (this.dateDrafts.unreadable(erplora().locale, 'date')) {
+      this.formError = erplora().t(CATALOG, 'ui.valDateUnreadable');
+      return;
+    }
     if (this.timeDrafts.unreadable('time')) {
       this.formError = erplora().t(CATALOG, 'ui.valTimeUnreadable');
       return;
@@ -470,6 +484,7 @@ export class ErpReservationsList extends LitElement {
       this.newDate = '';
       this.newTime = '';
       this.timeDrafts.clear();
+      this.dateDrafts.forget('date');
       this.newParty = '2';
       this.dataTable()?.close(); // si no, el panel se queda abierto tapando la reserva recién creada
       this.creating = false;
@@ -543,16 +558,17 @@ export class ErpReservationsList extends LitElement {
             </div>`;
     return html`<div class="daybar" data-testid="reservations-day" data-day=${this.day}>
       <div class="daynav">
-        <ion-button class="step" fill="clear" data-testid="reservations-prev-day" aria-label=${t('ui.prevDay')} @click=${() => this.setDay(addDaysISO(this.day, -1))}>
+        <ion-button class="step" fill="clear" data-testid="reservations-prev-day" aria-label=${t('ui.prevDay')} @click=${() => this.goToDay(addDaysISO(this.day, -1))}>
           <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
         </ion-button>
-        <ion-input fill="outline" mode="md" type="date" data-testid="reservations-day-input" aria-label=${t('ui.colDate')} .value=${this.day} @ionInput=${(e: any) => this.setDay(e.target.value)}></ion-input>
-        <ion-button class="step" fill="clear" data-testid="reservations-next-day" aria-label=${t('ui.nextDay')} @click=${() => this.setDay(addDaysISO(this.day, 1))}>
+        <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+        <ion-input fill="outline" mode="md" type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.datePlaceholder')} data-testid="reservations-day-input" aria-label=${t('ui.colDate')} .value=${this.dateDrafts.shown('day', this.day, erplora().locale)} @ionInput=${(e: any) => this.setDay(this.dateDrafts.input('day', String(e.target.value ?? ''), erplora().locale))} @ionChange=${() => this.dateDrafts.forget('day')}></ion-input>
+        <ion-button class="step" fill="clear" data-testid="reservations-next-day" aria-label=${t('ui.nextDay')} @click=${() => this.goToDay(addDaysISO(this.day, 1))}>
           <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
         </ion-button>
         ${isToday
           ? nothing
-          : html`<ion-button size="small" fill="clear" data-testid="reservations-today" @click=${() => this.setDay(today)}>${t('ui.today')}</ion-button>`}
+          : html`<ion-button size="small" fill="clear" data-testid="reservations-today" @click=${() => this.goToDay(today)}>${t('ui.today')}</ion-button>`}
       </div>
       <p class="dayname">${fmtLongDate(this.day)}</p>
       <div class="figures">${figures}</div>
@@ -639,7 +655,8 @@ export class ErpReservationsList extends LitElement {
           <form slot="create" class="form" data-testid="reservations-form" @submit=${(e: Event) => this.createReservation(e)}>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.phGuestName')} data-testid="reservations-guest-name" .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.phGuestPhone')} data-testid="reservations-guest-phone" .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
-            <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
+            <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colDate')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.datePlaceholder')} data-testid="reservations-date" .value=${this.dateDrafts.shown('date', this.newDate, erplora().locale)} @ionInput=${(e: any) => (this.newDate = this.dateDrafts.input('date', String(e.target.value ?? ''), erplora().locale))} @ionChange=${() => this.dateDrafts.leave('date', erplora().locale)}></ion-input>
             <!-- reservations#77: a TEXT time field painted in the hub's clock, never type="time": the
                  browser paints a native time field with its own (operating system) clock. -->
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colTime')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.timePlaceholder')} data-testid="reservations-time" .value=${this.timeDrafts.shown('time', this.newTime, erplora().locale)} @ionInput=${(e: any) => (this.newTime = this.timeDrafts.input('time', String(e.target.value ?? '')))} @ionChange=${() => this.timeDrafts.leave('time')} @paste=${(e: Event) => { const time = this.timeDrafts.paste('time', e); if (time) this.newTime = time; }}></ion-input>
@@ -647,7 +664,7 @@ export class ErpReservationsList extends LitElement {
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.formError ? html`<p class="err" data-testid="reservations-form-error">${this.formError}</p>` : nothing}
-            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || !this.newDate || (!this.newTime && !this.timeDrafts.unreadable('time'))}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
+            <ion-button type="submit" data-testid="reservations-submit" ?disabled=${this.saving || !this.newName || (!this.newDate && !this.dateDrafts.unreadable(erplora().locale, 'date')) || (!this.newTime && !this.timeDrafts.unreadable('time'))}>${this.saving ? t('ui.btnSaving') : t('ui.btnReserve')}</ion-button>
           </form>
         </ok-data-table>
         ${noResults

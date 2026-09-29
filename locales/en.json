@@ -107,6 +107,8 @@
     "errDaySummary": "Could not load the figures of the day",
     "emptyDayTitle": "No reservations this day",
     "timePlaceholder": "hh:mm",
+    "datePlaceholder": "mm/dd/yyyy",
+    "valDateUnreadable": "A date can't be read — write it as mm/dd/yyyy (e.g. 09/29/2026)",
     "valTimeUnreadable": "A time can't be read — write it as hh:mm (e.g. 19:30)"
   },
   "errors": {

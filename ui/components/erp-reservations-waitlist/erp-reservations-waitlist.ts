@@ -7,6 +7,7 @@ import type { DataTableColumn } from '@erplora/outfitkit';
 import { createListController } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
+import { CalendarDateDrafts } from '../../lib/calendar-date';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -90,6 +91,8 @@ export class ErpReservationsWaitlist extends LitElement {
 
   /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
   private timeDrafts = new WallTimeDrafts<'time'>(() => this.requestUpdate());
+  /** reservations#78 — the typed text of the date of a new waitlist entry. */
+  private dateDrafts = new CalendarDateDrafts<'date'>(() => this.requestUpdate());
 
   @state() newParty = '2';
 
@@ -176,6 +179,10 @@ export class ErpReservationsWaitlist extends LitElement {
 
   private async createEntry(ev: Event) {
     ev.preventDefault();
+    if (this.dateDrafts.unreadable(erplora().locale, 'date')) {
+      this.formError = erplora().t(CATALOG, 'ui.valDateUnreadable');
+      return;
+    }
     if (this.timeDrafts.unreadable('time')) {
       this.formError = erplora().t(CATALOG, 'ui.valTimeUnreadable');
       return;
@@ -197,6 +204,7 @@ export class ErpReservationsWaitlist extends LitElement {
       this.newDate = '';
       this.newTime = '';
       this.timeDrafts.clear();
+      this.dateDrafts.clear();
       this.newParty = '2';
       this.dataTable()?.close(); // si no, el panel se queda abierto tapando la entrada recién creada
       await this.ctrl.load();
@@ -248,7 +256,8 @@ export class ErpReservationsWaitlist extends LitElement {
           <form slot="create" class="form" data-testid="reservations-waitlist-form" @submit=${(e: Event) => this.createEntry(e)}>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.phGuestName')} data-testid="reservations-waitlist-guest-name" .value=${this.newName} @ionInput=${(e: any) => (this.newName = e.target.value)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.phGuestPhone')} data-testid="reservations-waitlist-guest-phone" .value=${this.newPhone} @ionInput=${(e: any) => (this.newPhone = e.target.value)}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.colDate')} type="date" data-testid="reservations-waitlist-date" .value=${this.newDate} @ionInput=${(e: any) => (this.newDate = e.target.value)}></ion-input>
+            <!-- reservations#78: text in the hub's day/month order, not the native date input (browser order). -->
+            <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colDate')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.datePlaceholder')} data-testid="reservations-waitlist-date" .value=${this.dateDrafts.shown('date', this.newDate, erplora().locale)} @ionInput=${(e: any) => (this.newDate = this.dateDrafts.input('date', String(e.target.value ?? ''), erplora().locale))} @ionChange=${() => this.dateDrafts.leave('date', erplora().locale)}></ion-input>
             <!-- reservations#77: a TEXT time field painted in the hub's clock, never type="time": the
                  browser paints a native time field with its own (operating system) clock. -->
             <ion-input fill="outline" mode="md" label-placement="floating" label=${t('ui.colTime')} type="text" inputmode="numeric" autocomplete="off" placeholder=${t('ui.timePlaceholder')} data-testid="reservations-waitlist-time" .value=${this.timeDrafts.shown('time', this.newTime, erplora().locale)} @ionInput=${(e: any) => (this.newTime = this.timeDrafts.input('time', String(e.target.value ?? '')))} @ionChange=${() => this.timeDrafts.leave('time')} @paste=${(e: Event) => { const time = this.timeDrafts.paste('time', e); if (time) this.newTime = time; }}></ion-input>
@@ -256,7 +265,7 @@ export class ErpReservationsWaitlist extends LitElement {
             <!-- pm#513: the refusal travels WITH the form — on a phone the panel is a full-screen
                  sheet and a banner on the page underneath it is never seen. -->
             ${this.formError ? html`<p class="err" data-testid="reservations-waitlist-form-error">${this.formError}</p>` : nothing}
-            <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || !this.newDate || (!this.newTime && !this.timeDrafts.unreadable('time'))}>${this.saving ? t('ui.btnSaving') : t('ui.btnAddToWaitlist')}</ion-button>
+            <ion-button type="submit" data-testid="reservations-waitlist-submit" ?disabled=${this.saving || !this.newName || !this.newPhone || (!this.newDate && !this.dateDrafts.unreadable(erplora().locale, 'date')) || (!this.newTime && !this.timeDrafts.unreadable('time'))}>${this.saving ? t('ui.btnSaving') : t('ui.btnAddToWaitlist')}</ion-button>
           </form>
         </ok-data-table>
       </div>`;
