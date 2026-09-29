@@ -108,6 +108,8 @@
     "errDaySummary": "No se han podido cargar las cifras del día",
     "emptyDayTitle": "No hay reservas este día",
     "timePlaceholder": "hh:mm",
+    "datePlaceholder": "dd/mm/aaaa",
+    "valDateUnreadable": "Hay una fecha que no se entiende — escríbela como dd/mm/aaaa (p. ej. 29/09/2026)",
     "valTimeUnreadable": "Hay una hora que no se entiende — escríbela como hh:mm (p. ej. 19:30)"
   },
   "errors": {

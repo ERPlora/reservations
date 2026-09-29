@@ -248,7 +248,7 @@ describe('ocupación: ¿cuánto queda esta noche? (reservations#38)', () => {
 
   it('la fecha se elige desde la BARRA de la tabla de ocupación (táctil, dentro de la tabla)', async () => {
     const el = await montar();
-    const input = el.shadowRoot.querySelector('ok-data-table#occupancy [slot="toolbar"] ion-input[type="date"]');
+    const input = el.shadowRoot.querySelector('ok-data-table#occupancy [slot="toolbar"] ion-input[data-testid="reservations-availability-occupancy-date"]');
     expect(input, 'el selector de fecha vive en la toolbar de la tabla de ocupación').toBeTruthy();
     expect((input as HTMLElement).closest('ok-data-table')?.id).toBe('occupancy');
   });
