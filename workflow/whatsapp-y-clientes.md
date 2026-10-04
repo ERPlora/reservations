@@ -16,8 +16,7 @@ Pasos:
 Entra: el mensaje, el teléfono y la ficha del cliente (desde el módulo WhatsApp).
 Sale: la reserva, que pasa por la misma puerta que la reserva a mano (y dura 120 minutos), o la entrada en lista de espera (avisa: reservations.reservation.created).
 Si falla: el asistente le cuenta al cliente el motivo que dio el restaurante y qué puede hacer; si no puede mirar el libro, le dice que alguien le contesta y marca la conversación para atenderla.
-Implicados: WHATSAPP_INBOX-F15, WHATSAPP_INBOX-F24, REC_WA_MESA-F03, REC_WA_MESA-F05
-Pendiente de enlazar: customers — buscar la ficha del cliente por su teléfono
+Implicados: CUSTOMERS-F10, WHATSAPP_INBOX-F15, WHATSAPP_INBOX-F24, REC_WA_MESA-F03, REC_WA_MESA-F05
 QA: WR-01, WR-02, WR-03, WR-04, L-12
 
 ### RESERVATIONS-F18 Cambiar o anular la reserva por WhatsApp
@@ -59,8 +58,7 @@ Pasos:
 Entra: la ficha que queda y la absorbida (desde Clientes: customer.merged).
 Sale: reservas y lista de espera re-apuntadas; el nombre y el teléfono escritos en cada reserva no se tocan.
 Si falla: se reintenta solo; repetirlo no cambia nada.
-Implicados: pendiente
-Pendiente de enlazar: customers — unir dos fichas de cliente
+Implicados: CUSTOMERS-F13
 QA: ninguno
 
 ### RESERVATIONS-F22 Borrar los datos personales de un cliente (RGPD)
@@ -73,6 +71,5 @@ Pasos:
 Entra: la ficha anonimizada (desde Clientes).
 Sale: reservas y entradas sin datos personales.
 Si falla: sin confirmar (no existe).
-Implicados: pendiente
-Pendiente de enlazar: customers — anonimizar una ficha de cliente
+Implicados: CUSTOMERS-F16
 QA: L-10
