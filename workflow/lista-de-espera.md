@@ -2,15 +2,11 @@
 
 Prefijo: RESERVATIONS
 
-> Apuntar, marcar contactado, quitar y convertir en reserva.
-> Índice, pantallas, datos y reglas: [`../WORKFLOW.md`](../WORKFLOW.md); `Pantalla:` nombra
-> una entrada de su apartado «Pantallas».
-
 ## Flujos
 
 ### RESERVATIONS-F14 Apuntar en la lista de espera
 Estado: parcial — no avisa al cliente ni da tiempo de espera estimado; no comprueba si el día está cerrado
-Actor: encargado
+Actor: responsable
 Pantalla: Lista de espera
 Pasos:
 1. Pulsa «Añadir cliente».
@@ -20,13 +16,13 @@ Pasos:
 Entra: cliente, teléfono, fecha, hora preferida y comensales.
 Sale: la entrada (avisa: reservations.waitlist.created). No ocupa sitio en ninguna franja.
 Si falla: el motivo sale dentro del formulario. Un empleado no tiene permiso para apuntar.
-Implicados: ninguno
+Implicados: pendiente
 Pendiente de enlazar: whatsapp_inbox — la receta «WhatsApp → mesa reservada» apunta en la lista de espera cuando el cliente lo pide
 QA: R-02, WR-03
 
 ### RESERVATIONS-F15 Marcar contactado o quitar de la lista de espera
 Estado: hecho
-Actor: encargado
+Actor: responsable
 Pantalla: Lista de espera
 Pasos:
 1. Tras llamar al cliente, pulsa «Contactado» en su fila; la columna pasa a «Sí».
@@ -35,11 +31,11 @@ Entra: la entrada elegida.
 Sale: la entrada marcada o retirada (avisa: reservations.waitlist.updated / .deleted).
 Si falla: el aviso sale arriba de la tabla (texto sin traducir, sin confirmar).
 Implicados: ninguno
-QA: ninguno
+QA: qa-hub-restaurant §05
 
 ### RESERVATIONS-F16 Convertir una entrada de la lista de espera en reserva
 Estado: parcial — si no se puede convertir, el aviso no dice el motivo
-Actor: encargado
+Actor: responsable
 Pantalla: Lista de espera
 Pasos:
 1. Cuando queda sitio, pulsa «Convertir» en la fila.

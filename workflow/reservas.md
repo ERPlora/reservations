@@ -2,10 +2,6 @@
 
 Prefijo: RESERVATIONS
 
-> Tomar, confirmar, modificar, cancelar, no presentado, sentar, completar, liberar y borrar.
-> Índice, pantallas, datos y reglas: [`../WORKFLOW.md`](../WORKFLOW.md); `Pantalla:` nombra
-> una entrada de su apartado «Pantallas».
-
 ## Flujos
 
 ### RESERVATIONS-F06 Tomar una reserva a mano (teléfono o mostrador)
@@ -20,13 +16,13 @@ Pasos:
 Entra: los datos del cliente que da por teléfono o en persona.
 Sale: la reserva (avisa: reservations.reservation.created). Ocupa sitio en su franja hasta que se cancele o sea no-show.
 Si falla: el motivo sale dentro del formulario: teléfono o correo obligatorios, comensales fuera de límites, fecha bloqueada, «No hay servicio a esa hora», «Esa franja está completa para esa fecha». Demasiado pronto o demasiado lejos, o la franja llenándose en el mismo instante, sale con un aviso que no dice el motivo (texto sin confirmar). Fecha u hora ilegibles: aviso propio. Con la franja llena, apúntalo en la lista de espera (RESERVATIONS-F14).
-Implicados: ninguno
+Implicados: pendiente
 Pendiente de enlazar: REC_RESTAURANTE — reservar, sentar y servir en el día del restaurante
 QA: R-02
 
 ### RESERVATIONS-F07 Confirmar una reserva
 Estado: parcial — confirmar retiene la mesa en el plano solo si la reserva tiene mesa, y desde la pantalla no se le puede poner
-Actor: encargado
+Actor: responsable
 Pantalla: Reservas
 Pasos:
 1. Busca la reserva Pendiente en su día.
@@ -36,14 +32,14 @@ Pasos:
 Entra: la reserva elegida.
 Sale: estado Confirmada y hora de confirmación (avisa: reservations.reservation.status_changed, con mesa, hora, duración, pax y nombre); Mesas retiene la mesa.
 Si falla: arriba de la tabla: «Ese cambio de estado no es posible desde el estado actual…» (p. ej. ya confirmada). Un empleado no tiene permiso para confirmar.
-Implicados: ninguno
+Implicados: pendiente
 Pendiente de enlazar: tables — retener la mesa de una reserva confirmada y pintarla reservada
-QA: R-02
+QA: R-02 (discrepa)
 
 ### RESERVATIONS-F08 Modificar una reserva (hora, comensales, mesa)
 Estado: parcial — no hay botón de editar en Reservas (solo por el asistente); cambiar la hora no mueve la retención de la mesa en el plano
-Actor: encargado
-Pantalla: Reservas
+Actor: responsable, asistente
+Pantalla: asistente
 Pasos:
 1. Pide al asistente el cambio («pasa la reserva de Ana a las 22:00», «son 6», «ponle la mesa 4», «quítale la mesa»).
 2. El cambio se comprueba como una reserva nueva: comensales, antelación, día bloqueado y hueco en la franja (sin contarse a sí misma).
@@ -51,13 +47,13 @@ Pasos:
 Entra: los campos que cambian; lo que no se nombra se queda igual.
 Sale: la reserva cambiada (avisa: reservations.reservation.updated, con los campos enviados).
 Si falla: «No se ha podido guardar el cambio: la franja está completa, el día está bloqueado…» y la reserva queda como estaba.
-Implicados: ninguno
+Implicados: pendiente
 Pendiente de enlazar: tables — mover o soltar la retención cuando cambia la mesa de la reserva
-QA: R-02
+QA: R-02, qa-hub-restaurant §05 (discrepa)
 
 ### RESERVATIONS-F09 Cancelar una reserva
 Estado: parcial — la pantalla no pide motivo
-Actor: encargado
+Actor: responsable
 Pantalla: Reservas
 Pasos:
 1. Busca la reserva (Pendiente o Confirmada).
@@ -67,27 +63,27 @@ Pasos:
 Entra: la reserva y, por el asistente, un motivo.
 Sale: estado Cancelada, hora y motivo (avisa: reservations.reservation.status_changed); Mesas suelta la mesa.
 Si falla: una Sentada, Completada o ya cancelada no se puede cancelar: aviso arriba de la tabla.
-Implicados: ninguno
+Implicados: pendiente
 Pendiente de enlazar: tables — soltar la mesa retenida al cancelar o al no presentarse
 QA: R-02
 
 ### RESERVATIONS-F10 Marcar que no se presentaron
 Estado: parcial — no hay botón «No-show» en Reservas; solo por el asistente
-Actor: encargado
-Pantalla: Reservas
+Actor: responsable, asistente
+Pantalla: asistente
 Pasos:
 1. Pasada la hora, pide al asistente marcar la reserva como no presentada.
 2. Pasa a «No-show»; deja de contar y libera su sitio y su mesa.
 Entra: la reserva Pendiente o Confirmada.
 Sale: estado No-show (avisa: reservations.reservation.status_changed); Mesas suelta la mesa.
 Si falla: desde Sentada o Completada no se puede; aviso de cambio de estado no posible.
-Implicados: ninguno
+Implicados: pendiente
 Pendiente de enlazar: tables — soltar la mesa retenida al cancelar o al no presentarse
 QA: R-02
 
 ### RESERVATIONS-F11 Sentar a la reserva
 Estado: parcial — «Sentar» en Reservas y abrir la mesa en Mesas son dos acciones sueltas: una no hace la otra
-Actor: encargado
+Actor: responsable
 Pantalla: Reservas
 Pasos:
 1. Llega el grupo: en Reservas pulsa «Sentar» en su fila; pasa a Sentada.
@@ -96,14 +92,14 @@ Pasos:
 Entra: la reserva Pendiente o Confirmada.
 Sale: estado Sentada y hora de llegada (avisa: reservations.reservation.status_changed). La retención solo la gasta abrir la mesa en Mesas; si nadie la abre, caduca a su hora.
 Si falla: aviso de cambio de estado no posible (p. ej. ya cancelada). Un empleado no tiene permiso.
-Implicados: ninguno
+Implicados: pendiente
 Pendiente de enlazar: tables — abrir la mesa de una reserva gasta su retención
 Pendiente de enlazar: REC_RESTAURANTE — reservar, sentar y servir en el día del restaurante
-QA: R-02, R-03
+QA: R-02, R-03, qa-hub-restaurant §06
 
 ### RESERVATIONS-F12 Completar la reserva
 Estado: hecho
-Actor: encargado
+Actor: responsable
 Pantalla: Reservas
 Pasos:
 1. Cuando el grupo se va, pulsa «Completar» en su fila.
@@ -112,7 +108,7 @@ Entra: una reserva Sentada.
 Sale: estado Completada y su hora (avisa: reservations.reservation.status_changed). No cierra ni cobra la mesa.
 Si falla: «…no se puede completar antes de sentarla», si no estaba Sentada.
 Implicados: ninguno
-QA: ninguno
+QA: qa-hub-restaurant §05
 
 ### RESERVATIONS-F13 Liberar las reservas pendientes que nadie confirmó
 Estado: hecho
@@ -129,14 +125,14 @@ QA: WR-02
 
 ### RESERVATIONS-F20 Borrar una reserva
 Estado: parcial — borrar una reserva confirmada no suelta su mesa en el plano
-Actor: administrador
-Pantalla: ninguna
+Actor: administrador, asistente
+Pantalla: asistente
 Pasos:
 1. Pide al asistente borrar la reserva (no hay botón en pantalla).
 2. Desaparece del libro y de las cifras; queda guardada como borrada.
 Entra: la reserva.
 Sale: la reserva borrada (avisa: reservations.reservation.deleted). Mesas no lo oye: la mesa retenida sigue reservada en el plano hasta que la retención caduca a su hora.
 Si falla: solo el administrador puede borrar; el asistente lo dice.
-Implicados: ninguno
+Implicados: pendiente
 Pendiente de enlazar: tables — la retención de una reserva borrada
 QA: ninguno

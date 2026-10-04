@@ -12,7 +12,7 @@ Alcance MVP: restaurante
 Reservas es el libro de reservas del restaurante o del bar: decide cuándo y para cuántos se acepta
 reservar (franjas horarias con un máximo de reservas y días bloqueados), apunta cada reserva y la
 lleva de Pendiente a Completada, y guarda en una lista de espera a quien no cabe. Lo usan el
-**encargado** de sala (configura, confirma, sienta, cancela), el **empleado** que coge el teléfono o
+**responsable** de sala (configura, confirma, sienta, cancela), el **empleado** que coge el teléfono o
 atiende la puerta (consulta y apunta reservas) y, sin nadie delante, el **cliente** que pide mesa por
 WhatsApp. No es la agenda de citas de una peluquería (eso es Citas) ni el plano de sala (eso es Mesas).
 
@@ -178,7 +178,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 - **En nombre del cliente** (WhatsApp u otro canal): la reserva tiene que ser suya, comprobado
   contra la propia reserva y antes de nada más; un cliente nunca cambia la mesa ni las notas internas.
 - **Permisos**: el empleado consulta y apunta reservas; confirmar, sentar, completar, cancelar,
-  editar, franjas, bloqueos, lista de espera y ajustes son del encargado; borrar, solo del
+  editar, franjas, bloqueos, lista de espera y ajustes son del responsable; borrar, solo del
   administrador. El servidor lo aplica aunque la pantalla enseñe el botón.
 - **Dinero y fiscal**: este módulo no cobra ni factura nada.
 - Una reserva rechazada no deja nada escrito ni anuncia nada.
@@ -195,7 +195,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 
 Se resuelven con `market-decision`; no las decide el worker.
 
-1. ¿El camarero (empleado) debe poder confirmar, sentar y cancelar? Hoy solo el encargado.
+1. ¿El camarero (empleado) debe poder confirmar, sentar y cancelar? Hoy solo el responsable.
 2. ¿El aforo de una franja se cuenta en reservas (hoy) o en comensales, como hace el mercado?
 3. «Sentar» en Reservas y abrir la mesa en Mesas: ¿una sola acción que haga las dos?
 4. ¿Hacen falta en la pantalla Editar, No-show, motivo al cancelar y asignar mesa, o el asistente basta?
@@ -203,3 +203,20 @@ Se resuelven con `market-decision`; no las decide el worker.
 6. La lista de espera: ¿es la cola de la puerta de hoy (espera estimada, aviso) o una lista para otro día?
 7. ¿Teléfono obligatorio de fábrica? Hoy un restaurante sin ajustes guardados no lo exige y en
    cuanto guarda cualquiera (también desde WhatsApp) pasa a exigirlo.
+
+## Fuentes contrastadas
+
+Contra `origin/main` v3.0.48 (04/10/2026). Una línea por discrepancia; manda el código.
+
+- **Pestaña de Ajustes**: `docs/screens.md`, `architecture/modules/reservations.md` (fila «Componente UI») y el capítulo del manual dicen que el shell la genera; no existe, porque el manifest no declara bloque de ajustes (F03).
+- **`docs/overview.md`, `docs/concepts.md`, `docs/limits.md`, `README.md` y el manual** dicen que no hay tarea programada y que las pendientes nunca se liberan; se liberan cada 15 minutos desde reservations#5 (F13).
+- **`docs/overview.md` y `README.md`**: «no escucha ningún aviso»; escucha la unión de fichas de Clientes (F21).
+- **`docs/limits.md`**: «no hay recuento de huecos para la UI»; existe y lo pinta Disponibilidad desde reservations#4 y #38 (F05).
+- **`docs/screens.md`** describe adjuntar ficha, correo, mesa, duración y notas al tomar la reserva, «Cancelar con motivo», la acción «No-show», abrir una reserva para ver su detalle y bloquear por horas; la pantalla no tiene nada de eso (F02, F06, F09, F10).
+- **`docs/limits.md`**: «el cambio rechazado = la reserva no existe»; casi siempre es la puerta de disponibilidad (F08).
+- **QA R-02 y `qa-hub-restaurant` §05** piden asignar mesa al reservar y que la reserva bloquee la mesa en el plano; desde la pantalla no se puede asignar mesa (F07, F08).
+- **`qa-hub-restaurant` §05**: «modificar fecha u hora libera el hold anterior»; cambiar la hora no mueve la retención, solo cambiar la mesa (F08).
+- **WR-02** espera un mensaje al cliente cuando el responsable confirma; no existe (F19).
+- **WR-03** espera que anular por WhatsApp suelte la mesa; la receta no anula, contesta que alguien se ocupa (F18).
+- **Matriz de roles de `qa-hub-restaurant` §6**: el camarero entra como empleado, y un empleado no puede confirmar, sentar ni cancelar (F07, F09, F11; duda 1).
+- **`whatsapp_inbox/flows/README.md`** dice que Reservas no comprueba de quién es la reserva al cambiarla o anularla; desde reservations#50 sí lo comprueba (F18).
