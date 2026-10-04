@@ -32,7 +32,7 @@ Pasos:
 Entra: la reserva elegida.
 Sale: estado Confirmada y hora de confirmación (avisa: reservations.reservation.status_changed, con mesa, hora, duración, pax y nombre); Mesas retiene la mesa.
 Si falla: arriba de la tabla: «Ese cambio de estado no es posible desde el estado actual…» (p. ej. ya confirmada). Un empleado no tiene permiso para confirmar.
-Implicados: pendiente
+Implicados: WHATSAPP_INBOX-F26, REC_WA_MESA-F06
 Pendiente de enlazar: tables — retener la mesa de una reserva confirmada y pintarla reservada
 QA: R-02 (discrepa)
 
@@ -77,7 +77,7 @@ Pasos:
 Entra: la reserva Pendiente o Confirmada.
 Sale: estado No-show (avisa: reservations.reservation.status_changed); Mesas suelta la mesa.
 Si falla: desde Sentada o Completada no se puede; aviso de cambio de estado no posible.
-Implicados: pendiente
+Implicados: REC_WA_MESA-F10
 Pendiente de enlazar: tables — soltar la mesa retenida al cancelar o al no presentarse
 QA: R-02
 
@@ -92,7 +92,7 @@ Pasos:
 Entra: la reserva Pendiente o Confirmada.
 Sale: estado Sentada y hora de llegada (avisa: reservations.reservation.status_changed). La retención solo la gasta abrir la mesa en Mesas; si nadie la abre, caduca a su hora.
 Si falla: aviso de cambio de estado no posible (p. ej. ya cancelada). Un empleado no tiene permiso.
-Implicados: pendiente
+Implicados: REC_WA_MESA-F10
 Pendiente de enlazar: tables — abrir la mesa de una reserva gasta su retención
 Pendiente de enlazar: REC_RESTAURANTE — reservar, sentar y servir en el día del restaurante
 QA: R-02, R-03, qa-hub-restaurant §06
@@ -107,7 +107,7 @@ Pasos:
 Entra: una reserva Sentada.
 Sale: estado Completada y su hora (avisa: reservations.reservation.status_changed). No cierra ni cobra la mesa.
 Si falla: «…no se puede completar antes de sentarla», si no estaba Sentada.
-Implicados: ninguno
+Implicados: REC_WA_MESA-F10
 QA: qa-hub-restaurant §05
 
 ### RESERVATIONS-F13 Liberar las reservas pendientes que nadie confirmó
@@ -118,9 +118,9 @@ Pasos:
 1. Cada 15 minutos el sistema mira las reservas Pendientes cuya hora pasó hace más de los minutos de cortesía (15 de fábrica).
 2. Las pasa a Cancelada con el motivo «sin confirmar»; dejan de ocupar su franja.
 Entra: hora actual y minutos de cortesía de los ajustes.
-Sale: reservas canceladas (avisa en bloque, sin cuáles: reservations.reservations.unconfirmed_released). Nunca toca las Confirmadas ni las futuras.
+Sale: reservas canceladas (avisa en bloque, sin cuáles: reservations.reservations.unconfirmed_released). Nunca toca las Confirmadas ni las futuras. Al cliente no se le avisa: el que pidió mesa por WhatsApp y oyó «te la confirman» no se entera de que se ha liberado.
 Si falla: se reintenta en la siguiente pasada; no deja nada a medias.
-Implicados: ninguno
+Implicados: REC_WA_MESA-F06
 QA: WR-02
 
 ### RESERVATIONS-F20 Borrar una reserva

@@ -16,8 +16,7 @@ Pasos:
 Entra: cliente, teléfono, fecha, hora preferida y comensales.
 Sale: la entrada (avisa: reservations.waitlist.created). No ocupa sitio en ninguna franja.
 Si falla: el motivo sale dentro del formulario. Un empleado no tiene permiso para apuntar.
-Implicados: pendiente
-Pendiente de enlazar: whatsapp_inbox — la receta «WhatsApp → mesa reservada» apunta en la lista de espera cuando el cliente lo pide
+Implicados: WHATSAPP_INBOX-F24, REC_WA_MESA-F05
 QA: R-02, WR-03
 
 ### RESERVATIONS-F15 Marcar contactado o quitar de la lista de espera

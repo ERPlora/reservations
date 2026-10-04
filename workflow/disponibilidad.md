@@ -16,7 +16,7 @@ Pasos:
 Entra: día de la semana, horas y máximo que escribe el responsable.
 Sale: la franja de ese día de la semana (avisa: reservations.timeslot.created / .deleted). Quitar una franja no toca las reservas ya hechas.
 Si falla: el motivo sale dentro del formulario; una hora ilegible pide «hh:mm». Repetir la misma franja (mismo día, inicio y fin) se rechaza, también si es igual a una que se quitó (sin confirmar en banco).
-Implicados: ninguno
+Implicados: WHATSAPP_INBOX-F24, REC_WA_MESA-F04
 QA: R-02
 
 ### RESERVATIONS-F02 Bloquear un día
@@ -31,8 +31,7 @@ Pasos:
 Entra: fecha y motivo.
 Sale: el bloqueo (avisa: reservations.blocked_date.created / .deleted); lo lee también la reserva por WhatsApp para decir que ese día se cierra.
 Si falla: el motivo sale en el formulario. Bloquear dos veces el mismo día completo no se rechaza (sin confirmar en banco).
-Implicados: pendiente
-Pendiente de enlazar: whatsapp_inbox — la receta «WhatsApp → mesa reservada» consulta los días bloqueados antes de ofrecer horas
+Implicados: WHATSAPP_INBOX-F24, REC_WA_MESA-F04
 QA: R-02
 
 ### RESERVATIONS-F03 Ajustar las reglas de reserva
@@ -55,13 +54,11 @@ Actor: administrador
 Pantalla: WhatsApp: Ajustes
 Pasos:
 1. En los ajustes de WhatsApp, tarjeta «Reservar mesa», elige «Las reservas se confirman solas» o «Las reviso yo antes».
-2. Desde ese momento cada reserva nueva (a mano, por WhatsApp o desde la lista de espera) nace Confirmada o Pendiente.
+2. Desde ese momento cada reserva nueva (a mano, por WhatsApp o desde la lista de espera) nace Confirmada o Pendiente. A diferencia de Citas, donde el mismo interruptor solo vale para lo que reserva la clienta, aquí vale para todas.
 Entra: la elección, desde el módulo WhatsApp.
 Sale: solo ese ajuste (avisa: reservations.settings.updated); el resto de reglas no se toca.
 Si falla: la tarjeta dice «No se pudo guardar cómo se confirman las reservas. Inténtalo otra vez.».
-Implicados: pendiente
-Pendiente de enlazar: whatsapp_inbox — tarjeta «Reservar mesa» de sus Ajustes, que guarda esta elección
-Pendiente de enlazar: REC_WA_MESA — política de confirmación de la reserva por WhatsApp
+Implicados: WHATSAPP_INBOX-F16, REC_WA_MESA-F06
 QA: WR-01, WR-02
 
 ### RESERVATIONS-F05 Consultar cuánto queda libre en un día
@@ -76,5 +73,5 @@ Pasos:
 Entra: la fecha elegida.
 Sale: nada; solo lectura. Cuenta exactamente lo que cuenta la puerta de reserva (sin canceladas ni no-show).
 Si falla: la sección muestra el error con reintento; el resto de la pantalla sigue.
-Implicados: ninguno
+Implicados: WHATSAPP_INBOX-F19, WHATSAPP_INBOX-F24, REC_WA_MESA-F04
 QA: R-02

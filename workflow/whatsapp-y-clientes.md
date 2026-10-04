@@ -16,10 +16,8 @@ Pasos:
 Entra: el mensaje, el teléfono y la ficha del cliente (desde el módulo WhatsApp).
 Sale: la reserva o la entrada en lista de espera, con las mismas reglas que a mano (avisa: reservations.reservation.created).
 Si falla: el asistente le cuenta al cliente el motivo que dio el restaurante y qué puede hacer; si no puede mirar el libro, le dice que alguien le contesta y marca la conversación para atenderla.
-Implicados: pendiente
-Pendiente de enlazar: whatsapp_inbox — receta «WhatsApp → mesa reservada» (mirar, ofrecer horas y reservar)
+Implicados: WHATSAPP_INBOX-F15, WHATSAPP_INBOX-F24, REC_WA_MESA-F03, REC_WA_MESA-F05
 Pendiente de enlazar: customers — buscar la ficha del cliente por su teléfono
-Pendiente de enlazar: REC_WA_MESA — del mensaje del cliente a la mesa reservada
 QA: WR-01, WR-02, WR-03, WR-04, L-12
 
 ### RESERVATIONS-F18 Cambiar o anular la reserva por WhatsApp
@@ -28,21 +26,19 @@ Actor: cliente, asistente
 Pantalla: ninguna
 Pasos:
 1. El cliente escribe «no vamos a poder ir» o «¿podemos ir a las nueve?».
+   Hoy la receta le contesta que alguien del restaurante se ocupa, no toca la reserva y no marca la conversación «Necesita atención»: nadie recibe aviso. Lo que sigue es lo que tiene que hacer cuando exista.
 2. Se comprueba que la reserva es de quien escribe; si no, se rechaza sin contar nada de ella.
 3. Se anula o se cambia con las mismas reglas que a mano; el cliente no puede cambiar la mesa ni las notas internas.
 4. La mesa retenida se suelta o se mueve y el cliente recibe la confirmación.
 Entra: el mensaje y la ficha del cliente.
 Sale: la reserva anulada o cambiada (avisa: reservations.reservation.status_changed / .updated).
 Si falla: «Esa reserva es de otro comensal…», «La mesa y las notas internas … las pone el restaurante», o el rechazo de disponibilidad.
-Implicados: pendiente
-Pendiente de enlazar: whatsapp_inbox — la receta de mesa contesta «alguien del restaurante se ocupa» ante cambiar o anular
-Pendiente de enlazar: appointments — anular y mover la cita por el canal del cliente, con la misma regla de «¿es tuya?»
-Pendiente de enlazar: REC_WA_MESA — del mensaje del cliente a la mesa reservada
+Implicados: WHATSAPP_INBOX-F25, REC_WA_MESA-F08
 QA: WR-03 (discrepa)
 
 ### RESERVATIONS-F19 Avisar por WhatsApp cuando el restaurante confirma
 Estado: no hecho — con «Las reviso yo antes» al cliente se le dice que se le confirmará en breve, y al pulsar «Confirmar» no le llega nada
-Actor: sistema
+Actor: responsable, cliente
 Pantalla: Reservas
 Pasos:
 1. El responsable confirma una reserva que nació por WhatsApp.
@@ -50,8 +46,7 @@ Pasos:
 Entra: la confirmación de la reserva y el teléfono del cliente.
 Sale: el mensaje al cliente.
 Si falla: sin confirmar (no existe).
-Implicados: pendiente
-Pendiente de enlazar: whatsapp_inbox — mensaje de confirmación al cliente, como el que ya existe para las citas
+Implicados: WHATSAPP_INBOX-F26, REC_WA_MESA-F07
 QA: WR-02 (discrepa)
 
 ### RESERVATIONS-F21 Unir las reservas de dos fichas de cliente

@@ -52,6 +52,9 @@ Configuración inicial, paso a paso:
    (RESERVATIONS-F04).
 4. Crea una reserva de prueba y comprueba en **Disponibilidad → Ocupación** que su franja baja en uno.
 
+Para reservar por WhatsApp, el camino entero de punta a punta está en el recorrido `REC_WA_MESA`
+(`architecture/workflows/whatsapp-mesa.md`).
+
 ## Pantallas
 
 ### Reservas
@@ -220,3 +223,4 @@ Contra `origin/main` v3.0.48 (04/10/2026). Una línea por discrepancia; manda el
 - **WR-03** espera que anular por WhatsApp suelte la mesa; la receta no anula, contesta que alguien se ocupa (F18).
 - **Matriz de roles de `qa-hub-restaurant` §6**: el camarero entra como empleado, y un empleado no puede confirmar, sentar ni cancelar (F07, F09, F11; duda 1).
 - **`whatsapp_inbox/flows/README.md`** dice que Reservas no comprueba de quién es la reserva al cambiarla o anularla; desde reservations#50 sí lo comprueba (F18).
+- **`module.json`** (`reservations.settings.set_auto_confirm`, descripción para el asistente): «una reserva que hizo el propio cliente»; el interruptor vale para toda reserva nueva, también la tomada a mano y la convertida desde la lista de espera (F04).
