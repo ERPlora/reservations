@@ -15,7 +15,7 @@ Pasos:
 4. La franja aparece en la tabla y en Ocupación de los días de esa semana; para retirarla, «Quitar».
 Entra: día de la semana, horas y máximo que escribe el responsable.
 Sale: la franja de ese día de la semana (avisa: reservations.timeslot.created / .deleted). Quitar una franja no toca las reservas ya hechas.
-Si falla: el motivo sale dentro del formulario; una hora ilegible pide «hh:mm». Repetir la misma franja (mismo día, inicio y fin) se rechaza, también si es igual a una que se quitó (sin confirmar en banco).
+Si falla: el motivo sale dentro del formulario; una hora ilegible pide «hh:mm». Repetir la misma franja (mismo día, inicio y fin) se rechaza, también si es igual a una que se quitó: una franja quitada no se puede volver a crear igual.
 Implicados: WHATSAPP_INBOX-F24, REC_WA_MESA-F04
 QA: R-02
 
@@ -30,17 +30,17 @@ Pasos:
 4. La fecha sale en la tabla; ese día la barra de Reservas dice «Cerrado este día» y no se acepta ninguna reserva nueva. «Quitar» lo desbloquea.
 Entra: fecha y motivo.
 Sale: el bloqueo (avisa: reservations.blocked_date.created / .deleted); lo lee también la reserva por WhatsApp para decir que ese día se cierra.
-Si falla: el motivo sale en el formulario. Bloquear dos veces el mismo día completo no se rechaza (sin confirmar en banco).
+Si falla: el motivo sale en el formulario. Bloquear dos veces el mismo día completo no se rechaza: queda repetido en la tabla.
 Implicados: WHATSAPP_INBOX-F24, REC_WA_MESA-F04
 QA: R-02
 
 ### RESERVATIONS-F03 Ajustar las reglas de reserva
-Estado: parcial — no hay pantalla de Ajustes; solo se cambian por el asistente del hub; cuatro ajustes se guardan pero no hacen nada (duración de franja y los tres de correo)
+Estado: parcial — no hay pantalla de Ajustes; solo se cambian por el asistente del hub; cinco ajustes se guardan pero no hacen nada (duración de franja, los tres de correo y la duración por defecto, que solo se aplica al convertir desde la lista de espera: a mano o por WhatsApp toda reserva dura 120 minutos); el primer guardado vuelve obligatorio el teléfono
 Actor: responsable, asistente
 Pantalla: asistente
 Pasos:
 1. Pide al asistente el cambio («acepta grupos de hasta 12», «exige teléfono»).
-2. El asistente guarda los valores que nombras y deja el resto como estaba.
+2. El asistente guarda los valores que nombras. Si el restaurante nunca había guardado ajustes, este primer guardado crea los de fábrica y con ellos el teléfono pasa a ser obligatorio en toda reserva (hasta entonces no lo era); en los siguientes, el resto queda como estaba.
 3. La siguiente reserva ya se decide con las reglas nuevas.
 Entra: comensales mínimo y máximo, antelación mínima (horas) y máxima (días), duración por defecto, minutos de cortesía antes de liberar una pendiente, confirmación automática, teléfono y correo obligatorios.
 Sale: los ajustes del restaurante (avisa: reservations.settings.updated).
@@ -49,14 +49,14 @@ Implicados: ninguno
 QA: qa-hub-restaurant §05
 
 ### RESERVATIONS-F04 Elegir si las reservas se confirman solas
-Estado: hecho
+Estado: parcial — si el restaurante nunca había guardado ajustes, esta elección vuelve obligatorio el teléfono en toda reserva; y una reserva que nace Confirmada no retiene su mesa en el plano
 Actor: administrador
 Pantalla: WhatsApp: Ajustes
 Pasos:
 1. En los ajustes de WhatsApp, tarjeta «Reservar mesa», elige «Las reservas se confirman solas» o «Las reviso yo antes».
 2. Desde ese momento cada reserva nueva (a mano, por WhatsApp o desde la lista de espera) nace Confirmada o Pendiente. A diferencia de Citas, donde el mismo interruptor solo vale para lo que reserva la clienta, aquí vale para todas.
 Entra: la elección, desde el módulo WhatsApp.
-Sale: solo ese ajuste (avisa: reservations.settings.updated); el resto de reglas no se toca.
+Sale: ese ajuste (avisa: reservations.settings.updated). El primer guardado crea además los ajustes de fábrica, con teléfono obligatorio: desde entonces la pantalla Reservas rechaza una reserva sin teléfono. Una reserva que nace Confirmada no avisa a Mesas, así que no retiene mesa aunque se la pongan, y ya no se puede «Confirmar» para que la retenga.
 Si falla: la tarjeta dice «No se pudo guardar cómo se confirman las reservas. Inténtalo otra vez.».
 Implicados: WHATSAPP_INBOX-F16, REC_WA_MESA-F06
 QA: WR-01, WR-02

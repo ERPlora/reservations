@@ -40,7 +40,10 @@ Contrastada en `.claude/agents/qa-hub-restaurant.md` §2 (10/08/2026); se adopta
   número uno de «no hay disponibilidad».
 - **Reglas** (sin pantalla propia hoy, ver RESERVATIONS-F03): de fábrica se aceptan grupos de 1 a 20,
   con al menos 1 hora de antelación y hasta 30 días vista, la reserva dura 120 minutos, nace
-  Pendiente y una pendiente se libera 15 minutos después de su hora.
+  Pendiente y una pendiente se libera 15 minutos después de su hora. El teléfono no es obligatorio
+  mientras el restaurante no haya guardado ningún ajuste; el primer guardado (también el
+  interruptor de WhatsApp) lo vuelve obligatorio. Cambiar la duración por defecto solo afecta a las
+  reservas convertidas desde la lista de espera: a mano o por WhatsApp duran siempre 120 minutos.
 
 Configuración inicial, paso a paso:
 
@@ -63,8 +66,9 @@ dd/mm/aaaa), «Día siguiente» y «Hoy» cuando se está en otro día; el día 
 **cubiertos** (personas que vienen, sin canceladas ni no-show), **reservas** y **próxima franja**
 (la primera que no ha terminado, con cuántas quedan «libres» o «Lleno»; o «No queda servicio hoy»,
 «Sin servicio este día», «Cerrado este día»). Debajo, la tabla del día ordenada por hora: Fecha,
-Hora, Cliente, Teléfono, Pax, Estado; buscador «Buscar cliente, teléfono o fecha…» que busca en
-**todo** el libro (resultados por día y hora); filtros; vista tabla o tarjetas. Acción principal
+Hora, Cliente, Teléfono, Pax, Estado; buscador «Buscar cliente, teléfono o fecha…» que busca por
+nombre, teléfono o correo en **todo** el libro (resultados por día y hora; una fecha escrita ahí
+no encuentra nada); filtros; vista tabla o tarjetas. Acción principal
 «Nueva reserva» (abre el panel lateral con el formulario) y, por fila, «Confirmar», «Sentar»,
 «Completar» y «Cancelar». «Hoy» es el del reloj del negocio, no el del dispositivo.
 Vacía: «No hay reservas este día» con explicación y «Nueva reserva». Buscando sin resultados:
@@ -99,7 +103,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | RESERVATIONS-F01 | Crear y quitar franjas horarias | hecho | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
 | RESERVATIONS-F02 | Bloquear un día | parcial | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
 | RESERVATIONS-F03 | Ajustar las reglas de reserva | parcial | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
-| RESERVATIONS-F04 | Elegir si las reservas se confirman solas | hecho | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
+| RESERVATIONS-F04 | Elegir si las reservas se confirman solas | parcial | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
 | RESERVATIONS-F05 | Consultar cuánto queda libre en un día | hecho | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
 | RESERVATIONS-F06 | Tomar una reserva a mano (teléfono o mostrador) | parcial | [workflow/reservas.md](workflow/reservas.md) |
 | RESERVATIONS-F07 | Confirmar una reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
@@ -126,7 +130,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Turnos/franjas por día con aforo | hecho (aforo en reservas, no en comensales) | F01 |
 | Cierres y festivos | hecho día completo; por horas, sin pantalla | F02 |
 | Reglas: grupos, antelación, duración, contacto obligatorio | parcial: sin pantalla | F03 |
-| Confirmación automática o manual | hecho | F04 |
+| Confirmación automática o manual | parcial: el primer guardado vuelve obligatorio el teléfono | F04 |
 | Ocupación por servicio y cubiertos del día | hecho | F05 |
 | Alta con nombre, teléfono, comensales, hora | hecho | F06 |
 | Alta con correo, notas, alérgenos, ocasión, preferencia de zona | no hecho en pantalla (correo y notas por asistente o WhatsApp) | F06 |
@@ -138,7 +142,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | No presentado | parcial: sin botón | F10 |
 | Modificar recalcula la disponibilidad | hecho (por asistente) | F08 |
 | Modificar mueve la retención de mesa | parcial: mesa sí, hora no | F08 |
-| Reserva confirmada retiene la mesa en el plano | parcial: solo con mesa asignada | F07 |
+| Reserva confirmada retiene la mesa en el plano | parcial: solo si ya tiene mesa y se confirma con «Confirmar»; la que nace Confirmada no retiene | F04, F07 |
 | Sentar gasta la retención | parcial: lo hace abrir la mesa en Mesas, no «Sentar» | F11 |
 | Cancelar o no-show suelta la mesa | hecho | F09, F10 |
 | Liberar las pendientes vencidas | hecho | F13 |
@@ -162,20 +166,23 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 - **De Mesas**: la mesa se guarda como referencia. Reservas no toca el plano: anuncia los cambios de
   estado y Mesas retiene, mueve o suelta su mesa.
 - **Datos personales** (inventario RGPD):
-  - reserva: nombre, teléfono, correo, notas del cliente (pueden traer alergias o una silla de
-    ruedas: datos de salud), notas internas y motivo de cancelación;
-  - lista de espera: nombre, teléfono, correo y notas;
-  - copias fuera de Reservas: el nombre del cliente viaja en los avisos de reserva creada y de
-    cambio de estado, y Mesas lo copia en la etiqueta de la mesa retenida.
+  - reserva: ficha de cliente enlazada, nombre, teléfono, correo, notas del cliente (pueden traer
+    alergias o una silla de ruedas: datos de salud), notas internas y motivo de cancelación;
+  - lista de espera: ficha de cliente enlazada, nombre, teléfono, correo y notas;
+  - en las cinco tablas (también franjas, bloqueos y ajustes): qué empleado creó y cambió cada fila;
+  - copias fuera de Reservas: el aviso de reserva creada lleva nombre y ficha; el de cambio de
+    estado, nombre y ficha; el de reserva cambiada, el teléfono, el correo y las notas si se
+    cambian. Mesas copia el nombre en la etiqueta de la mesa retenida.
 
 ## Reglas que no se rompen
 
 - **Aislamiento**: toda lectura y escritura va con el hub; un id de cliente o de mesa de otro hub
   nunca casa.
-- **Ninguna reserva se escribe sin pasar la puerta**: comensales dentro de límites, antelación,
+- **Toda reserva pasa la puerta al crearla o editarla**: comensales dentro de límites, antelación,
   día no bloqueado, franja activa que cubre la hora y hueco en la franja, comprobado dentro de la
-  misma escritura. Dos reservas sobre el último hueco: una gana, la otra se rechaza. La conversión
-  desde la lista de espera pasa la misma puerta salvo la antelación.
+  misma escritura; al crear (a mano o por WhatsApp), además, teléfono y correo si los ajustes los
+  exigen. Dos reservas sobre el último hueco: una gana, la otra se rechaza. La conversión desde la
+  lista de espera solo comprueba el día bloqueado y la franja con sitio.
 - **El estado solo avanza**: nada vuelve a Pendiente; repetir el estado se rechaza; Completada solo
   desde Sentada; las horas de cada paso las pone el sistema, no quien llama.
 - **En nombre del cliente** (WhatsApp u otro canal): la reserva tiene que ser suya, comprobado
@@ -224,3 +231,5 @@ Contra `origin/main` v3.0.48 (04/10/2026). Una línea por discrepancia; manda el
 - **Matriz de roles de `qa-hub-restaurant` §6**: el camarero entra como empleado, y un empleado no puede confirmar, sentar ni cancelar (F07, F09, F11; duda 1).
 - **`whatsapp_inbox/flows/README.md`** dice que Reservas no comprueba de quién es la reserva al cambiarla o anularla; desde reservations#50 sí lo comprueba (F18).
 - **`module.json`** (`reservations.settings.set_auto_confirm`, descripción para el asistente): «una reserva que hizo el propio cliente»; el interruptor vale para toda reserva nueva, también la tomada a mano y la convertida desde la lista de espera (F04).
+- **Duración por defecto**: `docs/screens.md` y `architecture/modules/reservations.md` dicen que la reserva toma la duración de los ajustes; el esquema de alta trae 120 por defecto y el hub lo rellena antes, así que solo la toma la conversión desde la lista de espera (F03, F06, F16).
+- **Texto de ayuda del buscador de Reservas** («Buscar cliente, teléfono o fecha…»): una fecha no encuentra nada; busca por nombre, teléfono y correo (pantalla Reservas).

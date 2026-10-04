@@ -10,11 +10,11 @@ Actor: cliente, asistente
 Pantalla: ninguna
 Pasos:
 1. El cliente escribe al WhatsApp del restaurante («mesa para 4 el sábado a las 21»).
-2. El asistente mira días bloqueados, franjas y huecos libres, y si falta día, hora o comensales, le ofrece las horas libres para tocar una.
-3. Reserva con el teléfono del cliente y, si ya tenía ficha en Clientes, a su nombre; las peticiones del cliente van a las notas.
+2. Si no ha dicho cuántos son, el asistente se lo pregunta primero, sin ofrecer horas. Con los comensales, mira días bloqueados, franjas y huecos libres, y si falta el día o la hora le ofrece una lista de horas libres para tocar una.
+3. Reserva con el teléfono del cliente y el nombre que dé en el mensaje (si no da ninguno, su teléfono hace de nombre); si ya tenía ficha en Clientes, la reserva queda ligada a esa ficha, pero el nombre escrito sigue siendo el del mensaje. Las peticiones del cliente van a las notas.
 4. La reserva aparece en Reservas (Pendiente para que la confirme el responsable, o Confirmada) y el cliente recibe la respuesta.
 Entra: el mensaje, el teléfono y la ficha del cliente (desde el módulo WhatsApp).
-Sale: la reserva o la entrada en lista de espera, con las mismas reglas que a mano (avisa: reservations.reservation.created).
+Sale: la reserva, que pasa por la misma puerta que la reserva a mano (y dura 120 minutos), o la entrada en lista de espera (avisa: reservations.reservation.created).
 Si falla: el asistente le cuenta al cliente el motivo que dio el restaurante y qué puede hacer; si no puede mirar el libro, le dice que alguien le contesta y marca la conversación para atenderla.
 Implicados: WHATSAPP_INBOX-F15, WHATSAPP_INBOX-F24, REC_WA_MESA-F03, REC_WA_MESA-F05
 Pendiente de enlazar: customers — buscar la ficha del cliente por su teléfono
@@ -32,7 +32,7 @@ Pasos:
 4. La mesa retenida se suelta o se mueve y el cliente recibe la confirmación.
 Entra: el mensaje y la ficha del cliente.
 Sale: la reserva anulada o cambiada (avisa: reservations.reservation.status_changed / .updated).
-Si falla: «Esa reserva es de otro comensal…», «La mesa y las notas internas … las pone el restaurante», o el rechazo de disponibilidad.
+Si falla: «Esa reserva es de otro comensal, así que no se puede gestionar en su nombre.», «La mesa y las notas internas del restaurante las pone el restaurante; no se pueden cambiar desde tu reserva.», o el rechazo de disponibilidad.
 Implicados: WHATSAPP_INBOX-F25, REC_WA_MESA-F08
 QA: WR-03 (discrepa)
 
