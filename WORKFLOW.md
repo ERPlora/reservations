@@ -1,0 +1,205 @@
+# WORKFLOW — Reservas
+
+Prefijo: RESERVATIONS
+Alcance MVP: restaurante
+
+> Contrato de comportamiento del módulo (pm#620, pm#621). Se lee antes de tocar el código y se
+> actualiza en la misma PR que cambie un comportamiento. El detalle técnico vive en
+> `architecture/modules/reservations.md`; aquí se escribe lo que ve y hace la persona.
+
+## Para qué sirve y para quién
+
+Reservas es el libro de reservas del restaurante o del bar: decide cuándo y para cuántos se acepta
+reservar (franjas horarias con un máximo de reservas y días bloqueados), apunta cada reserva y la
+lleva de Pendiente a Completada, y guarda en una lista de espera a quien no cabe. Lo usan el
+**encargado** de sala (configura, confirma, sienta, cancela), el **empleado** que coge el teléfono o
+atiende la puerta (consulta y apunta reservas) y, sin nadie delante, el **cliente** que pide mesa por
+WhatsApp. No es la agenda de citas de una peluquería (eso es Citas) ni el plano de sala (eso es Mesas).
+
+## Referencia adoptada
+
+Contrastada en `.claude/agents/qa-hub-restaurant.md` §2 (10/08/2026); se adopta esto, no más:
+
+- [OpenTable — gestión de sala](https://www.opentable.com/restaurant-solutions/products/table-management/):
+  libro por servicio, turnos con aforo, lista de espera, asignación de mesa y estado de la mesa que
+  sigue a la reserva. De OpenTable/Resy se copia también la franja agotada **visible y atenuada**, no
+  escondida.
+- [Toast — mensajes al comensal](https://support.toasttab.com/en/article/Text-messages-guests-can-receive-from-Toast):
+  el comensal se entera por mensaje de que su reserva está hecha o confirmada.
+- [Square — planos de sala](https://squareup.com/help/us/en/article/6427-building-your-floor-plan):
+  comensales (cubiertos) por servicio y ocupación.
+- [Meta — coexistencia con la app](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/):
+  la reserva por WhatsApp sin cambiar de número.
+- Ciclo de vida de la reserva del mercado: pendiente → confirmada → sentada → completada, más
+  cancelada y no presentada; no se vuelve atrás.
+
+## Antes de empezar
+
+- Al instalar Reservas se instalan con él **Mesas** y **Clientes**.
+- **Franjas**: sin una franja activa para ese día de la semana no se puede reservar nada. Es la causa
+  número uno de «no hay disponibilidad».
+- **Reglas** (sin pantalla propia hoy, ver RESERVATIONS-F03): de fábrica se aceptan grupos de 1 a 20,
+  con al menos 1 hora de antelación y hasta 30 días vista, la reserva dura 120 minutos, nace
+  Pendiente y una pendiente se libera 15 minutos después de su hora.
+
+Configuración inicial, paso a paso:
+
+1. Abre **Reservas → Disponibilidad**, sección **Franjas horarias**, y crea las franjas de cada día
+   de servicio (RESERVATIONS-F01).
+2. En **Fechas bloqueadas**, añade los cierres y festivos que ya conozcas (RESERVATIONS-F02).
+3. Si quieres otras reglas (grupos, antelación, teléfono obligatorio), cámbialas con el asistente
+   (RESERVATIONS-F03); si usas WhatsApp, elige allí si las reservas se confirman solas
+   (RESERVATIONS-F04).
+4. Crea una reserva de prueba y comprueba en **Disponibilidad → Ocupación** que su franja baja en uno.
+
+## Pantallas
+
+### Reservas
+Menú **Reservas → Reservas**. Arriba, la **barra del día**: «Día anterior», la fecha (se escribe
+dd/mm/aaaa), «Día siguiente» y «Hoy» cuando se está en otro día; el día en letra; y tres cifras:
+**cubiertos** (personas que vienen, sin canceladas ni no-show), **reservas** y **próxima franja**
+(la primera que no ha terminado, con cuántas quedan «libres» o «Lleno»; o «No queda servicio hoy»,
+«Sin servicio este día», «Cerrado este día»). Debajo, la tabla del día ordenada por hora: Fecha,
+Hora, Cliente, Teléfono, Pax, Estado; buscador «Buscar cliente, teléfono o fecha…» que busca en
+**todo** el libro (resultados por día y hora); filtros; vista tabla o tarjetas. Acción principal
+«Nueva reserva» (abre el panel lateral con el formulario) y, por fila, «Confirmar», «Sentar»,
+«Completar» y «Cancelar». «Hoy» es el del reloj del negocio, no el del dispositivo.
+Vacía: «No hay reservas este día» con explicación y «Nueva reserva». Buscando sin resultados:
+«Ninguna reserva coincide con la búsqueda» y «Limpiar filtros». Cargando: spinner «Cargando…» y
+esqueleto en las cifras. Error: el mensaje y «Reintentar»; un fallo de una acción de fila sale
+encima de la tabla y uno del formulario, dentro del formulario.
+
+### Lista de espera
+Menú **Reservas → Lista de espera**. Tabla: Fecha, Hora pref., Cliente, Teléfono, Pax, Contactado;
+buscador y filtros. Acción principal «Añadir cliente» (panel con Cliente, Teléfono, Fecha, Hora, Pax
+y «Añadir a la lista de espera»); por fila «Contactado», «Convertir» y «Quitar». Vacía: «Lista de
+espera vacía.». Cargando: «Cargando…». Error: el mensaje de la tabla con reintento.
+
+### Disponibilidad
+Menú **Reservas → Disponibilidad**. Tres secciones apiladas:
+- **Ocupación**: una fecha (hoy por defecto) y, por franja activa de ese día, Franja, Reservadas,
+  Máx y Disponibles; la franja sin hueco se ve atenuada con la marca «Lleno». Se refresca sola
+  cuando entra, cambia o se cancela una reserva. Vacía: «Sin servicio ese día (sin franjas activas).».
+- **Franjas horarias**: Día, Desde, Hasta, Máx; «Añadir franja» (Día, Desde, Hasta, Máx →
+  «Crear franja») y «Quitar» por fila. Vacía: «Sin franjas horarias.».
+- **Fechas bloqueadas**: Fecha, Motivo, Día completo; «Añadir fecha bloqueada» (Fecha, Motivo →
+  «Bloquear fecha») y «Quitar». Vacía: «Sin fechas bloqueadas.».
+Cada sección pinta su propio «Cargando…» y su error con reintento.
+
+## Flujos
+
+El detalle de cada flujo (pasos, datos, fallos, implicados y QA) vive en `workflow/`, con la misma
+gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está en la línea `Estado:`.
+
+| ID | Flujo | Estado | Fichero |
+|---|---|---|---|
+| RESERVATIONS-F01 | Crear y quitar franjas horarias | hecho | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
+| RESERVATIONS-F02 | Bloquear un día | parcial | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
+| RESERVATIONS-F03 | Ajustar las reglas de reserva | parcial | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
+| RESERVATIONS-F04 | Elegir si las reservas se confirman solas | hecho | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
+| RESERVATIONS-F05 | Consultar cuánto queda libre en un día | hecho | [workflow/disponibilidad.md](workflow/disponibilidad.md) |
+| RESERVATIONS-F06 | Tomar una reserva a mano (teléfono o mostrador) | parcial | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F07 | Confirmar una reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F08 | Modificar una reserva (hora, comensales, mesa) | parcial | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F09 | Cancelar una reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F10 | Marcar que no se presentaron | parcial | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F11 | Sentar a la reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F12 | Completar la reserva | hecho | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F13 | Liberar las reservas pendientes que nadie confirmó | hecho | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F14 | Apuntar en la lista de espera | parcial | [workflow/lista-de-espera.md](workflow/lista-de-espera.md) |
+| RESERVATIONS-F15 | Marcar contactado o quitar de la lista de espera | hecho | [workflow/lista-de-espera.md](workflow/lista-de-espera.md) |
+| RESERVATIONS-F16 | Convertir una entrada de la lista de espera en reserva | parcial | [workflow/lista-de-espera.md](workflow/lista-de-espera.md) |
+| RESERVATIONS-F17 | Reserva que llega por WhatsApp | hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
+| RESERVATIONS-F18 | Cambiar o anular la reserva por WhatsApp | no hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
+| RESERVATIONS-F19 | Avisar por WhatsApp cuando el restaurante confirma | no hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
+| RESERVATIONS-F20 | Borrar una reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
+| RESERVATIONS-F21 | Unir las reservas de dos fichas de cliente | hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
+| RESERVATIONS-F22 | Borrar los datos personales de un cliente (RGPD) | no hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
+
+## Cobertura contra la referencia
+
+| Elemento de la referencia | Estado | Flujo |
+|---|---|---|
+| Turnos/franjas por día con aforo | hecho (aforo en reservas, no en comensales) | F01 |
+| Cierres y festivos | hecho día completo; por horas, sin pantalla | F02 |
+| Reglas: grupos, antelación, duración, contacto obligatorio | parcial: sin pantalla | F03 |
+| Confirmación automática o manual | hecho | F04 |
+| Ocupación por servicio y cubiertos del día | hecho | F05 |
+| Alta con nombre, teléfono, comensales, hora | hecho | F06 |
+| Alta con correo, notas, alérgenos, ocasión, preferencia de zona | no hecho en pantalla (correo y notas por asistente o WhatsApp) | F06 |
+| Asignar mesa a mano | parcial: solo por el asistente | F08 |
+| Asignación automática de mesa | no hecho | — |
+| Impedir dos reservas en la misma mesa a la misma hora | no hecho | — |
+| Ciclo pendiente → confirmada → sentada → completada | hecho | F07, F11, F12 |
+| Cancelar con motivo | parcial: sin motivo en pantalla | F09 |
+| No presentado | parcial: sin botón | F10 |
+| Modificar recalcula la disponibilidad | hecho (por asistente) | F08 |
+| Modificar mueve la retención de mesa | parcial: mesa sí, hora no | F08 |
+| Reserva confirmada retiene la mesa en el plano | parcial: solo con mesa asignada | F07 |
+| Sentar gasta la retención | parcial: lo hace abrir la mesa en Mesas, no «Sentar» | F11 |
+| Cancelar o no-show suelta la mesa | hecho | F09, F10 |
+| Liberar las pendientes vencidas | hecho | F13 |
+| Lista de espera: alta, contacto, conversión | hecho | F14, F15, F16 |
+| Lista de espera: espera estimada, prioridad, aviso al cliente | no hecho | F14 |
+| Dos reservas a la vez sobre el último hueco: gana una | hecho | F06 |
+| Reserva por WhatsApp | hecho | F17 |
+| Cambiar o anular por WhatsApp | no hecho | F18 |
+| Mensaje al cliente al confirmar | no hecho | F19 |
+| Historial del cliente (no-shows previos) | no hecho | — |
+| Recordatorios antes de la reserva | fuera del MVP | — |
+| Depósito, señal o cargo por no-show | fuera del MVP | — |
+| Reserva desde la web del restaurante | fuera del MVP (módulo Reservas online) | — |
+
+## Datos: de quién es cada dato
+
+- **Propios**: reservas, franjas horarias, fechas bloqueadas, lista de espera y los ajustes del
+  restaurante (uno por hub). Otros módulos los leen solo por sus consultas públicas.
+- **De Clientes**: la ficha se guarda como una referencia, sin enlace fuerte; Reservas no la lee
+  (la busca por teléfono la receta de WhatsApp). Escucha la unión de fichas (F21).
+- **De Mesas**: la mesa se guarda como referencia. Reservas no toca el plano: anuncia los cambios de
+  estado y Mesas retiene, mueve o suelta su mesa.
+- **Datos personales** (inventario RGPD):
+  - reserva: nombre, teléfono, correo, notas del cliente (pueden traer alergias o una silla de
+    ruedas: datos de salud), notas internas y motivo de cancelación;
+  - lista de espera: nombre, teléfono, correo y notas;
+  - copias fuera de Reservas: el nombre del cliente viaja en los avisos de reserva creada y de
+    cambio de estado, y Mesas lo copia en la etiqueta de la mesa retenida.
+
+## Reglas que no se rompen
+
+- **Aislamiento**: toda lectura y escritura va con el hub; un id de cliente o de mesa de otro hub
+  nunca casa.
+- **Ninguna reserva se escribe sin pasar la puerta**: comensales dentro de límites, antelación,
+  día no bloqueado, franja activa que cubre la hora y hueco en la franja, comprobado dentro de la
+  misma escritura. Dos reservas sobre el último hueco: una gana, la otra se rechaza. La conversión
+  desde la lista de espera pasa la misma puerta salvo la antelación.
+- **El estado solo avanza**: nada vuelve a Pendiente; repetir el estado se rechaza; Completada solo
+  desde Sentada; las horas de cada paso las pone el sistema, no quien llama.
+- **En nombre del cliente** (WhatsApp u otro canal): la reserva tiene que ser suya, comprobado
+  contra la propia reserva y antes de nada más; un cliente nunca cambia la mesa ni las notas internas.
+- **Permisos**: el empleado consulta y apunta reservas; confirmar, sentar, completar, cancelar,
+  editar, franjas, bloqueos, lista de espera y ajustes son del encargado; borrar, solo del
+  administrador. El servidor lo aplica aunque la pantalla enseñe el botón.
+- **Dinero y fiscal**: este módulo no cobra ni factura nada.
+- Una reserva rechazada no deja nada escrito ni anuncia nada.
+
+## Lo que NO hace, a propósito
+
+- No cobra depósitos, señales ni cargos por no presentarse.
+- No envía correos, SMS ni recordatorios; los ajustes de correo son solo una política guardada.
+- No pinta ni ocupa el plano: eso es de Mesas, que lo hace al oír los cambios de la reserva.
+- No es la agenda de citas por profesional (Citas) ni la reserva web (Reservas online).
+- No sincroniza con calendarios externos: sus fechas y horas no llevan zona horaria.
+
+## Dudas abiertas
+
+Se resuelven con `market-decision`; no las decide el worker.
+
+1. ¿El camarero (empleado) debe poder confirmar, sentar y cancelar? Hoy solo el encargado.
+2. ¿El aforo de una franja se cuenta en reservas (hoy) o en comensales, como hace el mercado?
+3. «Sentar» en Reservas y abrir la mesa en Mesas: ¿una sola acción que haga las dos?
+4. ¿Hacen falta en la pantalla Editar, No-show, motivo al cancelar y asignar mesa, o el asistente basta?
+5. ¿Asignación automática de mesa y control de dos reservas en la misma mesa entran en el MVP?
+6. La lista de espera: ¿es la cola de la puerta de hoy (espera estimada, aviso) o una lista para otro día?
+7. ¿Teléfono obligatorio de fábrica? Hoy un restaurante sin ajustes guardados no lo exige y en
+   cuanto guarda cualquiera (también desde WhatsApp) pasa a exigirlo.
