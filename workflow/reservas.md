@@ -16,24 +16,22 @@ Pasos:
 Entra: los datos del cliente que da por teléfono o en persona.
 Sale: la reserva (avisa: reservations.reservation.created). Ocupa sitio en su franja hasta que se cancele o sea no-show.
 Si falla: el motivo sale dentro del formulario: teléfono o correo obligatorios, comensales fuera de límites, fecha bloqueada, «No hay servicio a esa hora: ninguna franja abierta la cubre.», «Esa franja está completa para esa fecha.». Demasiado pronto o demasiado lejos, o la franja llenándose en el mismo instante, sale con un aviso que no dice el motivo (texto sin confirmar). Fecha u hora ilegibles: aviso propio. Con la franja llena, apúntalo en la lista de espera (RESERVATIONS-F14).
-Implicados: pendiente
-Pendiente de enlazar: REC_RESTAURANTE — reservar, sentar y servir en el día del restaurante
+Implicados: FLOWS-F04, REC_RESTAURANTE-F04
 QA: R-02
 
 ### RESERVATIONS-F07 Confirmar una reserva
-Estado: parcial — confirmar retiene la mesa en el plano solo si la reserva ya tiene mesa, y desde la pantalla no se le puede poner; una reserva que nace Confirmada (confirmación automática) nunca retiene mesa
+Estado: parcial — confirmar retiene la mesa en el plano solo si la reserva ya tiene mesa, y desde la pantalla no se le puede poner (solo con el asistente); una reserva que nace Confirmada (confirmación automática) nunca retiene mesa; y la mesa se pinta Reservada desde que se confirma, aunque la reserva sea para otro día
 Actor: responsable
 Pantalla: Reservas
 Pasos:
 1. Busca la reserva Pendiente en su día.
 2. Pulsa «Confirmar» en su fila.
 3. Pasa a Confirmada.
-4. Si tenía mesa, Mesas la pinta reservada en el plano desde su hora hasta que acaba su duración. Es el único camino que retiene mesa: una reserva que nace Confirmada no pasa por aquí (no se puede volver a «Confirmar») y editarla tampoco crea la retención.
+4. Si tenía mesa, Mesas la pinta Reservada en el plano desde el momento de confirmar, aunque la reserva sea para otro día, hasta que la retención se gasta, se suelta o caduca después de su ventana (TABLES-F25, TABLES-F29). La mesa solo se le pone a la reserva con el asistente: las pantallas de Reservas no tienen campo de mesa. Es el único camino que retiene mesa: una reserva que nace Confirmada no pasa por aquí (no se puede volver a «Confirmar») y editarla tampoco crea la retención.
 Entra: la reserva elegida.
 Sale: estado Confirmada y hora de confirmación (avisa: reservations.reservation.status_changed, con mesa, hora, duración, pax y nombre); Mesas retiene la mesa.
 Si falla: arriba de la tabla: «Ese cambio de estado no es posible desde el estado actual de la reserva (el flujo es pendiente → confirmada → sentada → completada).» (p. ej. ya confirmada: los cuatro botones salen en todas las filas, sea cual sea su estado). Un empleado no tiene permiso para confirmar.
-Implicados: WHATSAPP_INBOX-F26, REC_WA_MESA-F06
-Pendiente de enlazar: tables — retener la mesa de una reserva confirmada y pintarla reservada
+Implicados: TABLES-F25, WHATSAPP_INBOX-F26, REC_RESTAURANTE-F04, REC_WA_MESA-F06
 QA: R-02 (discrepa)
 
 ### RESERVATIONS-F08 Modificar una reserva (hora, comensales, mesa)
@@ -47,8 +45,7 @@ Pasos:
 Entra: los campos que cambian; lo que no se nombra se queda igual.
 Sale: la reserva cambiada (avisa: reservations.reservation.updated, con los campos enviados).
 Si falla: «No se ha podido guardar el cambio: la franja está completa, el día está bloqueado…» y la reserva queda como estaba.
-Implicados: pendiente
-Pendiente de enlazar: tables — mover o soltar la retención cuando cambia la mesa de la reserva
+Implicados: TABLES-F26, REC_RESTAURANTE-F04
 QA: R-02, qa-hub-restaurant §05 (discrepa)
 
 ### RESERVATIONS-F09 Cancelar una reserva
@@ -63,8 +60,7 @@ Pasos:
 Entra: la reserva y, por el asistente, un motivo.
 Sale: estado Cancelada, hora y motivo (avisa: reservations.reservation.status_changed); Mesas suelta la mesa.
 Si falla: una Sentada, Completada o ya cancelada no se puede cancelar: arriba de la tabla, «Ese cambio de estado no es posible desde el estado actual de la reserva (el flujo es pendiente → confirmada → sentada → completada).»
-Implicados: pendiente
-Pendiente de enlazar: tables — soltar la mesa retenida al cancelar o al no presentarse
+Implicados: TABLES-F27, REC_RESTAURANTE-F04
 QA: R-02
 
 ### RESERVATIONS-F10 Marcar que no se presentaron
@@ -77,24 +73,21 @@ Pasos:
 Entra: la reserva Pendiente o Confirmada.
 Sale: estado No-show (avisa: reservations.reservation.status_changed); Mesas suelta la mesa.
 Si falla: desde Sentada o Completada no se puede; aviso de cambio de estado no posible.
-Implicados: REC_WA_MESA-F10
-Pendiente de enlazar: tables — soltar la mesa retenida al cancelar o al no presentarse
+Implicados: TABLES-F27, REC_RESTAURANTE-F04, REC_WA_MESA-F10
 QA: R-02
 
 ### RESERVATIONS-F11 Sentar a la reserva
-Estado: parcial — «Sentar» en Reservas y abrir la mesa en Mesas son dos acciones sueltas: una no hace la otra
+Estado: parcial — «Sentar» en Reservas y abrir la mesa en Mesas son dos acciones sueltas: una no hace la otra; y sentar en esa mesa a cualquier otro grupo, horas antes, gasta también esta reserva (TABLES-F28)
 Actor: responsable
 Pantalla: Reservas
 Pasos:
 1. Llega el grupo: en Reservas pulsa «Sentar» en su fila; pasa a Sentada.
-2. En Mesas, abre la mesa con los comensales; abrirla gasta la retención de la reserva.
+2. En **Ventas → Vender**, con el botón de mesa («Elegir mesa», de Mesas), toca la mesa Reservada y siéntalos con sus comensales (TABLES-F10); abrirla gasta la retención de la reserva.
 3. La mesa queda ocupada en el plano y se empieza a tomar comanda.
 Entra: la reserva Pendiente o Confirmada.
-Sale: estado Sentada y hora de llegada (avisa: reservations.reservation.status_changed). La retención solo la gasta abrir la mesa en Mesas; si nadie la abre, caduca al acabar su ventana (hora de la reserva más su duración, 120 minutos), en el siguiente repaso de Mesas (cada 15 minutos).
+Sale: estado Sentada y hora de llegada (avisa: reservations.reservation.status_changed). La retención solo la gasta abrir la mesa en Mesas, y la gasta cualquiera que se siente en esa mesa (también un grupo sin reserva horas antes), que además gasta todas las reservas retenidas en ella (TABLES-F28). Si nadie la abre, caduca después de su ventana (hora de la reserva más su duración, 120 minutos): en España, 1 hora tarde en invierno y 2 en verano, porque Mesas compara la hora del negocio con la del servidor en UTC, más hasta 15 minutos del repaso (TABLES-F29).
 Si falla: arriba de la tabla, «Ese cambio de estado no es posible desde el estado actual de la reserva (el flujo es pendiente → confirmada → sentada → completada).» (p. ej. ya cancelada). Un empleado no tiene permiso.
-Implicados: REC_WA_MESA-F10
-Pendiente de enlazar: tables — abrir la mesa de una reserva gasta su retención
-Pendiente de enlazar: REC_RESTAURANTE — reservar, sentar y servir en el día del restaurante
+Implicados: TABLES-F10, TABLES-F28, TABLES-F29, REC_RESTAURANTE-F05, REC_WA_MESA-F10
 QA: R-02, R-03, qa-hub-restaurant §06
 
 ### RESERVATIONS-F12 Completar la reserva
@@ -107,7 +100,7 @@ Pasos:
 Entra: una reserva Sentada.
 Sale: estado Completada y su hora (avisa: reservations.reservation.status_changed). No cierra ni cobra la mesa.
 Si falla: si no estaba Sentada, arriba de la tabla, «Ese cambio de estado no es posible desde el estado actual de la reserva (el flujo es pendiente → confirmada → sentada → completada).»
-Implicados: REC_WA_MESA-F10
+Implicados: REC_RESTAURANTE-F13, REC_WA_MESA-F10
 QA: qa-hub-restaurant §05
 
 ### RESERVATIONS-F13 Liberar las reservas pendientes que nadie confirmó
@@ -131,8 +124,7 @@ Pasos:
 1. Pide al asistente borrar la reserva (no hay botón en pantalla).
 2. Desaparece del libro y de las cifras; queda guardada como borrada.
 Entra: la reserva.
-Sale: la reserva borrada (avisa: reservations.reservation.deleted). Mesas no lo oye: la mesa retenida sigue reservada en el plano hasta que la retención caduca al acabar su ventana (hora más duración), en el repaso de Mesas cada 15 minutos.
+Sale: la reserva borrada (avisa: reservations.reservation.deleted). Mesas no lo oye: la mesa retenida sigue reservada en el plano hasta que la retención caduca después de su ventana (hora más duración): en España 1 o 2 horas tarde (hora del negocio comparada con UTC), más hasta 15 minutos del repaso de Mesas (TABLES-F29).
 Si falla: solo el administrador puede borrar; el asistente lo dice.
-Implicados: pendiente
-Pendiente de enlazar: tables — la retención de una reserva borrada
+Implicados: TABLES-F27, TABLES-F29, REC_RESTAURANTE-F04
 QA: ninguno

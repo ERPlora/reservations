@@ -143,7 +143,9 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Modificar recalcula la disponibilidad | hecho (por asistente) | F08 |
 | Modificar mueve la retención de mesa | parcial: mesa sí, hora no | F08 |
 | Reserva confirmada retiene la mesa en el plano | parcial: solo si ya tiene mesa y se confirma con «Confirmar»; la que nace Confirmada no retiene | F04, F07 |
-| Sentar gasta la retención | parcial: lo hace abrir la mesa en Mesas, no «Sentar» | F11 |
+| Sentar gasta la retención | parcial: lo hace abrir la mesa en Mesas, no «Sentar», y la gasta cualquiera que se siente en esa mesa | F11 |
+| La reserva sale en el plano cerca de su hora | parcial: la mesa se pinta Reservada desde que se confirma, aunque sea para otro día | F07 |
+| Una reserva que no llega no deja la mesa muerta | parcial: la retención caduca 1 o 2 horas tarde en España | F11, F20 |
 | Cancelar o no-show suelta la mesa | hecho | F09, F10 |
 | Liberar las pendientes vencidas | hecho | F13 |
 | Lista de espera: alta, contacto, conversión | hecho | F14, F15, F16 |
@@ -210,6 +212,8 @@ Se resuelven con `market-decision`; no las decide el worker.
 3. «Sentar» en Reservas y abrir la mesa en Mesas: ¿una sola acción que haga las dos?
 4. ¿Hacen falta en la pantalla Editar, No-show, motivo al cancelar y asignar mesa, o el asistente basta?
 5. ¿Asignación automática de mesa y control de dos reservas en la misma mesa entran en el MVP?
+8. ¿Desde cuándo se pinta Reservada la mesa (hoy, desde que se confirma) y debe gastar la reserva de la noche
+   un grupo que se sienta en esa mesa horas antes (hoy sí)? Es la duda 1 de Mesas (TABLES-F25, TABLES-F28).
 6. La lista de espera: ¿es la cola de la puerta de hoy (espera estimada, aviso) o una lista para otro día?
 7. ¿Teléfono obligatorio de fábrica? Hoy un restaurante sin ajustes guardados no lo exige y en
    cuanto guarda cualquiera (también desde WhatsApp) pasa a exigirlo.
@@ -233,3 +237,4 @@ Contra `origin/main` v3.0.48 (04/10/2026). Una línea por discrepancia; manda el
 - **`module.json`** (`reservations.settings.set_auto_confirm`, descripción para el asistente): «una reserva que hizo el propio cliente»; el interruptor vale para toda reserva nueva, también la tomada a mano y la convertida desde la lista de espera (F04).
 - **Duración por defecto**: `docs/screens.md` y `architecture/modules/reservations.md` dicen que la reserva toma la duración de los ajustes; el esquema de alta trae 120 por defecto y el hub lo rellena antes, así que solo la toma la conversión desde la lista de espera (F03, F06, F16).
 - **Texto de ayuda del buscador de Reservas** («Buscar cliente, teléfono o fecha…»): una fecha no encuentra nada; busca por nombre, teléfono y correo (pantalla Reservas).
+- **RESERVATIONS-F07, F11 y F20, oleada 2 (Mesas, 05/10/2026)**: decían que Mesas pinta la mesa reservada «desde su hora» y que la retención caduca «al acabar su ventana»; la pinta desde que se confirma (`_hold_paint_reservation.sql` no mira la fecha) y caduca 1 o 2 horas tarde, porque guarda la hora del negocio sin zona y la compara como texto con la hora del servidor en UTC (`table_hold_expire.sql`). Y sentar a cualquiera en esa mesa gasta todas sus retenciones (`_hold_consume_seated.sql` filtra solo por mesa) (F07, F11, F20).
