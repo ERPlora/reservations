@@ -16,7 +16,7 @@ Pasos:
 Entra: los datos del cliente que da por teléfono o en persona.
 Sale: la reserva (avisa: reservations.reservation.created). Ocupa sitio en su franja hasta que se cancele o sea no-show.
 Si falla: el motivo sale dentro del formulario: teléfono o correo obligatorios, comensales fuera de límites, fecha bloqueada, «No hay servicio a esa hora: ninguna franja abierta la cubre.», «Esa franja está completa para esa fecha.». Demasiado pronto o demasiado lejos, o la franja llenándose en el mismo instante, sale con un aviso que no dice el motivo (texto sin confirmar). Fecha u hora ilegibles: aviso propio. Con la franja llena, apúntalo en la lista de espera (RESERVATIONS-F14).
-Implicados: FLOWS-F04, REC_RESTAURANTE-F04
+Implicados: FLOWS-F04, REC_RESTAURANTE-F04, ONLINE_BOOKING-F01
 QA: R-02
 
 ### RESERVATIONS-F07 Confirmar una reserva
