@@ -126,5 +126,5 @@ Pasos:
 Entra: la reserva.
 Sale: la reserva borrada (avisa: reservations.reservation.deleted). Mesas no lo oye: la mesa retenida sigue reservada en el plano hasta que la retención caduca después de su ventana (hora más duración): en España 1 o 2 horas tarde (hora del negocio comparada con UTC), más hasta 15 minutos del repaso de Mesas (TABLES-F29).
 Si falla: solo el administrador puede borrar; el asistente lo dice.
-Implicados: TABLES-F27, TABLES-F29
+Implicados: TABLES-F27, TABLES-F29, REC_RESTAURANTE-F04
 QA: ninguno
