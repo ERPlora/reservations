@@ -157,7 +157,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Historial del cliente (no-shows previos) | no hecho | — |
 | Recordatorios antes de la reserva | fuera del MVP | — |
 | Depósito, señal o cargo por no-show | fuera del MVP | — |
-| Reserva desde la web del restaurante | fuera del MVP (módulo Reservas online) | — |
+| Reserva desde la web del restaurante | no existe: Reservas online es un libro interno que se rellena con sesión, sin página pública ni puerta sin sesión | — |
 
 ## Datos: de quién es cada dato
 
