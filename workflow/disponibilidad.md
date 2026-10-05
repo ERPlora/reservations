@@ -58,7 +58,7 @@ Pasos:
 Entra: la elección, desde el módulo WhatsApp.
 Sale: ese ajuste (avisa: reservations.settings.updated). El primer guardado crea además los ajustes de fábrica, con teléfono obligatorio: desde entonces la pantalla Reservas rechaza una reserva sin teléfono. Una reserva que nace Confirmada no avisa a Mesas, así que no retiene mesa aunque se la pongan, y ya no se puede «Confirmar» para que la retenga.
 Si falla: la tarjeta dice «No se pudo guardar cómo se confirman las reservas. Inténtalo otra vez.».
-Implicados: WHATSAPP_INBOX-F16, REC_WA_MESA-F06
+Implicados: TABLES-F25, WHATSAPP_INBOX-F16, REC_WA_MESA-F06
 QA: WR-01, WR-02
 
 ### RESERVATIONS-F05 Consultar cuánto queda libre en un día
