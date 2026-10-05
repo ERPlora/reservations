@@ -71,5 +71,5 @@ Pasos:
 Entra: la ficha anonimizada (desde Clientes).
 Sale: reservas y entradas sin datos personales.
 Si falla: sin confirmar (no existe).
-Implicados: CUSTOMERS-F16
+Implicados: CUSTOMERS-F16, HUB-F250
 QA: L-10
