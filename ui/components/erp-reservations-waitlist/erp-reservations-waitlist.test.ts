@@ -33,7 +33,8 @@ beforeEach(() => {
     }),
     command: async (name: string, payload: Record<string, unknown>) => {
       comandos.push({ name, payload });
-      return {};
+      // reservations#99 — the form links a Clientes card first; the real create answers its id.
+      return name === 'customers.create' ? { new_ids: ['c-new'] } : {};
     },
     on: () => () => {},
     locale: 'es',
@@ -144,5 +145,69 @@ describe('la fecha y la hora preferida se pintan con Intl, no en ISO crudo', () 
     expect(time?.format, 'la columna preferred_time no tiene format').toBeTruthy();
     expect(time!.format({ preferred_time: '21:00:00' })).toBe('21:00');
     expect(time!.format({ preferred_time: '21:00' })).toBe('21:00');
+  });
+});
+
+// ── reservations#99: an entry taken by hand belongs to a Clientes card ──────────────────────
+describe('reservations#99 — the hand-taken waitlist entry is linked to a customer card', () => {
+  type Wc = {
+    newName: string;
+    newPhone: string;
+    newDate: string;
+    newTime: string;
+    newParty: string;
+    formError: string;
+    createEntry: (ev: Event) => Promise<void>;
+  };
+  const sdk = () => (globalThis as unknown as { erplora: Record<string, unknown> }).erplora;
+  const fill = (wc: Wc, name: string, phone: string) => {
+    wc.newName = name;
+    wc.newPhone = phone;
+    wc.newDate = '2026-07-13';
+    wc.newTime = '21:00';
+    wc.newParty = '3';
+  };
+
+  it('a guest whose number is on a card: the entry carries that card', async () => {
+    sdk().query = async (name: string) =>
+      name === 'customers.by_phone' ? [{ id: 'c-luis', name: 'Luis', phone: '+34600123123' }] : [];
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Luis', '600123123');
+    await wc.createEntry(new Event('submit'));
+
+    const alta = comandos.find((c) => c.name === 'reservations.waitlist.create');
+    expect(alta?.payload.customer_id, 'the entry must name the card the erasure reaches').toBe('c-luis');
+    expect(comandos.some((c) => c.name === 'customers.create')).toBe(false);
+  });
+
+  it('a new guest: her card is created first, from the door, and the entry carries it', async () => {
+    sdk().command = async (name: string, payload: Record<string, unknown>) => {
+      comandos.push({ name, payload });
+      return name === 'customers.create' ? { new_ids: ['c-eva'] } : {};
+    };
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Eva', '600 555 666');
+    await wc.createEntry(new Event('submit'));
+
+    expect(comandos.map((c) => c.name)).toEqual(['customers.create', 'reservations.waitlist.create']);
+    expect(comandos[0].payload).toEqual({ name: 'Eva', phone: '600 555 666', source: 'walk_in' });
+    expect(comandos[1].payload.customer_id).toBe('c-eva');
+  });
+
+  it('the card cannot be resolved: no entry is written and the form says why', async () => {
+    sdk().command = async (name: string, payload: Record<string, unknown>) => {
+      comandos.push({ name, payload });
+      if (name === 'customers.create') throw Object.assign(new Error('raw'), { code: 'customers.phone_invalid' });
+      return {};
+    };
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Eva', '12');
+    await wc.createEntry(new Event('submit'));
+
+    expect(comandos.some((c) => c.name === 'reservations.waitlist.create')).toBe(false);
+    expect(wc.formError).toBe('ui.errGuestPhoneInvalid');
   });
 });

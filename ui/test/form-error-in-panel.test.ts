@@ -54,7 +54,9 @@ beforeEach(() => {
     queryOptional: async () => undefined,
     queryAll: async () => [],
     queryPage: async () => ({ rows: [], total: 0 }),
-    command: async () => {
+    command: async (name: string) => {
+      // reservations#99 — the forms link a Clientes card first; the real create answers its id.
+      if (name === 'customers.create') return { new_ids: ['c-new'] };
       if (refusal) throw refusal;
       return {};
     },

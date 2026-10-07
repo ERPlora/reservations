@@ -37,7 +37,8 @@ beforeEach(() => {
     }),
     command: async (name: string, payload: Record<string, unknown>) => {
       comandos.push({ name, payload });
-      return {};
+      // reservations#99 — the form links a Clientes card first; the real create answers its id.
+      return name === 'customers.create' ? { new_ids: ['c-new'] } : {};
     },
     on: () => () => {},
     locale: 'es',
@@ -192,5 +193,114 @@ describe('la fecha y la hora se pintan con Intl, no en ISO crudo', () => {
     const time = colsNow.find((c) => c.key === 'time')!;
     expect(date.format({ date: '' })).toBe('');
     expect(time.format({ time: 'garbage' })).toBe('garbage');
+  });
+});
+
+// ── reservations#99: a reservation taken by hand belongs to a Clientes card ─────────────────
+//
+// The erasure of a card (RESERVATIONS-F22) empties the rows that carry its `customer_id`; the form
+// sent none, so a booking typed at the desk kept the guest's name and phone after Clientes erased
+// her. The form now links the card that carries the number, or creates it with what was typed.
+describe('reservations#99 — the hand-taken reservation is linked to a customer card', () => {
+  type Wc = {
+    newName: string;
+    newPhone: string;
+    newDate: string;
+    newTime: string;
+    newParty: string;
+    formError: string;
+    createReservation: (ev: Event) => Promise<void>;
+  };
+  const sdk = () => (globalThis as unknown as { erplora: Record<string, unknown> }).erplora;
+  const fill = (wc: Wc, name: string, phone: string) => {
+    wc.newName = name;
+    wc.newPhone = phone;
+    wc.newDate = '2026-07-13';
+    wc.newTime = '20:00';
+    wc.newParty = '4';
+  };
+
+  it('a caller whose number is on a card: the reservation carries that card', async () => {
+    const queries: { name: string; params: Record<string, unknown> }[] = [];
+    sdk().query = async (name: string, params: Record<string, unknown>) => {
+      queries.push({ name, params });
+      return name === 'customers.by_phone' ? [{ id: 'c-ana', name: 'Ana García', phone: '+34600123123' }] : [];
+    };
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Ana', '600 123 123');
+    await wc.createReservation(new Event('submit'));
+
+    expect(queries.find((q) => q.name === 'customers.by_phone')?.params).toEqual({ phone: '600 123 123' });
+    const alta = comandos.find((c) => c.name === 'reservations.reservations.create');
+    expect(alta?.payload.customer_id, 'the reservation must name the card the erasure reaches').toBe('c-ana');
+    expect(alta?.payload.guest_name, 'the name typed is still the one the book shows').toBe('Ana');
+    expect(comandos.some((c) => c.name === 'customers.create'), 'her card exists: no second one').toBe(false);
+  });
+
+  it('a new caller: her card is created first and the reservation carries it', async () => {
+    sdk().command = async (name: string, payload: Record<string, unknown>) => {
+      comandos.push({ name, payload });
+      return name === 'customers.create' ? { new_ids: ['c-luis'] } : {};
+    };
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Luis', '600 333 444');
+    await wc.createReservation(new Event('submit'));
+
+    expect(comandos.map((c) => c.name)).toEqual(['customers.create', 'reservations.reservations.create']);
+    expect(comandos[0].payload).toEqual({ name: 'Luis', phone: '600 333 444', source: 'phone' });
+    expect(comandos[1].payload.customer_id).toBe('c-luis');
+  });
+
+  it('the card cannot be resolved: no reservation is written and the form says why', async () => {
+    sdk().command = async (name: string, payload: Record<string, unknown>) => {
+      comandos.push({ name, payload });
+      if (name === 'customers.create') throw Object.assign(new Error('raw'), { code: 'customers.phone_invalid' });
+      return {};
+    };
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Luis', '12');
+    await wc.createReservation(new Event('submit'));
+
+    expect(comandos.some((c) => c.name === 'reservations.reservations.create'), 'an unlinked booking is the bug').toBe(false);
+    expect(wc.formError, 'the refusal is translated by its code').toBe('ui.errGuestPhoneInvalid');
+  });
+
+  it('a refused reservation retried as it was does not create the card twice', async () => {
+    let refuse = true;
+    sdk().command = async (name: string, payload: Record<string, unknown>) => {
+      comandos.push({ name, payload });
+      if (name === 'customers.create') return { new_ids: ['c-juan'] };
+      if (refuse) throw Object.assign(new Error('full'), { code: 'reservations.no_capacity' });
+      return {};
+    };
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Mesa de Juan', '');
+    await wc.createReservation(new Event('submit'));
+    refuse = false;
+    await wc.createReservation(new Event('submit'));
+
+    expect(comandos.filter((c) => c.name === 'customers.create').length, 'one guest, one card').toBe(1);
+    const altas = comandos.filter((c) => c.name === 'reservations.reservations.create');
+    expect(altas.map((c) => c.payload.customer_id)).toEqual(['c-juan', 'c-juan']);
+  });
+
+  it('once written, the next booking looks her card up again (it may have been erased since)', async () => {
+    const lookups: string[] = [];
+    sdk().query = async (name: string) => {
+      if (name === 'customers.by_phone') lookups.push(name);
+      return name === 'customers.by_phone' ? [{ id: 'c-ana', name: 'Ana', phone: '+34600123123' }] : [];
+    };
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Ana', '600123123');
+    await wc.createReservation(new Event('submit'));
+    fill(wc, 'Ana', '600123123');
+    await wc.createReservation(new Event('submit'));
+
+    expect(lookups.length, 'a written booking must not hand its card to the next one').toBe(2);
   });
 });
