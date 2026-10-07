@@ -5,18 +5,19 @@ Prefijo: RESERVATIONS
 ## Flujos
 
 ### RESERVATIONS-F06 Tomar una reserva a mano (teléfono o mostrador)
-Estado: parcial — el formulario no pide correo, notas, mesa ni ficha de cliente (el sistema los acepta); el rechazo por antelación no dice el motivo
+Estado: parcial — el formulario no pide correo, notas ni mesa (el sistema los acepta); el rechazo por antelación no dice el motivo
 Actor: empleado
 Pantalla: Reservas
 Pasos:
 1. Pulsa «Nueva reserva».
 2. Escribe Cliente, Teléfono, Fecha (dd/mm/aaaa), Hora (hh:mm) y Pax (2 por defecto).
 3. Pulsa «Reservar».
-4. El panel se cierra y la reserva aparece en su día como Pendiente (o Confirmada si se confirman solas); suben los cubiertos y baja lo libre de su franja.
+4. Antes de apuntarla, la reserva se liga a su ficha de **Clientes**: la que ya lleva ese teléfono, comparado como número del país del negocio (`600 111 222` es la ficha `+34600111222`, CUSTOMERS-F10); si varias lo llevan, la del nombre escrito (sin mirar mayúsculas ni acentos) y, si ninguna, la primera. Si ninguna lleva el número, o no se escribió teléfono, se crea una ficha nueva con el nombre y el teléfono escritos y origen «Teléfono». Si la reserva se rechaza y se vuelve a pulsar «Reservar» sin cambiar nombre ni teléfono, se usa la misma ficha (no se crea otra).
+5. El panel se cierra y la reserva aparece en su día como Pendiente (o Confirmada si se confirman solas); suben los cubiertos y baja lo libre de su franja.
 Entra: los datos del cliente que da por teléfono o en persona.
-Sale: la reserva (avisa: reservations.reservation.created). Ocupa sitio en su franja hasta que se cancele o sea no-show.
-Si falla: el motivo sale dentro del formulario: teléfono o correo obligatorios, comensales fuera de límites, fecha bloqueada, «No hay servicio a esa hora: ninguna franja abierta la cubre.», «Esa franja está completa para esa fecha.». Demasiado pronto o demasiado lejos, o la franja llenándose en el mismo instante, sale con un aviso que no dice el motivo (texto sin confirmar). Fecha u hora ilegibles: aviso propio. Con la franja llena, apúntalo en la lista de espera (RESERVATIONS-F14).
-Implicados: FLOWS-F04, REC_RESTAURANTE-F04, ONLINE_BOOKING-F01
+Sale: la reserva ligada a su ficha (avisa: reservations.reservation.created) y, si no existía, la ficha nueva en Clientes (avisa: customer.created). Ocupa sitio en su franja hasta que se cancele o sea no-show. Por la ficha le alcanza el borrado de datos personales (RESERVATIONS-F22).
+Si falla: si Clientes no acepta el teléfono, dentro del formulario: «No es un teléfono válido de su país: revisa las cifras o escríbelo con su prefijo internacional (+44…).»; si la ficha no se puede buscar ni guardar (también sin permiso para ver o crear clientes): «No se ha podido encontrar ni guardar la ficha del cliente, así que no se ha apuntado nada. Vuelve a intentarlo.». En los dos casos no se apunta nada y lo tecleado se conserva. Si la reserva se rechaza, la ficha ya creada se queda en Clientes. El resto, dentro del formulario: teléfono o correo obligatorios, comensales fuera de límites, fecha bloqueada, «No hay servicio a esa hora: ninguna franja abierta la cubre.», «Esa franja está completa para esa fecha.». Demasiado pronto o demasiado lejos, o la franja llenándose en el mismo instante, sale con un aviso que no dice el motivo (texto sin confirmar). Fecha u hora ilegibles: aviso propio. Con la franja llena, apúntalo en la lista de espera (RESERVATIONS-F14).
+Implicados: FLOWS-F04, REC_RESTAURANTE-F04, ONLINE_BOOKING-F01, CUSTOMERS-F10, CUSTOMERS-F16
 QA: R-02
 
 ### RESERVATIONS-F07 Confirmar una reserva

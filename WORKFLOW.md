@@ -121,7 +121,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | RESERVATIONS-F19 | Avisar por WhatsApp cuando el restaurante confirma | no hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
 | RESERVATIONS-F20 | Borrar una reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
 | RESERVATIONS-F21 | Unir las reservas de dos fichas de cliente | hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
-| RESERVATIONS-F22 | Borrar los datos personales de un cliente (RGPD) | parcial | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
+| RESERVATIONS-F22 | Borrar los datos personales de un cliente (RGPD) | hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
 
 ## Cobertura contra la referencia
 
@@ -132,7 +132,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Reglas: grupos, antelación, duración, contacto obligatorio | parcial: sin pantalla | F03 |
 | Confirmación automática o manual | parcial: el primer guardado vuelve obligatorio el teléfono | F04 |
 | Ocupación por servicio y cubiertos del día | hecho | F05 |
-| Alta con nombre, teléfono, comensales, hora | hecho | F06 |
+| Alta con nombre, teléfono, comensales, hora, ligada a la ficha del cliente (la busca o la crea) | hecho | F06 |
 | Alta con correo, notas, alérgenos, ocasión, preferencia de zona | no hecho en pantalla (correo y notas por asistente o WhatsApp) | F06 |
 | Asignar mesa a mano | parcial: solo por el asistente | F08 |
 | Asignación automática de mesa | no hecho | — |
@@ -163,8 +163,9 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 
 - **Propios**: reservas, franjas horarias, fechas bloqueadas, lista de espera y los ajustes del
   restaurante (uno por hub). Otros módulos los leen solo por sus consultas públicas.
-- **De Clientes**: la ficha se guarda como una referencia, sin enlace fuerte; Reservas no la lee
-  (la busca por teléfono la receta de WhatsApp). Escucha la unión de fichas (F21) y el borrado de
+- **De Clientes**: la ficha se guarda como una referencia, sin enlace fuerte. Al apuntar a mano una
+  reserva o una entrada de espera, la pantalla busca la ficha por teléfono y, si no hay, la crea
+  (F06, F14); por WhatsApp la busca la receta de WhatsApp. Escucha la unión de fichas (F21) y el borrado de
   sus datos personales (F22).
 - **De Mesas**: la mesa se guarda como referencia. Reservas no toca el plano: anuncia los cambios de
   estado y Mesas retiene, mueve o suelta su mesa.
@@ -180,8 +181,9 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
     teléfono, correo, notas del cliente, notas internas y motivo de cancelación de sus reservas, y
     nombre, teléfono, correo y notas de sus entradas de espera, también las borradas (F22); la
     pantalla dice «Cliente borrado». Se conservan la fila, el día, la hora, los comensales, la mesa,
-    el estado y el enlace a la ficha. No alcanza lo apuntado a mano sin ficha (reservations#99), ni
-    la etiqueta de la mesa en Mesas, ni quién del equipo creó o cambió cada fila.
+    el estado y el enlace a la ficha. No alcanza una fila antigua apuntada a mano sin ficha (antes
+    de que el formulario la ligara), ni la etiqueta de la mesa en Mesas, ni quién del equipo creó o
+    cambió cada fila.
 
 ## Reglas que no se rompen
 
@@ -232,7 +234,7 @@ Contra `origin/main` v3.0.48 (04/10/2026). Una línea por discrepancia; manda el
 - **Pestaña de Ajustes**: `docs/screens.md`, `architecture/modules/reservations.md` (fila «Componente UI») y el capítulo del manual dicen que el shell la genera; no existe, porque el manifest no declara bloque de ajustes (F03).
 - **`docs/overview.md`, `docs/concepts.md`, `docs/limits.md`, `README.md` y el manual** dicen que no hay tarea programada y que las pendientes nunca se liberan; se liberan cada 15 minutos desde reservations#5 (F13).
 - **`docs/limits.md`**: «no hay recuento de huecos para la UI»; existe y lo pinta Disponibilidad desde reservations#4 y #38 (F05).
-- **`docs/screens.md`** describe adjuntar ficha, correo, mesa, duración y notas al tomar la reserva, «Cancelar con motivo», la acción «No-show», abrir una reserva para ver su detalle y bloquear por horas; la pantalla no tiene nada de eso (F02, F06, F09, F10).
+- **`docs/screens.md`** describe «Cancelar con motivo», la acción «No-show», abrir una reserva para ver su detalle y bloquear por horas; la pantalla no tiene nada de eso (F02, F09, F10).
 - **`docs/limits.md`**: «el cambio rechazado = la reserva no existe»; casi siempre es la puerta de disponibilidad (F08).
 - **QA R-02 y `qa-hub-restaurant` §05** piden asignar mesa al reservar y que la reserva bloquee la mesa en el plano; desde la pantalla no se puede asignar mesa (F07, F08).
 - **`qa-hub-restaurant` §05**: «modificar fecha u hora libera el hold anterior»; cambiar la hora no mueve la retención, solo cambiar la mesa (F08).
