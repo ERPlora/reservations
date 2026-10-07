@@ -62,7 +62,7 @@ Implicados: CUSTOMERS-F13
 QA: ninguno
 
 ### RESERVATIONS-F22 Borrar los datos personales de un cliente (RGPD)
-Estado: hecho — alcanza las reservas y entradas de espera ligadas a la ficha; las apuntadas a mano en Reservas o Lista de espera no llevan ficha y se quedan con sus datos (reservations#99)
+Estado: parcial — las reservas y entradas de espera apuntadas a mano no llevan ficha y se quedan con sus datos (reservations#99); las ligadas a la ficha se vacían
 Actor: sistema
 Pantalla: Reservas, Lista de espera
 Pasos:

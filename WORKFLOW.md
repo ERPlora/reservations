@@ -121,7 +121,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | RESERVATIONS-F19 | Avisar por WhatsApp cuando el restaurante confirma | no hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
 | RESERVATIONS-F20 | Borrar una reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
 | RESERVATIONS-F21 | Unir las reservas de dos fichas de cliente | hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
-| RESERVATIONS-F22 | Borrar los datos personales de un cliente (RGPD) | hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
+| RESERVATIONS-F22 | Borrar los datos personales de un cliente (RGPD) | parcial | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
 
 ## Cobertura contra la referencia
 
