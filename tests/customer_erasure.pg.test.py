@@ -238,6 +238,55 @@ def fingerprint(db, hub) -> str:
     ).strip()
 
 
+PROBE_BINDS = {"hub_id": HUB, "reservation_id": "r-live", "entry_id": "w-live"}
+
+
+def screen_queries(db):
+    """Every query that projects the guest's name hands over `customer_id` too — with the REAL SQL.
+
+    The screens paint «Cliente borrado» only for a blank name on a row that still carries its sheet
+    link (`ui/lib/guest-label.ts`); a query that drops `customer_id` from its SELECT turns the erased
+    customer into a walk-in's «—» (pm#637 caught it in Citas twice: `recurring_list.sql`, then the
+    overlap notice). The unit tests cannot see it, they are handed rows by hand; this runs each such
+    query the way the engine does (`:hub_id` bound) against her erased row.
+    """
+    print("\n== every query that shows the name also hands over the sheet link ==")
+    probed = 0
+    for name, q in MANIFEST["queries"].items():
+        rel = q.get("sql") if isinstance(q, dict) else None
+        if not rel:
+            continue
+        sql = (MODULE_DIR / rel).read_text()
+        if not re.search(r"\bguest_name\b", sql):
+            continue
+        probed += 1
+        body = (
+            PARAM.sub(lambda m: literal(PROBE_BINDS.get(m.group(1))), sql)
+            .strip()
+            .rstrip(";")
+        )
+        out = psql(
+            db,
+            f"SELECT row_to_json(q) FROM ({body}) q WHERE q.id IN ('r-live', 'w-live') LIMIT 1;",
+        ).strip()
+        got = json.loads(out) if out else {}
+        check(
+            f"`{name}` ({rel}) returns her erased row (probe binds reach it)",
+            True,
+            bool(got),
+        )
+        check(
+            f"`{name}` ({rel}) projects customer_id next to the blank name",
+            {"customer_id": ANA, "guest_name": ""},
+            {k: got.get(k) for k in ("customer_id", "guest_name")},
+        )
+    check(
+        "at least the two list queries and the detail one were probed",
+        True,
+        probed >= 3,
+    )
+
+
 def manifest_half():
     print("== the manifest declares the ear ==")
     listen = MANIFEST["events"].get("listen", {})
@@ -427,6 +476,8 @@ def main() -> int:
                 ({k: full[k] for k in cols}, None),
                 ({k: r.get(k) for k in cols}, r.get("updated_at")),
             )
+
+        screen_queries(db)
 
         print("\n== tenancy: the hub next door is not touched ==")
         check(
