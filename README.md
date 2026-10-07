@@ -49,7 +49,7 @@ versión instalada y cita la de TU versión, no la de la última publicada. En i
 | command | `waitlist.create` / `.update` (WASM, **promoción atómica**) / `.delete` | `change_waitlistentry` |
 | command | `reservations.settings.upsert` | `manage_settings` |
 | emite | `reservations.reservation.*`, `.timeslot.*`, `.blocked_date.*`, `.waitlist.*`, `.settings.updated` | — |
-| escucha | — | — |
+| escucha | `customer.merged` → `_on_customer_merged` · `customer.anonymized` → `_on_customer_anonymized` (vacía nombre, contacto y notas de la clienta borrada, RESERVATIONS-F22) | `change_reservation` |
 
 Navegación: `erp-reservations-list`, `erp-reservations-waitlist`, `erp-reservations-availability`;
 ajustes declarativos (ADR-0082).

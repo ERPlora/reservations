@@ -23,6 +23,7 @@
     "colTime": "Hora",
     "colPreferredTime": "Hora pref.",
     "colGuestName": "Cliente",
+    "erasedCustomer": "Cliente borrado",
     "colGuestPhone": "Teléfono",
     "colPartySize": "Pax",
     "colStatus": "Estado",

@@ -616,6 +616,14 @@
         "description": "Releases pending reservations whose time has passed the no-show grace window (they were never confirmed): frees their slot capacity. Runs on a schedule; safe to run by hand"
       }
     },
+    "reservations._on_customer_anonymized": {
+      "permission": "reservations.change_reservation",
+      "transaction": true,
+      "sql": [
+        "commands/customer_erase_reservations.sql",
+        "commands/customer_erase_waitlist.sql"
+      ]
+    },
     "reservations._on_customer_merged": {
       "permission": "reservations.change_reservation",
       "transaction": true,
@@ -627,6 +635,9 @@
   },
   "events": {
     "listen": {
+      "customer.anonymized": {
+        "command": "reservations._on_customer_anonymized"
+      },
       "customer.merged": {
         "command": "reservations._on_customer_merged"
       }

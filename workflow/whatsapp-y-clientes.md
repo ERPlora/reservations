@@ -62,14 +62,26 @@ Implicados: CUSTOMERS-F13
 QA: ninguno
 
 ### RESERVATIONS-F22 Borrar los datos personales de un cliente (RGPD)
-Estado: no hecho — al anonimizar una ficha en Clientes, su nombre, teléfono, correo y notas siguen escritos en sus reservas y en la lista de espera
+Estado: parcial — las reservas y entradas de espera apuntadas a mano no llevan ficha y se quedan con sus datos (reservations#99); las ligadas a la ficha se vacían
 Actor: sistema
-Pantalla: ninguna
+Pantalla: Reservas, Lista de espera
 Pasos:
-1. En Clientes se anonimiza la ficha a petición del cliente.
-2. Sus reservas y entradas de espera pierden nombre, teléfono, correo y notas, y conservan fecha, hora y comensales.
-Entra: la ficha anonimizada (desde Clientes).
-Sale: reservas y entradas sin datos personales.
-Si falla: sin confirmar (no existe).
+1. En **Clientes** el administrador borra los datos personales de una ficha.
+2. Todas las reservas de esa clienta en este negocio, en cualquier estado y también las borradas, se
+   quedan sin su nombre, teléfono y correo, sin las notas del cliente, sin las notas internas y sin
+   el motivo de cancelación.
+3. Sus entradas de la lista de espera, también las ya convertidas o quitadas, se quedan sin nombre,
+   teléfono, correo y notas.
+4. Donde estaba el nombre, la tabla y las tarjetas de **Reservas** y de **Lista de espera** dicen
+   «Cliente borrado»; el teléfono sale vacío.
+Entra: el aviso de borrado de la ficha (`customer.anonymized`) con su identificador.
+Sale: reservas y entradas sin datos de la clienta. Se quedan la fila, el día, la hora, los
+comensales, la duración, la mesa, el estado y el enlace a la ficha (que ya no tiene datos): el libro
+sigue contando los cubiertos y la ocupación de cada franja. Una reserva futura no se cancela sola.
+Lo que llegó por WhatsApp o convirtiendo una entrada ligada sí lleva la ficha;
+lo apuntado a mano, no (reservations#99). La etiqueta de la mesa retenida en Mesas no la vacía
+Reservas (porción de Mesas de pm#637).
+Si falla: no hay nada que ver en pantalla; el hub reintenta el aviso hasta que entra, y repetirlo no
+cambia nada más. Una ficha de otro negocio con el mismo identificador no se toca.
 Implicados: CUSTOMERS-F16, HUB-F250
 QA: L-10
