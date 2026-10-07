@@ -4574,6 +4574,7 @@ var es_default = {
     colTime: "Hora",
     colPreferredTime: "Hora pref.",
     colGuestName: "Cliente",
+    erasedCustomer: "Cliente borrado",
     colGuestPhone: "Tel\xE9fono",
     colPartySize: "Pax",
     colStatus: "Estado",
@@ -4704,6 +4705,7 @@ var en_default = {
     colTime: "Time",
     colPreferredTime: "Pref. time",
     colGuestName: "Guest",
+    erasedCustomer: "Deleted customer",
     colGuestPhone: "Phone",
     colPartySize: "Party",
     colStatus: "Status",
@@ -5311,6 +5313,14 @@ __decorateClass3([
 ], OkEmptyState.prototype, "message");
 define("ok-empty-state", OkEmptyState);
 
+// ui/lib/guest-label.ts
+function guestLabel(row, erasedLabel) {
+  const name = typeof row.guest_name === "string" ? row.guest_name.trim() : "";
+  if (name) return name;
+  const id = typeof row.customer_id === "string" ? row.customer_id.trim() : "";
+  return id ? erasedLabel : "\u2014";
+}
+
 // ui/components/erp-reservations-list/erp-reservations-list.ts
 var CATALOG2 = { es: es_default, en: en_default };
 var STATUS_KEYS = {
@@ -5459,7 +5469,8 @@ var ErpReservationsList = class extends i3 {
       // same thing would fight the first one over which day is on screen.
       { key: "date", header: t5("ui.colDate"), sortable: true, format: (r6) => fmtDate(r6.date) },
       { key: "time", header: t5("ui.colTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime2(r6.time) },
-      { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
+      // pm#637: an erased customer's name is blank (RESERVATIONS-F22); the cell says so.
+      { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text", format: (r6) => guestLabel(r6, t5("ui.erasedCustomer")) },
       { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
       { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "range" },
       {
@@ -5789,7 +5800,7 @@ var ErpReservationsList = class extends i3 {
               <p class="hint">${t5("ui.emptyHint")}</p>
               ${createButton()}
             </ok-empty-state>` : A}
-        <ok-data-table testid="reservations-table" ?hidden=${hideTable} .error=${error} @retry=${() => this.retryLoad()} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .search=${this.ctrl?.state.search ?? ""} .filterValues=${this.filterMirror} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyDayTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.onSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table testid="reservations-table" ?hidden=${hideTable} .error=${error} @retry=${() => this.retryLoad()} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row) => guestLabel(row, erplora2().t(CATALOG2, "ui.erasedCustomer"))} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .search=${this.ctrl?.state.search ?? ""} .filterValues=${this.filterMirror} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${loading ? t5("ui.loading") : this.hasQuery ? t5("ui.noResultsTitle") : t5("ui.emptyDayTitle")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.onSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-form" @submit=${(e5) => this.createReservation(e5)}>
@@ -5921,7 +5932,8 @@ var ErpReservationsWaitlist = class extends i3 {
     return [
       { key: "date", header: t5("ui.colDate"), sortable: true, filterable: true, filterType: "daterange", format: (r6) => fmtDate2(r6.date) },
       { key: "preferred_time", header: t5("ui.colPreferredTime"), sortable: true, filterable: true, filterType: "text", format: (r6) => fmtTime3(r6.preferred_time) },
-      { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text" },
+      // pm#637: an erased customer's name is blank (RESERVATIONS-F22); the cell says so.
+      { key: "guest_name", header: t5("ui.colGuestName"), sortable: true, filterable: true, filterType: "text", format: (r6) => guestLabel(r6, t5("ui.erasedCustomer")) },
       { key: "guest_phone", header: t5("ui.colGuestPhone"), sortable: true, filterable: true, filterType: "text" },
       { key: "party_size", header: t5("ui.colPartySize"), align: "right", sortable: true, filterable: true, filterType: "range" },
       {
@@ -6047,7 +6059,7 @@ var ErpReservationsWaitlist = class extends i3 {
     return b2`<div class="page">
         ${this.pageError ? b2`<p class="err" data-testid="reservations-waitlist-page-error">${this.pageError}</p>` : A}
         ${this.ctrl?.error && !dataTableShowsLoadError() ? b2`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : A}
-        <ok-data-table testid="reservations-waitlist-table" .error=${this.ctrl?.error ?? ""} @retry=${() => this.ctrl?.load()} .labels=${{ add: t5("ui.btnAddGuest") }} .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row) => String(row.guest_name ?? row.id ?? "\u2014")} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyWaitlist")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table testid="reservations-waitlist-table" .error=${this.ctrl?.error ?? ""} @retry=${() => this.ctrl?.load()} .labels=${{ add: t5("ui.btnAddGuest") }} .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row) => guestLabel(row, erplora3().t(CATALOG3, "ui.erasedCustomer"))} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyWaitlist")} @rowAction=${(e5) => this.onRowAction(e5)} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta en la lista de espera: se proyecta SIEMPRE (aunque el panel esté cerrado); si se
                renderizara solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-waitlist-form" @submit=${(e5) => this.createEntry(e5)}>
