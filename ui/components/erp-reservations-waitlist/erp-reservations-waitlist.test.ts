@@ -210,4 +210,20 @@ describe('reservations#99 — the hand-taken waitlist entry is linked to a custo
     expect(comandos.some((c) => c.name === 'reservations.waitlist.create')).toBe(false);
     expect(wc.formError).toBe('ui.errGuestPhoneInvalid');
   });
+
+  it('once written, the next entry looks her card up again (it may have been erased since)', async () => {
+    const lookups: string[] = [];
+    sdk().query = async (name: string) => {
+      if (name === 'customers.by_phone') lookups.push(name);
+      return name === 'customers.by_phone' ? [{ id: 'c-luis', name: 'Luis', phone: '+34600123123' }] : [];
+    };
+    const el = await montar();
+    const wc = el as unknown as Wc;
+    fill(wc, 'Luis', '600123123');
+    await wc.createEntry(new Event('submit'));
+    fill(wc, 'Luis', '600123123');
+    await wc.createEntry(new Event('submit'));
+
+    expect(lookups.length, 'a written entry must not hand its card to the next one').toBe(2);
+  });
 });

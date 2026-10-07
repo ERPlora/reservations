@@ -88,6 +88,11 @@ describe('linkCustomer — the card a hand-taken booking belongs to', () => {
     await expect(linkCustomer(a, { name: 'Luis', phone: '600333444' }, 'phone')).rejects.toBeInstanceOf(Error);
   });
 
+  it('a lookup row without an id is no card: the booking never carries an empty link', async () => {
+    const a = api({ byPhone: [{ name: 'Ana', phone: '+34600111222' }], created: { new_ids: ['c-ana2'] } });
+    await expect(linkCustomer(a, { name: 'Ana', phone: '600111222' }, 'phone')).resolves.toBe('c-ana2');
+  });
+
   it('a failed lookup by number is a failure: no card is created blind (it would be a duplicate)', async () => {
     const a = api({ byPhone: new Error('boom') });
     await expect(linkCustomer(a, { name: 'Ana', phone: '600111222' }, 'phone')).rejects.toThrow('boom');
