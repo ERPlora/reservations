@@ -8,6 +8,7 @@ import { createListController, dataTableShowsLoadError } from '@erplora/module-s
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
 import { CalendarDateDrafts } from '../../lib/calendar-date';
+import { guestLabel } from '../../lib/guest-label';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -107,7 +108,8 @@ export class ErpReservationsWaitlist extends LitElement {
     return [
     { key: 'date', header: t('ui.colDate'), sortable: true, filterable: true, filterType: 'daterange', format: (r) => fmtDate(r.date as string) },
     { key: 'preferred_time', header: t('ui.colPreferredTime'), sortable: true, filterable: true, filterType: 'text', format: (r) => fmtTime(r.preferred_time as string) },
-    { key: 'guest_name', header: t('ui.colGuestName'), sortable: true, filterable: true, filterType: 'text' },
+    // pm#637: an erased customer's name is blank (RESERVATIONS-F22); the cell says so.
+    { key: 'guest_name', header: t('ui.colGuestName'), sortable: true, filterable: true, filterType: 'text', format: (r) => guestLabel(r, t('ui.erasedCustomer')) },
     { key: 'guest_phone', header: t('ui.colGuestPhone'), sortable: true, filterable: true, filterType: 'text' },
     { key: 'party_size', header: t('ui.colPartySize'), align: 'right', sortable: true, filterable: true, filterType: 'range' },
     {
@@ -250,7 +252,7 @@ export class ErpReservationsWaitlist extends LitElement {
     return html`<div class="page">
         ${this.pageError ? html`<p class="err" data-testid="reservations-waitlist-page-error">${this.pageError}</p>` : nothing}
         ${this.ctrl?.error && !dataTableShowsLoadError() ? html`<p class="err" data-testid="reservations-waitlist-load-error">${this.ctrl.error}</p>` : nothing}
-        <ok-data-table testid="reservations-waitlist-table" .error=${this.ctrl?.error ?? ''} @retry=${() => this.ctrl?.load()} .labels=${{ add: t('ui.btnAddGuest') }} .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyWaitlist')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+        <ok-data-table testid="reservations-waitlist-table" .error=${this.ctrl?.error ?? ''} @retry=${() => this.ctrl?.load()} .labels=${{ add: t('ui.btnAddGuest') }} .serverSide=${true} .fill=${true} .addable=${true} .views=${true} .cardTitle=${(row: Record<string, unknown>) => guestLabel(row, erplora().t(CATALOG, 'ui.erasedCustomer'))} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyWaitlist')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Alta en la lista de espera: se proyecta SIEMPRE (aunque el panel esté cerrado); si se
                renderizara solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-waitlist-form" @submit=${(e: Event) => this.createEntry(e)}>

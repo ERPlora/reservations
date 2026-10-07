@@ -10,6 +10,7 @@ import type { ListController, ListClient, ListParams, ListPage } from '@erplora/
 import { addDaysISO, nowWallTime, todayISO } from '../../lib/business-time';
 import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
 import { CalendarDateDrafts } from '../../lib/calendar-date';
+import { guestLabel } from '../../lib/guest-label';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -261,7 +262,8 @@ export class ErpReservationsList extends LitElement {
     // same thing would fight the first one over which day is on screen.
     { key: 'date', header: t('ui.colDate'), sortable: true, format: (r) => fmtDate(r.date as string) },
     { key: 'time', header: t('ui.colTime'), sortable: true, filterable: true, filterType: 'text', format: (r) => fmtTime(r.time as string) },
-    { key: 'guest_name', header: t('ui.colGuestName'), sortable: true, filterable: true, filterType: 'text' },
+    // pm#637: an erased customer's name is blank (RESERVATIONS-F22); the cell says so.
+    { key: 'guest_name', header: t('ui.colGuestName'), sortable: true, filterable: true, filterType: 'text', format: (r) => guestLabel(r, t('ui.erasedCustomer')) },
     { key: 'guest_phone', header: t('ui.colGuestPhone'), sortable: true, filterable: true, filterType: 'text' },
     { key: 'party_size', header: t('ui.colPartySize'), align: 'right', sortable: true, filterable: true, filterType: 'range' },
     {
@@ -661,7 +663,7 @@ export class ErpReservationsList extends LitElement {
               ${createButton()}
             </ok-empty-state>`
           : nothing}
-        <ok-data-table testid="reservations-table" ?hidden=${hideTable} .error=${error} @retry=${() => this.retryLoad()} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row: Record<string, unknown>) => String(row.guest_name ?? row.id ?? '—')} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .search=${this.ctrl?.state.search ?? ''} .filterValues=${this.filterMirror} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyDayTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.onSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+        <ok-data-table testid="reservations-table" ?hidden=${hideTable} .error=${error} @retry=${() => this.retryLoad()} @click=${this.syncPanel} .serverSide=${true} .fill=${true} .addable=${true} .labels=${this.tableLabels} .views=${true} .cardTitle=${(row: Record<string, unknown>) => guestLabel(row, erplora().t(CATALOG, 'ui.erasedCustomer'))} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .search=${this.ctrl?.state.search ?? ''} .filterValues=${this.filterMirror} .searchPlaceholder=${t('ui.searchPlaceholder')} .actions=${this.actions} .emptyMessage=${loading ? t('ui.loading') : this.hasQuery ? t('ui.noResultsTitle') : t('ui.emptyDayTitle')} @rowAction=${(e: CustomEvent) => this.onRowAction(e)} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.onSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Alta de reserva: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, la acción primaria abriría un panel vacío. -->
           <form slot="create" class="form" data-testid="reservations-form" @submit=${(e: Event) => this.createReservation(e)}>
