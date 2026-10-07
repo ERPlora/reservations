@@ -18,5 +18,5 @@ UPDATE reservations_waitlistentry
 -- size, contacted/converted flags, the sheet link and the reservation it became.
 --
 -- An entry typed on the «Lista de espera» screen carries no `customer_id` (the form has no sheet
--- picker), so the erasure cannot find it: that gap is its own issue, not something this statement
+-- picker), so the erasure cannot find it: that gap is reservations#99, not something this statement
 -- may guess at by matching a phone number.

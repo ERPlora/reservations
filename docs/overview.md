@@ -54,7 +54,12 @@ Two traps for anyone writing a listener: **the creation event is not declared in
 handler emits it), and **there is no cancellation event** — a cancellation travels inside
 `status_changed`, so look at the status, not the event name.
 
-**Events it listens to** — none.
+**Events it listens to**
+
+| Event | Handled by | What it does |
+|---|---|---|
+| `customer.merged` (from `customers`) | `reservations._on_customer_merged` | Two customer records were merged: every reservation and waitlist entry of the absorbed record points to the surviving one; the name and phone typed on each row are kept. |
+| `customer.anonymized` (from `customers`) | `reservations._on_customer_anonymized` | A customer's personal data was erased (GDPR): every reservation of that customer in this hub (live or deleted, any status) loses the name, phone, email, guest notes, internal notes and cancellation reason, and every waitlist entry loses the name, phone, email and notes. The row, date, time, party size, duration, table, status and the customer link stay, so covers and slot occupancy still count. The book shows "Deleted customer" where the name was. A booking typed by hand carries no customer link and is not reached (reservations#99). |
 
 ## The lifecycle
 

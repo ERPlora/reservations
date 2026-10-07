@@ -121,7 +121,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | RESERVATIONS-F19 | Avisar por WhatsApp cuando el restaurante confirma | no hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
 | RESERVATIONS-F20 | Borrar una reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
 | RESERVATIONS-F21 | Unir las reservas de dos fichas de cliente | hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
-| RESERVATIONS-F22 | Borrar los datos personales de un cliente (RGPD) | no hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
+| RESERVATIONS-F22 | Borrar los datos personales de un cliente (RGPD) | hecho | [workflow/whatsapp-y-clientes.md](workflow/whatsapp-y-clientes.md) |
 
 ## Cobertura contra la referencia
 
@@ -164,7 +164,8 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 - **Propios**: reservas, franjas horarias, fechas bloqueadas, lista de espera y los ajustes del
   restaurante (uno por hub). Otros módulos los leen solo por sus consultas públicas.
 - **De Clientes**: la ficha se guarda como una referencia, sin enlace fuerte; Reservas no la lee
-  (la busca por teléfono la receta de WhatsApp). Escucha la unión de fichas (F21).
+  (la busca por teléfono la receta de WhatsApp). Escucha la unión de fichas (F21) y el borrado de
+  sus datos personales (F22).
 - **De Mesas**: la mesa se guarda como referencia. Reservas no toca el plano: anuncia los cambios de
   estado y Mesas retiene, mueve o suelta su mesa.
 - **Datos personales** (inventario RGPD):
@@ -175,6 +176,12 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
   - copias fuera de Reservas: el aviso de reserva creada lleva nombre y ficha; el de cambio de
     estado, nombre y ficha; el de reserva cambiada, el teléfono, el correo y las notas si se
     cambian. Mesas copia el nombre en la etiqueta de la mesa retenida.
+  - **Borrado**: al borrar los datos personales de una ficha en Clientes, Reservas vacía nombre,
+    teléfono, correo, notas del cliente, notas internas y motivo de cancelación de sus reservas, y
+    nombre, teléfono, correo y notas de sus entradas de espera, también las borradas (F22); la
+    pantalla dice «Cliente borrado». Se conservan la fila, el día, la hora, los comensales, la mesa,
+    el estado y el enlace a la ficha. No alcanza lo apuntado a mano sin ficha (reservations#99), ni
+    la etiqueta de la mesa en Mesas, ni quién del equipo creó o cambió cada fila.
 
 ## Reglas que no se rompen
 
@@ -224,7 +231,6 @@ Contra `origin/main` v3.0.48 (04/10/2026). Una línea por discrepancia; manda el
 
 - **Pestaña de Ajustes**: `docs/screens.md`, `architecture/modules/reservations.md` (fila «Componente UI») y el capítulo del manual dicen que el shell la genera; no existe, porque el manifest no declara bloque de ajustes (F03).
 - **`docs/overview.md`, `docs/concepts.md`, `docs/limits.md`, `README.md` y el manual** dicen que no hay tarea programada y que las pendientes nunca se liberan; se liberan cada 15 minutos desde reservations#5 (F13).
-- **`docs/overview.md` y `README.md`**: «no escucha ningún aviso»; escucha la unión de fichas de Clientes (F21).
 - **`docs/limits.md`**: «no hay recuento de huecos para la UI»; existe y lo pinta Disponibilidad desde reservations#4 y #38 (F05).
 - **`docs/screens.md`** describe adjuntar ficha, correo, mesa, duración y notas al tomar la reserva, «Cancelar con motivo», la acción «No-show», abrir una reserva para ver su detalle y bloquear por horas; la pantalla no tiene nada de eso (F02, F06, F09, F10).
 - **`docs/limits.md`**: «el cambio rechazado = la reserva no existe»; casi siempre es la puerta de disponibilidad (F08).
