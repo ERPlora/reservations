@@ -17,7 +17,7 @@ Pasos:
 Entra: cliente, teléfono, fecha, hora preferida y comensales.
 Sale: la entrada ligada a su ficha (avisa: reservations.waitlist.created) y, si no existía, la ficha nueva (avisa: customer.created). No ocupa sitio en ninguna franja. Por la ficha le alcanza el borrado de datos personales (RESERVATIONS-F22).
 Si falla: un teléfono que Clientes no acepta o una ficha que no se puede buscar ni guardar sale dentro del formulario con su aviso (los de RESERVATIONS-F06) y no se apunta nada. El resto de mensajes sale dentro del formulario tal como llega, sin traducir. Un empleado no tiene permiso para apuntar.
-Implicados: WHATSAPP_INBOX-F24, REC_WA_MESA-F05, CUSTOMERS-F10, CUSTOMERS-F16
+Implicados: WHATSAPP_INBOX-F24, REC_WA_MESA-F05, CUSTOMERS-F10
 QA: R-02, WR-03
 
 ### RESERVATIONS-F15 Marcar contactado o quitar de la lista de espera

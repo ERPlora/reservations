@@ -17,7 +17,7 @@ Pasos:
 Entra: los datos del cliente que da por teléfono o en persona.
 Sale: la reserva ligada a su ficha (avisa: reservations.reservation.created) y, si no existía, la ficha nueva en Clientes (avisa: customer.created). Ocupa sitio en su franja hasta que se cancele o sea no-show. Por la ficha le alcanza el borrado de datos personales (RESERVATIONS-F22).
 Si falla: si Clientes no acepta el teléfono, dentro del formulario: «No es un teléfono válido de su país: revisa las cifras o escríbelo con su prefijo internacional (+44…).»; si la ficha no se puede buscar ni guardar (también sin permiso para ver o crear clientes): «No se ha podido encontrar ni guardar la ficha del cliente, así que no se ha apuntado nada. Vuelve a intentarlo.». En los dos casos no se apunta nada y lo tecleado se conserva. Si la reserva se rechaza, la ficha ya creada se queda en Clientes. El resto, dentro del formulario: teléfono o correo obligatorios, comensales fuera de límites, fecha bloqueada, «No hay servicio a esa hora: ninguna franja abierta la cubre.», «Esa franja está completa para esa fecha.». Demasiado pronto o demasiado lejos, o la franja llenándose en el mismo instante, sale con un aviso que no dice el motivo (texto sin confirmar). Fecha u hora ilegibles: aviso propio. Con la franja llena, apúntalo en la lista de espera (RESERVATIONS-F14).
-Implicados: FLOWS-F04, REC_RESTAURANTE-F04, ONLINE_BOOKING-F01, CUSTOMERS-F10, CUSTOMERS-F16
+Implicados: FLOWS-F04, REC_RESTAURANTE-F04, ONLINE_BOOKING-F01, CUSTOMERS-F10
 QA: R-02
 
 ### RESERVATIONS-F07 Confirmar una reserva
