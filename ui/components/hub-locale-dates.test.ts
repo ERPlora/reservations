@@ -26,7 +26,8 @@ function install(locale: string) {
     queryPage: async () => ({ rows: [], total: 0 }),
     command: async (name: string, payload: Record<string, unknown>) => {
       commands.push({ name, payload });
-      return {};
+      // reservations#99 — the forms link a Clientes card first; the real create answers its id.
+      return name === 'customers.create' ? { new_ids: ['c-new'] } : {};
     },
     on: () => () => {},
     locale,

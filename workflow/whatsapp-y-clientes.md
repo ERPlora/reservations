@@ -62,7 +62,7 @@ Implicados: CUSTOMERS-F13
 QA: ninguno
 
 ### RESERVATIONS-F22 Borrar los datos personales de un cliente (RGPD)
-Estado: parcial — las reservas y entradas de espera apuntadas a mano no llevan ficha y se quedan con sus datos (reservations#99); las ligadas a la ficha se vacían
+Estado: hecho
 Actor: sistema
 Pantalla: Reservas, Lista de espera
 Pasos:
@@ -78,8 +78,10 @@ Entra: el aviso de borrado de la ficha (`customer.anonymized`) con su identifica
 Sale: reservas y entradas sin datos de la clienta. Se quedan la fila, el día, la hora, los
 comensales, la duración, la mesa, el estado y el enlace a la ficha (que ya no tiene datos): el libro
 sigue contando los cubiertos y la ocupación de cada franja. Una reserva futura no se cancela sola.
-Lo que llegó por WhatsApp o convirtiendo una entrada ligada sí lleva la ficha;
-lo apuntado a mano, no (reservations#99). La etiqueta de la mesa retenida en Mesas no la vacía
+Lo que llegó por WhatsApp, lo apuntado a mano (RESERVATIONS-F06, RESERVATIONS-F14) y lo convertido
+desde la lista de espera lleva la ficha. Una fila antigua apuntada a mano antes de que el formulario
+la ligara (sin ficha) no se alcanza: no se casa por teléfono al borrar, porque podría vaciar los
+datos de otra persona con el mismo número. La etiqueta de la mesa retenida en Mesas no la vacía
 Reservas (porción de Mesas de pm#637).
 Si falla: no hay nada que ver en pantalla; el hub reintenta el aviso hasta que entra, y repetirlo no
 cambia nada más. Una ficha de otro negocio con el mismo identificador no se toca.

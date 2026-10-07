@@ -111,7 +111,9 @@
     "timePlaceholder": "hh:mm",
     "datePlaceholder": "dd/mm/aaaa",
     "valDateUnreadable": "Hay una fecha que no se entiende — escríbela como dd/mm/aaaa (p. ej. 29/09/2026)",
-    "valTimeUnreadable": "Hay una hora que no se entiende — escríbela como hh:mm (p. ej. 19:30)"
+    "valTimeUnreadable": "Hay una hora que no se entiende — escríbela como hh:mm (p. ej. 19:30)",
+    "errGuestPhoneInvalid": "No es un teléfono válido de su país: revisa las cifras o escríbelo con su prefijo internacional (+44…).",
+    "errLinkCustomer": "No se ha podido encontrar ni guardar la ficha del cliente, así que no se ha apuntado nada. Vuelve a intentarlo."
   },
   "errors": {
     "reservations.phone_required": "Este negocio exige un teléfono en toda reserva.",

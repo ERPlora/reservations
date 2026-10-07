@@ -43,8 +43,19 @@ timestamps of each transition.
    (`09/29/2026`). Digits only (`29092026`, handy on a phone keypad, which has no slash), dots,
    dashes and an ISO date (`2026-09-29`) are read too; leaving the field repaints it. A date that is
    not complete or does not exist stays on screen and the save refuses it, saying so.
-2. Optionally attach a customer record, a phone, an email, a table, a duration and notes.
+2. Enter the guest's **phone** (it may be required by the settings).
 3. Save.
+
+**The booking belongs to a customer card.** Before the booking is written, the screen links it to
+its card in **Customers**: the card that already carries that phone, read as a number of the
+business's country (`600 111 222` finds the card `+34600111222`); among several cards with the
+number, the one with the typed name (case and accents ignored), else the first. With no card for the
+number, or no phone at all, a new card is created with the typed name and phone (source "Phone").
+That link is what lets **erasing the customer's personal data** reach the booking (see
+`customer.anonymized` in the overview). If Customers refuses the phone, the form says it is not a
+valid number of its country; if the card cannot be found or saved (also without permission to view or
+create customers), the form says so — in both cases nothing is booked and what was typed stays. A
+booking refused after its card was created and saved again unchanged reuses that card.
 
 Before writing, the hub checks — atomically, inside the transaction — that:
 
@@ -87,7 +98,9 @@ contacted, and whether the entry has been converted into a booking.
 
 ### Add somebody to the waitlist
 
-Enter the guest, the date, the preferred time and the party size. Requires
+Enter the guest, the phone, the date, the preferred time and the party size. Before writing, the
+entry is linked to the guest's customer card exactly like a new booking (found by phone or created,
+source "Walk-in"), so erasing her data reaches it too. Requires
 `reservations.change_waitlistentry`.
 
 ### Promote a waitlist entry into a reservation

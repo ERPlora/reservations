@@ -110,7 +110,9 @@
     "timePlaceholder": "hh:mm",
     "datePlaceholder": "mm/dd/yyyy",
     "valDateUnreadable": "A date can't be read — write it as mm/dd/yyyy (e.g. 09/29/2026)",
-    "valTimeUnreadable": "A time can't be read — write it as hh:mm (e.g. 19:30)"
+    "valTimeUnreadable": "A time can't be read — write it as hh:mm (e.g. 19:30)",
+    "errGuestPhoneInvalid": "That is not a phone number of its country: check the digits, or write it with its international prefix (+44…).",
+    "errLinkCustomer": "The customer's card could not be found or saved, so nothing was booked. Try again."
   },
   "errors": {
     "reservations.phone_required": "This business requires a phone number for every reservation.",

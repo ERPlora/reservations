@@ -4662,7 +4662,9 @@ var es_default = {
     timePlaceholder: "hh:mm",
     datePlaceholder: "dd/mm/aaaa",
     valDateUnreadable: "Hay una fecha que no se entiende \u2014 escr\xEDbela como dd/mm/aaaa (p. ej. 29/09/2026)",
-    valTimeUnreadable: "Hay una hora que no se entiende \u2014 escr\xEDbela como hh:mm (p. ej. 19:30)"
+    valTimeUnreadable: "Hay una hora que no se entiende \u2014 escr\xEDbela como hh:mm (p. ej. 19:30)",
+    errGuestPhoneInvalid: "No es un tel\xE9fono v\xE1lido de su pa\xEDs: revisa las cifras o escr\xEDbelo con su prefijo internacional (+44\u2026).",
+    errLinkCustomer: "No se ha podido encontrar ni guardar la ficha del cliente, as\xED que no se ha apuntado nada. Vuelve a intentarlo."
   },
   errors: {
     "reservations.phone_required": "Este negocio exige un tel\xE9fono en toda reserva.",
@@ -4793,7 +4795,9 @@ var en_default = {
     timePlaceholder: "hh:mm",
     datePlaceholder: "mm/dd/yyyy",
     valDateUnreadable: "A date can't be read \u2014 write it as mm/dd/yyyy (e.g. 09/29/2026)",
-    valTimeUnreadable: "A time can't be read \u2014 write it as hh:mm (e.g. 19:30)"
+    valTimeUnreadable: "A time can't be read \u2014 write it as hh:mm (e.g. 19:30)",
+    errGuestPhoneInvalid: "That is not a phone number of its country: check the digits, or write it with its international prefix (+44\u2026).",
+    errLinkCustomer: "The customer's card could not be found or saved, so nothing was booked. Try again."
   },
   errors: {
     "reservations.phone_required": "This business requires a phone number for every reservation.",
@@ -5321,6 +5325,47 @@ function guestLabel(row, erasedLabel) {
   return id ? erasedLabel : "\u2014";
 }
 
+// ui/lib/link-customer.ts
+function fold(name) {
+  return typeof name === "string" ? name.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase() : "";
+}
+async function linkCustomer(api, guest, source) {
+  const name = guest.name.trim();
+  const phone = guest.phone.trim();
+  if (phone) {
+    const found = await api.query("customers.by_phone", { phone });
+    const cards = (Array.isArray(found) ? found : []).filter((c5) => typeof c5.id === "string" && c5.id);
+    const card = cards.find((c5) => fold(c5.name) === fold(name)) ?? cards[0];
+    if (card) return card.id;
+  }
+  const payload = { name, source };
+  if (phone) payload.phone = phone;
+  const out = await api.command("customers.create", payload);
+  const id = out?.new_ids?.[0];
+  if (typeof id !== "string" || !id) throw new Error("customers.create answered no id");
+  return id;
+}
+var GuestCards = class {
+  constructor() {
+    this.last = null;
+  }
+  async resolve(api, guest, source) {
+    const key = `${fold(guest.name)}\0${guest.phone.trim()}`;
+    if (this.last?.key === key) return this.last.id;
+    const id = await linkCustomer(api, guest, source);
+    this.last = { key, id };
+    return id;
+  }
+  /** The booking was written: the next one looks her card up again (it may have been erased since). */
+  forget() {
+    this.last = null;
+  }
+};
+function linkErrorKey(e5) {
+  const code = e5?.code;
+  return code === "customers.phone_invalid" ? "ui.errGuestPhoneInvalid" : "ui.errLinkCustomer";
+}
+
 // ui/components/erp-reservations-list/erp-reservations-list.ts
 var CATALOG2 = { es: es_default, en: en_default };
 var STATUS_KEYS = {
@@ -5400,6 +5445,8 @@ var ErpReservationsList = class extends i3 {
     this.tick = 0;
     this.newName = "";
     this.newPhone = "";
+    /** reservations#99 — the card this form last linked (a refused booking retried reuses it). */
+    this.guestCards = new GuestCards();
     this.newDate = "";
     this.newTime = "";
     /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
@@ -5651,14 +5698,24 @@ var ErpReservationsList = class extends i3 {
     this.saving = true;
     this.formError = "";
     this.pageError = "";
+    let customerId;
+    try {
+      customerId = await this.guestCards.resolve(erplora2(), { name: this.newName, phone: this.newPhone }, "phone");
+    } catch (e5) {
+      this.formError = erplora2().t(CATALOG2, linkErrorKey(e5));
+      this.saving = false;
+      return;
+    }
     try {
       await erplora2().command("reservations.reservations.create", {
+        customer_id: customerId,
         guest_name: this.newName.trim(),
         guest_phone: this.newPhone.trim(),
         date: this.newDate,
         time: this.newTime.length === 5 ? `${this.newTime}:00` : this.newTime,
         party_size: Number(this.newParty) || 2
       });
+      this.guestCards.forget();
       this.newName = "";
       this.newPhone = "";
       this.newDate = "";
@@ -5901,6 +5958,8 @@ var ErpReservationsWaitlist = class extends i3 {
     this.tick = 0;
     this.newName = "";
     this.newPhone = "";
+    /** reservations#99 — the card this form last linked (a refused entry retried reuses it). */
+    this.guestCards = new GuestCards();
     this.newDate = "";
     this.newTime = "";
     /** reservations#77 — the text typed into the time field, kept apart from `newTime`. */
@@ -6004,14 +6063,24 @@ var ErpReservationsWaitlist = class extends i3 {
     this.saving = true;
     this.formError = "";
     this.pageError = "";
+    let customerId;
+    try {
+      customerId = await this.guestCards.resolve(erplora3(), { name: this.newName, phone: this.newPhone }, "walk_in");
+    } catch (e5) {
+      this.formError = erplora3().t(CATALOG3, linkErrorKey(e5));
+      this.saving = false;
+      return;
+    }
     try {
       await erplora3().command("reservations.waitlist.create", {
+        customer_id: customerId,
         guest_name: this.newName.trim(),
         guest_phone: this.newPhone.trim(),
         date: this.newDate,
         preferred_time: this.newTime.length === 5 ? `${this.newTime}:00` : this.newTime,
         party_size: Number(this.newParty) || 2
       });
+      this.guestCards.forget();
       this.newName = "";
       this.newPhone = "";
       this.newDate = "";

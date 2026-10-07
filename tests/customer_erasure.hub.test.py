@@ -331,6 +331,75 @@ def main() -> int:
         (f"Luis {mark}", "+34611111111", "birthday"),
     )
 
+    print("§4 taken at the desk (reservations#99): the form links the card, the erasure reaches it")
+    # The forms of «Nueva reserva» and «Añadir cliente» (ui/lib/link-customer.ts) resolve the card
+    # with exactly these two public doors before writing: the card that carries the number typed
+    # any way (`customers.by_phone`), or a new card (`customers.create` → `new_ids[0]`). Before #99
+    # they sent no `customer_id`, and the listener — which keys on it — never reached those rows.
+    regular = f"Marta Desk {mark}"
+    regular_phone = f"+3462{int(mark, 16) % 10_000_000:07d}"
+    regular_id = hub.new_id(
+        "customers.create", {"name": regular, "phone": regular_phone}
+    )
+    typed = f"{regular_phone[3:6]} {regular_phone[6:9]} {regular_phone[9:]}"
+    found = [r.get("id") for r in hub.query("customers.by_phone", {"phone": typed})]
+    check(
+        "§4 a regular's number typed «6xx xxx xxx» finds her card (the link the form makes)",
+        found,
+        [regular_id],
+    )
+    walk_in = f"Pepe Desk {mark}"
+    walk_in_phone = f"+3463{int(mark, 16) % 10_000_000:07d}"
+    check(
+        "§4 a new caller's number finds no card",
+        hub.query("customers.by_phone", {"phone": walk_in_phone}),
+        [],
+    )
+    walk_in_id = hub.new_id(
+        "customers.create",
+        {"name": walk_in, "phone": walk_in_phone, "source": "phone"},
+    )
+    desk = {"date": day, "party_size": 2}
+    desk_rows = []
+    for cid, who, ph, at in (
+        (regular_id, regular, typed, "19:00"),
+        (walk_in_id, walk_in, walk_in_phone, "19:30"),
+    ):
+        rid = hub.new_id(
+            "reservations.reservations.create",
+            {**desk, "customer_id": cid, "guest_name": who, "guest_phone": ph, "time": at},
+        )
+        wid = hub.new_id(
+            "reservations.waitlist.create",
+            {
+                **desk,
+                "customer_id": cid,
+                "guest_name": who,
+                "guest_phone": ph,
+                "preferred_time": at,
+            },
+        )
+        desk_rows.append((cid, who, rid, wid))
+    for cid, who, rid, wid in desk_rows:
+        check(f"§4 control armed: {who}'s desk booking holds her name", reservation(hub, rid).get("guest_name"), who)
+        hub.run("customers.anonymize", {"customer_id": cid, "reason": "GDPR request"})
+    for cid, who, rid, wid in desk_rows:
+        deadline = time.monotonic() + RELAY_DEADLINE_SECONDS
+        while reservation(hub, rid).get("guest_name") and time.monotonic() < deadline:
+            time.sleep(1)
+        row = reservation(hub, rid)
+        check(
+            f"§4 {who}'s desk reservation: name and phone are empty",
+            (row.get("guest_name"), row.get("guest_phone"), row.get("customer_id")),
+            ("", "", cid),
+        )
+        entry = waitlist_entry(hub, wid, cid)
+        check(
+            f"§4 {who}'s desk waitlist entry: name and phone are empty",
+            (entry.get("guest_name"), entry.get("guest_phone")),
+            ("", ""),
+        )
+
     print()
     if failures:
         print(f"✗ {BATTERY}: {len(failures)} failure(s):")
@@ -339,7 +408,8 @@ def main() -> int:
         return 1
     print(
         f"✓ {BATTERY}: erasing a customer from Clientes empties her name, contact, notes and reason "
-        "in the reservations and the waitlist, keeps the booking, and leaves everyone else alone"
+        "in the reservations and the waitlist (also those taken at the desk), keeps the booking, "
+        "and leaves everyone else alone"
     )
     return 0
 

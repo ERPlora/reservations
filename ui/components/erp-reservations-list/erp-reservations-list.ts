@@ -11,6 +11,7 @@ import { addDaysISO, nowWallTime, todayISO } from '../../lib/business-time';
 import { WallTimeDrafts, formatWallTime } from '../../lib/wall-time';
 import { CalendarDateDrafts } from '../../lib/calendar-date';
 import { guestLabel } from '../../lib/guest-label';
+import { GuestCards, linkErrorKey } from '../../lib/link-customer';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -229,6 +230,8 @@ export class ErpReservationsList extends LitElement {
   @state() newName = '';
 
   @state() newPhone = '';
+  /** reservations#99 — the card this form last linked (a refused booking retried reuses it). */
+  private guestCards = new GuestCards();
 
   @state() newDate = '';
 
@@ -478,14 +481,25 @@ export class ErpReservationsList extends LitElement {
     this.saving = true;
     this.formError = '';
     this.pageError = ''; // a save is the next thing the person did: an older row refusal is stale
+    let customerId: string;
+    try {
+      // reservations#99 — the booking belongs to a Clientes card, so erasing her data reaches it.
+      customerId = await this.guestCards.resolve(erplora(), { name: this.newName, phone: this.newPhone }, 'phone');
+    } catch (e) {
+      this.formError = erplora().t(CATALOG, linkErrorKey(e));
+      this.saving = false;
+      return;
+    }
     try {
       await erplora().command('reservations.reservations.create', {
+        customer_id: customerId,
         guest_name: this.newName.trim(),
         guest_phone: this.newPhone.trim(),
         date: this.newDate,
         time: this.newTime.length === 5 ? `${this.newTime}:00` : this.newTime,
         party_size: Number(this.newParty) || 2,
       });
+      this.guestCards.forget();
       this.newName = '';
       this.newPhone = '';
       this.newDate = '';

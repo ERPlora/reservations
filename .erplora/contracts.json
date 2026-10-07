@@ -3,6 +3,7 @@
   "module": "reservations",
   "consumes": {
     "queries": [
+      "customers.by_phone",
       "reservations.blocked_dates.list",
       "reservations.blocked_dates.on_date",
       "reservations.day.summary",
@@ -13,6 +14,7 @@
     ],
     "optional_queries": [],
     "commands": [
+      "customers.create",
       "reservations.blocked_dates.create",
       "reservations.blocked_dates.delete",
       "reservations.reservations.create",
